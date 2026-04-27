@@ -7,6 +7,9 @@
  *    `Mcp-Session-Id` que genera el SDK en el `initialize`. Sin esto, una
  *    rutina de Routines y una llamada manual del Command Center podrían
  *    pisarse estado mutuamente (capabilities, listas de tools, suscripciones).
+ *  - **CORS preflight**: OPTIONS responde 204 con headers CORS ANTES del auth.
+ *    Sin esto, browsers y clients JS abortan al recibir 401 al preflight,
+ *    sin llegar nunca al POST real.
  *  - **Auth en middleware** antes del dispatcher MCP: un 401/403 se resuelve
  *    sin tocar el protocolo. Allowlist de Origin = mitigación de DNS
  *    rebinding; bearer timing-safe = no revelar la longitud del secreto.
@@ -67,6 +70,27 @@ export function buildHttpApp(deps: HttpAppDeps): Express {
     legacyHeaders: false,
     keyGenerator: (req) => extractBearer(req.headers.authorization as string | undefined) || req.ip || "anon",
     message: { error: "rate_limit_exceeded" },
+  });
+
+  // CORS preflight handler. DEBE ir antes de auth: el navegador (y claude.ai)
+  // hacen OPTIONS preflight sin Authorization header; si pasa por auth recibe
+  // 401 y aborta. Aquí respondemos 204 con headers CORS si el Origin está
+  // allowlisted, y dejamos que las requests no-OPTIONS sigan al auth.
+  app.use("/mcp", (req: Request, res: Response, next: NextFunction): void => {
+    const origin = req.headers.origin as string | undefined;
+    if (origin && allowedOrigins.has(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE");
+      res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Mcp-Session-Id, Accept");
+      res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+      res.setHeader("Access-Control-Max-Age", "600");
+    }
+    if (req.method === "OPTIONS") {
+      res.status(204).end();
+      return;
+    }
+    next();
   });
 
   // Orden importa: rate-limit ANTES de auth. Así un atacante que bombardee

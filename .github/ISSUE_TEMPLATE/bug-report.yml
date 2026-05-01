@@ -1,0 +1,104 @@
+name: 🐛 Bug report
+description: Report a reproducible bug in `@alexendros/protonmail-mcp`.
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much as you can — the more concrete the repro, the faster a fix lands.
+
+        > ⚠️ **Security issue?** Do NOT use this template. Email **security@alexendros.me** instead. See [SECURITY.md](../../blob/main/SECURITY.md).
+
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: Output of `npm ls @alexendros/protonmail-mcp` or the version pinned in your manifest.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport in use
+      options:
+        - stdio (CLI / Claude Desktop config)
+        - HTTP (Streamable, claude.ai Routines / SDK)
+        - both
+        - not sure
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      description: Output of `node --version`. Minimum supported is 20.
+      placeholder: "v22.10.0"
+    validations:
+      required: true
+
+  - type: input
+    id: bridge
+    attributes:
+      label: Proton Mail Bridge version
+      description: Found in Bridge GUI → About, or via `protonmail-bridge --version` inside the container.
+      placeholder: "3.23.0"
+
+  - type: input
+    id: os
+    attributes:
+      label: OS / container runtime
+      description: e.g. "Fedora Silverblue 43 + podman 5.8", "Ubuntu 24.04 + Docker 27", "Dokploy on VPS".
+      placeholder: "Fedora 43 + podman 5.8"
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: Minimal steps that trigger the bug. Include the exact command / tool call.
+      placeholder: |
+        1. Configure Bridge with these env vars (no secrets pasted): ...
+        2. Start MCP via `node dist/index.js` (or HTTP on port 3000)
+        3. Call tool `proton_search_emails` with payload `{ "query": "..." }`
+        4. Observe error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the full error message + stack trace if available. Redact secrets, tokens, and personal email addresses.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: stderr output of the MCP server. Wrap in triple backticks.
+      render: shell
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submit checklist
+      options:
+        - label: I confirmed the bug is in `@alexendros/protonmail-mcp`, not in Proton Mail Bridge or the MCP client.
+          required: true
+        - label: I redacted any secrets, tokens, and personal email addresses from logs and code samples.
+          required: true
+        - label: I searched [open and closed issues](../../issues?q=is%3Aissue) and did not find a duplicate.
+          required: true

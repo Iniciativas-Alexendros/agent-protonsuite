@@ -1,14 +1,37 @@
 {
-  "name": "proton-mail-mcp",
+  "name": "@alexendros/protonmail-mcp",
   "version": "0.1.0",
   "description": "MCP server for Proton Mail via Proton Mail Bridge (IMAP/SMTP). Dual transport: stdio + streamable HTTP.",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "proton-mail-mcp": "./dist/index.js"
+    "protonmail-mcp": "dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Alexendros/ProtonMail-MCP.git"
+  },
+  "homepage": "https://github.com/Alexendros/ProtonMail-MCP#readme",
+  "bugs": {
+    "url": "https://github.com/Alexendros/ProtonMail-MCP/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "proton-mail",
+    "proton-bridge",
+    "imap",
+    "smtp",
+    "anthropic",
+    "claude"
   ],
   "scripts": {
     "build": "tsc",

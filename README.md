@@ -1,8 +1,8 @@
 # Proton Mail MCP
 
 [![npm version](https://img.shields.io/npm/v/@alexendros/proton-mail-mcp.svg)](https://www.npmjs.com/package/@alexendros/proton-mail-mcp)
-[![CI](https://github.com/alexendros/proton-mail-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/alexendros/proton-mail-mcp/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/alexendros/proton-mail-mcp/actions/workflows/codeql.yml/badge.svg)](https://github.com/alexendros/proton-mail-mcp/actions/workflows/codeql.yml)
+[![CI](https://github.com/Alexendros/proton-mail-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Alexendros/proton-mail-mcp/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Alexendros/proton-mail-mcp/actions/workflows/codeql.yml/badge.svg)](https://github.com/Alexendros/proton-mail-mcp/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)](./package.json)
 [![MCP SDK](https://img.shields.io/badge/%40modelcontextprotocol%2Fsdk-%5E1.19-blue.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
@@ -187,7 +187,7 @@ Para ahorrarte esa dependencia, este repo incluye también un **cliente fetch de
 Prerrequisitos: **Node ≥ 20**, **Proton Mail Bridge** corriendo en el workstation (GUI o distrobox), y el *bridge password* a mano (no es tu password Proton — lo muestra Bridge en **Account → Mailbox password**).
 
 ```bash
-git clone https://github.com/alexendros/proton-mail-mcp.git
+git clone https://github.com/Alexendros/proton-mail-mcp.git
 cd proton-mail-mcp
 npm install
 npm run build

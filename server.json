@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.alexendros/proton-mail-mcp",
-  "description": "MCP server for Proton Mail via Proton Mail Bridge (IMAP/SMTP). Dual transport: stdio + streamable HTTP. 13 tools (search, read, send, flag, move, delete, attachments, folders).",
+  "description": "Proton Mail MCP via Bridge (IMAP/SMTP) · 13 tools · dual transport stdio + HTTP.",
   "repository": {
     "url": "https://github.com/Alexendros/proton-mail-mcp",
     "source": "github"

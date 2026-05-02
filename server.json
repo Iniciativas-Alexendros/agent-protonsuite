@@ -1,0 +1,57 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.alexendros/proton-mail-mcp",
+  "description": "MCP server for Proton Mail via Proton Mail Bridge (IMAP/SMTP). Dual transport: stdio + streamable HTTP. 13 tools (search, read, send, flag, move, delete, attachments, folders).",
+  "repository": {
+    "url": "https://github.com/Alexendros/proton-mail-mcp",
+    "source": "github"
+  },
+  "version": "0.1.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@alexendros/proton-mail-mcp",
+      "version": "0.1.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "PROTON_BRIDGE_HOST",
+          "description": "Hostname or IP of the Proton Mail Bridge (default: 127.0.0.1 for local, or container hostname in compose).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "PROTON_IMAP_PORT",
+          "description": "IMAP port exposed by Proton Mail Bridge (default: 1143).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "PROTON_SMTP_PORT",
+          "description": "SMTP port exposed by Proton Mail Bridge (default: 1025).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "PROTON_USERNAME",
+          "description": "Bridge username (your Proton Mail address).",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "PROTON_PASSWORD",
+          "description": "Bridge-generated app password (NOT your Proton account password).",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

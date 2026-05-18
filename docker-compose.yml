@@ -1,15 +1,21 @@
 # Dokploy docker-compose para protonmail-mcp en HTTP mode.
 #
 # Este stack arranca:
-#   - bridge: Proton Mail Bridge headless (imagen community `shenxn/protonmail-bridge`)
-#             con vault persistido en volumen
-#   - mcp:    el MCP server en modo HTTP, hablando con bridge por red interna
+#   - proton-bridge: Proton Mail Bridge headless (imagen community
+#                    `shenxn/protonmail-bridge`) con vault persistido en volumen.
+#   - mcp:           el MCP server en modo HTTP, hablando con proton-bridge
+#                    por la red interna `proton-net`.
+#
+# El servicio se llama `proton-bridge` (no `bridge`) para evitar colisión con
+# otros stacks Dokploy compartiendo `dokploy-network` que pudieran tener un
+# servicio homónimo — Docker embedded DNS resolvería contra cualquiera y la
+# conexión a IMAP/SMTP falla con ECONNREFUSED a una IP arbitraria.
 #
 # IMPORTANTE: el primer arranque requiere login one-off interactivo en bridge-cli:
 #   ssh dokploy
 #   cd /etc/dokploy/compose/<app>/code
-#   docker compose up -d bridge
-#   docker compose run --rm --entrypoint="" bridge /protonmail/proton-bridge --cli
+#   docker compose up -d proton-bridge
+#   docker compose run --rm --entrypoint="" proton-bridge /protonmail/proton-bridge --cli
 #   Dentro: login → 2FA → info (copiar "Bridge password") → exit
 #   Pegar el bridge password en PROTON_BRIDGE_PASS (env del compose en Dokploy)
 #
@@ -21,7 +27,7 @@
 # labels Traefik manualmente — Dokploy los inyecta durante el deploy.
 
 services:
-  bridge:
+  proton-bridge:
     build:
       context: .
       dockerfile: Dockerfile.bridge
@@ -47,10 +53,10 @@ services:
     build: .
     restart: unless-stopped
     depends_on:
-      bridge:
+      proton-bridge:
         condition: service_healthy
     environment:
-      PROTON_BRIDGE_HOST: bridge
+      PROTON_BRIDGE_HOST: proton-bridge
       PROTON_BRIDGE_IMAP_PORT: 1143
       PROTON_BRIDGE_SMTP_PORT: 1025
       PROTON_BRIDGE_USER: ${PROTON_BRIDGE_USER}

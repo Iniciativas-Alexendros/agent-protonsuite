@@ -148,7 +148,7 @@ export function buildHttpApp(deps: HttpAppDeps): Express {
   // y el healthcheck de Docker. Expone el número de sesiones como métrica
   // barata para detectar fugas o cargas anómalas.
   app.get("/healthz", (_req: Request, res: Response) => {
-    res.json({ ok: true, version: "0.1.0", sessions: sessions.size });
+    res.json({ ok: true, version: "0.2.0", sessions: sessions.size });
   });
 
   // Eviction de sesiones idle. `setInterval().unref()` permite al proceso

@@ -51,8 +51,11 @@ services:
         condition: service_healthy
     environment:
       PROTON_BRIDGE_HOST: bridge
-      PROTON_BRIDGE_IMAP_PORT: 1143
-      PROTON_BRIDGE_SMTP_PORT: 1025
+      # 143/25 son los puertos externos del entrypoint de shenxn/protonmail-bridge
+      # (socat los reenvía a 127.0.0.1:1143/1025 donde escucha el daemon).
+      # 143 sirve IMAP plain + STARTTLS; 25 sirve SMTP plain + STARTTLS.
+      PROTON_BRIDGE_IMAP_PORT: 143
+      PROTON_BRIDGE_SMTP_PORT: 25
       PROTON_BRIDGE_USER: ${PROTON_BRIDGE_USER}
       PROTON_BRIDGE_PASS: ${PROTON_BRIDGE_PASS}
       PROTON_MAIL_FROM: ${PROTON_MAIL_FROM}

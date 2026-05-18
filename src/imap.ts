@@ -71,11 +71,14 @@ export class ImapClient {
     return {
       host: this.cfg.host,
       port: this.cfg.imapPort,
-      // Bridge presenta TLS directo (sin STARTTLS) en 1143.
-      secure: true,
+      // Bridge anuncia STARTTLS en su CAPABILITY (verificado 2026-05-18
+      // contra shenxn/protonmail-bridge 3.24.x): la conexión arranca plain
+      // e ImapFlow promueve automáticamente a TLS cuando el servidor anuncia
+      // STARTTLS. Paridad con src/smtp.ts:50.
+      secure: false,
       // `rejectUnauthorized: false` necesario cuando Bridge usa cert
-      // autofirmado en 127.0.0.1. En producción estricta se puede pinear
-      // la CA de Bridge vía `PROTON_BRIDGE_CA_PATH` (roadmap).
+      // autofirmado. En producción estricta se puede pinear la CA de
+      // Bridge vía `PROTON_BRIDGE_CA_PATH` (roadmap).
       tls: { rejectUnauthorized: !this.cfg.tlsInsecure },
       auth: { user: this.cfg.user, pass: this.cfg.pass },
       // Silenciamos el logger de imapflow (pino) para que no compita con

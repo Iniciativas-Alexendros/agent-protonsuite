@@ -76,13 +76,23 @@ services:
       MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN}
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-    expose:
-      - "8787"
+    # Se mantiene el bind en 127.0.0.1:8787 (idéntico al stack directo) para que
+    # el Cloudflare Tunnel existente (ingress -> localhost:8787) siga válido sin
+    # repunte de DNS/túnel. Coolify gestiona el stack (deploy/logs/env/restart)
+    # igualmente; no se usa Traefik/FQDN para este recurso.
+    ports:
+      - "127.0.0.1:8787:8787"
     networks:
       - proton-net
 
 volumes:
+  # Vault del bridge: volumen EXTERNO ya autenticado del stack directo del MiniPC
+  # (proyecto `protonmail`). Reutilizarlo evita el re-login 2FA. Coolify NO lo
+  # gestiona ni lo borra. Requiere que el stack directo esté DETENIDO antes del
+  # deploy (un solo proceso puede tener el vault en RW).
   bridge-data:
+    external: true
+    name: protonmail_bridge-data
 
 networks:
   proton-net:

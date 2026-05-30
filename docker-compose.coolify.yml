@@ -1,0 +1,99 @@
+# Coolify docker-compose para protonmail-mcp en HTTP mode.
+#
+# Variante del docker-compose.yml (Dokploy) adaptada al control plane Coolify
+# del MiniPC. Diferencias respecto a la versión Dokploy:
+#   - SIN red externa `dokploy-network`: en Coolify esa red no existe (su red de
+#     proxy es `coolify`). Coolify conecta el servicio con FQDN a su propio
+#     Traefik automáticamente e inyecta las labels; NO se declaran a mano.
+#   - `proton-net` (interna bridge<->mcp) se mantiene.
+#
+# Arranca:
+#   - proton-bridge: Proton Mail Bridge headless (imagen community
+#                    `shenxn/protonmail-bridge`) con vault persistido en volumen.
+#   - mcp:           el MCP server en modo HTTP, hablando con proton-bridge por
+#                    la red interna `proton-net`.
+#
+# El servicio se llama `proton-bridge` (no `bridge`) para evitar colisión de DNS
+# embebido de Docker con otros stacks que compartan red y tengan un servicio
+# homónimo (resolvería contra cualquiera y la conexión IMAP/SMTP fallaría con
+# ECONNREFUSED contra una IP arbitraria).
+#
+# VAULT DEL BRIDGE (decisión de despliegue, NO se resuelve en este fichero):
+#   - El volumen `bridge-data` guarda el vault autenticado. Para evitar el
+#     re-login 2FA en el cutover, hay que REUTILIZAR el volumen ya autenticado
+#     del stack directo del MiniPC (pre-sembrar el volumen que crea Coolify, o
+#     declararlo `external` con su nombre real). Si se crea limpio, el primer
+#     arranque exige login one-off interactivo (login -> 2FA -> "Bridge password"
+#     -> pegar en la env PROTON_BRIDGE_PASS del recurso en Coolify).
+#
+# Routing: el FQDN (p.ej. protonmail.alexendros.cloud) lo gestiona Coolify
+# (FQDN del recurso + ports_exposes=8787). Este compose NO declara labels Traefik.
+
+services:
+  proton-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.bridge
+    image: protonmail-mcp-bridge:latest
+    restart: unless-stopped
+    volumes:
+      - bridge-data:/root
+    expose:
+      - "1143"
+      - "1025"
+    networks:
+      - proton-net
+    healthcheck:
+      # nc no está en la imagen base shenxn/protonmail-bridge.
+      # bash con /dev/tcp es portable y no requiere binarios extra.
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/1143' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mcp:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      proton-bridge:
+        condition: service_healthy
+    environment:
+      PROTON_BRIDGE_HOST: proton-bridge
+      # 143/25 son los puertos externos del entrypoint de shenxn/protonmail-bridge
+      # (socat los reenvía a 127.0.0.1:1143/1025 donde escucha el daemon).
+      # 143 sirve IMAP plain + STARTTLS; 25 sirve SMTP plain + STARTTLS.
+      PROTON_BRIDGE_IMAP_PORT: 143
+      PROTON_BRIDGE_SMTP_PORT: 25
+      PROTON_BRIDGE_USER: ${PROTON_BRIDGE_USER}
+      PROTON_BRIDGE_PASS: ${PROTON_BRIDGE_PASS}
+      PROTON_MAIL_FROM: ${PROTON_MAIL_FROM}
+      PROTON_BRIDGE_TLS_INSECURE: "true"
+      NODE_ENV: production
+      MCP_TRANSPORT: http
+      MCP_HTTP_HOST: 0.0.0.0
+      MCP_HTTP_PORT: 8787
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN}
+      MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    # Se mantiene el bind en 127.0.0.1:8787 (idéntico al stack directo) para que
+    # el Cloudflare Tunnel existente (ingress -> localhost:8787) siga válido sin
+    # repunte de DNS/túnel. Coolify gestiona el stack (deploy/logs/env/restart)
+    # igualmente; no se usa Traefik/FQDN para este recurso.
+    ports:
+      - "127.0.0.1:8787:8787"
+    networks:
+      - proton-net
+
+volumes:
+  # Vault del bridge: volumen EXTERNO ya autenticado del stack directo del MiniPC
+  # (proyecto `protonmail`). Reutilizarlo evita el re-login 2FA. Coolify NO lo
+  # gestiona ni lo borra. Requiere que el stack directo esté DETENIDO antes del
+  # deploy (un solo proceso puede tener el vault en RW).
+  bridge-data:
+    external: true
+    name: protonmail_bridge-data
+
+networks:
+  proton-net:
+    driver: bridge

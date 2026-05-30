@@ -12,10 +12,46 @@ permissions:
   packages: write
 
 jobs:
+  # ────────────────────────────────────────────────────────────────────
+  # Gate semver previo · solo aplica a tags. En push a main pasa-through.
+  # Lib en plantillas (Pipelines 2026-05).
+  # ────────────────────────────────────────────────────────────────────
+  gate-semver:
+    name: Validar SemVer (tags)
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: Alexendros/plantillas/.github/workflows/_lib-gate-semver.yml@main
+    with:
+      ref: ${{ github.ref_name }}
+      require-stable: false
+
+  # ────────────────────────────────────────────────────────────────────
+  # Verificación ligera previa al push (defensa en profundidad).
+  # Solo en push a main; en tags ya se asume que main pasó CI.
+  # ────────────────────────────────────────────────────────────────────
+  verify-light:
+    name: Verify (Node 22 · pre-publish)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
   publish:
     name: Build & push to GHCR
-    runs-on: [self-hosted, heavy]
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    needs: [gate-semver, verify-light]
+    if: |
+      always() &&
+      (needs.gate-semver.result == 'success' || needs.gate-semver.result == 'skipped') &&
+      (needs.verify-light.result == 'success' || needs.verify-light.result == 'skipped') &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -36,11 +72,12 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || needs.gate-semver.outputs.is-stable == 'true' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Build & push
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -59,3 +96,18 @@ jobs:
           if [ -n "$WEBHOOK_URL" ]; then
             curl -fsSL -X POST "$WEBHOOK_URL" || echo "webhook ping failed (non-fatal)"
           fi
+
+      - name: Job summary
+        if: always()
+        uses: Alexendros/plantillas/.github/actions/job-summary@main
+        with:
+          title: "Release · ${{ github.ref_name }}"
+          status: ${{ job.status }}
+          items: |
+            trigger=info=${{ github.event_name }} · ${{ github.ref }}
+            verify-light=${{ needs.verify-light.result == 'success' && 'ok' || (needs.verify-light.result == 'skipped' && 'info' || 'fail') }}=${{ needs.verify-light.result }}
+            semver-gate=${{ needs.gate-semver.result == 'success' && 'ok' || (needs.gate-semver.result == 'skipped' && 'info' || 'fail') }}=${{ needs.gate-semver.result }} (stable=${{ needs.gate-semver.outputs.is-stable }})
+            docker=${{ steps.build.outcome == 'success' && 'ok' || 'fail' }}=push=true
+          notes: |
+            Registry: ghcr.io/${{ github.repository }}.
+            `latest` se actualiza en push a main O tag estable (no pre-release).

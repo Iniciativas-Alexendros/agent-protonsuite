@@ -36,7 +36,7 @@ type Logger = ReturnType<typeof import("./config.js").createLogger>;
 const mailboxSchema = z.object({
   path: z.string(),
   name: z.string(),
-  specialUse: z.string().nullable(),
+  specialUse: z.string().nullish(),
   flags: z.array(z.string()),
   delimiter: z.string().nullable().optional(),
   subscribed: z.boolean().optional(),

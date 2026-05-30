@@ -68,6 +68,6 @@ jobs:
         with:
           context: .
           push: false
-          tags: proton-mail-mcp:ci
+          tags: protonmail-mcp:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max

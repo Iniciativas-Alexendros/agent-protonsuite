@@ -1,8 +1,8 @@
 # Proton Mail MCP
 
-[![npm version](https://img.shields.io/npm/v/@alexendros/proton-mail-mcp.svg)](https://www.npmjs.com/package/@alexendros/proton-mail-mcp)
-[![CI](https://github.com/Alexendros/proton-mail-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Alexendros/proton-mail-mcp/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/Alexendros/proton-mail-mcp/actions/workflows/codeql.yml/badge.svg)](https://github.com/Alexendros/proton-mail-mcp/actions/workflows/codeql.yml)
+[![npm version](https://img.shields.io/npm/v/@alexendros/protonmail-mcp.svg)](https://www.npmjs.com/package/@alexendros/protonmail-mcp)
+[![CI](https://github.com/Iniciativas-Alexendros/protonmail-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/protonmail-mcp/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Iniciativas-Alexendros/protonmail-mcp/actions/workflows/codeql.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/protonmail-mcp/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)](./package.json)
 [![MCP SDK](https://img.shields.io/badge/%40modelcontextprotocol%2Fsdk-%5E1.19-blue.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
@@ -41,7 +41,7 @@ Este repositorio también sirve como **muestra pública de craft**: tests automa
 | Imagen Docker multi-stage para el MCP | construye |
 | Imagen extendida `Dockerfile.bridge` (libfido2, dbus, pass, libGL, credential helpers) | construye |
 | CI GitHub Actions (matrix Node 20/22, typecheck, test, build, smoke, `npm audit`, CodeQL) | configurado |
-| Release workflow a `ghcr.io/alexendros/proton-mail-mcp` en push a `main` | configurado |
+| Release workflow a `ghcr.io/iniciativas-alexendros/protonmail-mcp` en push a `main` | configurado |
 | Despliegue Dokploy en `https://protonmail.alexendros.me/mcp` | en progreso |
 
 ---
@@ -60,7 +60,7 @@ Este repositorio también sirve como **muestra pública de craft**: tests automa
           │                         │ + Origin allowlist    │
           ▼                         ▼                       ▼
     ┌──────────────────────────────────────────────────────────────┐
-    │                      proton-mail-mcp                         │
+    │                      protonmail-mcp                          │
     │     TypeScript · @modelcontextprotocol/sdk@^1.19             │
     │     Dual transport · Per-session StreamableHTTP              │
     │     Bearer timing-safe · Rate-limit 120/min/token            │
@@ -141,7 +141,7 @@ claude mcp add --transport stdio proton-mail --scope user \
   --env PROTON_MAIL_FROM=tu@proton.me \
   --env PROTON_BRIDGE_TLS_INSECURE=true \
   --env MCP_TRANSPORT=stdio \
-  -- node /ruta/absoluta/a/proton-mail-mcp/dist/index.js
+  -- node /ruta/absoluta/a/protonmail-mcp/dist/index.js
 ```
 
 Dentro de cualquier sesión de Claude Code, el comando `/mcp` muestra `proton-mail: connected` y las 13 tools. A partir de ahí, lenguaje natural: *"resume mis correos no leídos de la última semana por tema"*.
@@ -187,8 +187,8 @@ Para ahorrarte esa dependencia, este repo incluye también un **cliente fetch de
 Prerrequisitos: **Node ≥ 20**, **Proton Mail Bridge** corriendo en el workstation (GUI o distrobox), y el *bridge password* a mano (no es tu password Proton — lo muestra Bridge en **Account → Mailbox password**).
 
 ```bash
-git clone https://github.com/Alexendros/proton-mail-mcp.git
-cd proton-mail-mcp
+git clone https://github.com/Iniciativas-Alexendros/protonmail-mcp.git
+cd protonmail-mcp
 npm install
 npm run build
 npm test        # 39 tests verdes
@@ -247,7 +247,7 @@ La primera vez hay que iniciar sesión interactivamente en Bridge (TTY):
 ssh tu-vps
 docker run --rm -it \
   -v <volumen-bridge-data>:/root \
-  --entrypoint /bin/bash proton-mail-mcp-bridge:latest \
+  --entrypoint /bin/bash protonmail-mcp-bridge:latest \
   -c "/protonmail/proton-bridge --cli"
 # dentro:
 >>> login      # username/pass/2FA
@@ -353,7 +353,7 @@ npm run smoke        # initialize + tools/list stdio
 2. `audit`: `npm audit --audit-level=high`
 3. `docker-build`: construye la imagen sin push (smoke)
 4. `codeql`: análisis SAST JavaScript/TypeScript en push a main y semanal
-5. `release` (en push a main): docker build + push a `ghcr.io/alexendros/proton-mail-mcp:{sha,latest}`
+5. `release` (en push a main): docker build + push a `ghcr.io/iniciativas-alexendros/protonmail-mcp:{sha,latest}`
 
 ---
 
@@ -444,3 +444,9 @@ Si necesitas algo parecido para tu caso, cuéntamelo: `contacto [at] alexendros 
 ## Licencia
 
 [MIT](./LICENSE) — úsalo, fórkalo, véndelo. Sin garantía.
+
+---
+
+## Marcas comerciales
+
+**Este proyecto no está afiliado a Proton AG ni respaldado por ella.** "Proton Mail" y "Proton Mail Bridge" son marcas registradas de Proton AG. Este repositorio es un cliente de terceros que habla con Bridge a través de protocolos abiertos estándar (IMAP/SMTP). El uso de "Proton Mail" en este README es estrictamente descriptivo del producto al que este software se conecta.

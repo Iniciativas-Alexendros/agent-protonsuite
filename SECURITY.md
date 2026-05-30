@@ -1,8 +1,8 @@
-# Security policy — proton-mail-mcp
+# Security policy — protonmail-mcp
 
 ## Supported versions
 
-Only the `main` branch and the latest Docker image tag (`ghcr.io/alexendros/proton-mail-mcp:latest`) receive security fixes.
+Only the `main` branch and the latest Docker image tag (`ghcr.io/iniciativas-alexendros/protonmail-mcp:latest`) receive security fixes.
 
 ## Reporting a vulnerability
 

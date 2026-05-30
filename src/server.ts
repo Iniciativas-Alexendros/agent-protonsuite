@@ -36,7 +36,7 @@ type Logger = ReturnType<typeof import("./config.js").createLogger>;
 const mailboxSchema = z.object({
   path: z.string(),
   name: z.string(),
-  specialUse: z.string().nullable(),
+  specialUse: z.string().nullish(),
   flags: z.array(z.string()),
   delimiter: z.string().nullable().optional(),
   subscribed: z.boolean().optional(),
@@ -113,7 +113,7 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
   const smtp = new SmtpClient(cfg.bridge, log);
 
   const server = new McpServer(
-    { name: "proton-mail-mcp", version: "0.1.0" },
+    { name: "protonmail-mcp", version: "0.2.0" },
     {
       instructions:
         "Proton Mail via Proton Mail Bridge. Before any operation, call proton_list_folders to see available mailboxes. Use UIDs (not sequence numbers) when modifying messages. Bridge must be running and reachable at the configured host.",

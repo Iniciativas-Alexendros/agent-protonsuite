@@ -1,5 +1,5 @@
 name: 💡 Feature request
-description: Suggest a new tool, transport, or capability for `@alexendros/proton-mail-mcp`.
+description: Suggest a new tool, transport, or capability for `@alexendros/protonmail-mcp`.
 title: "[feat] "
 labels: ["enhancement", "triage"]
 body:

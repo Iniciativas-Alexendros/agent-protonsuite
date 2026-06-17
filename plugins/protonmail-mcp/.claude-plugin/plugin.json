@@ -1,6 +1,6 @@
 {
   "name": "protonmail-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Proton Mail MCP server (13 tools via Bridge IMAP/SMTP) + email triage skill for Claude Code.",
   "author": {
     "name": "Alexendros"
@@ -13,6 +13,14 @@
       "type": "string",
       "title": "Proton address (Bridge user)",
       "description": "Your Proton Mail address used to authenticate against Proton Bridge (IMAP/SMTP). Example: you@proton.me",
+      "default": "",
+      "required": true
+    },
+    "PROTON_BRIDGE_PASS": {
+      "type": "string",
+      "sensitive": true,
+      "title": "Bridge app-password",
+      "description": "Bridge-generated app password (NOT your Proton account password). Obtain it with `protonmail-bridge-core --cli` then `info`. Stored as a secret — never your real account password.",
       "default": "",
       "required": true
     },

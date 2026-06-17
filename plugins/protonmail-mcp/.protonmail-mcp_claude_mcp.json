@@ -6,6 +6,7 @@
       "env": {
         "MCP_TRANSPORT": "stdio",
         "PROTON_BRIDGE_USER": "${user_config.PROTON_BRIDGE_USER}",
+        "PROTON_BRIDGE_PASS": "${user_config.PROTON_BRIDGE_PASS}",
         "PROTON_MAIL_FROM": "${user_config.PROTON_MAIL_FROM}",
         "PROTON_BRIDGE_HOST": "${user_config.PROTON_BRIDGE_HOST}",
         "PROTON_BRIDGE_IMAP_PORT": "${user_config.PROTON_BRIDGE_IMAP_PORT}",

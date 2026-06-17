@@ -108,12 +108,15 @@ const attachmentSchema = {
   base64: z.string(),
 };
 
-export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap: ImapClient; smtp: SmtpClient } {
+export function buildServer(
+  cfg: Config,
+  log: Logger,
+): { server: McpServer; imap: ImapClient; smtp: SmtpClient } {
   const imap = new ImapClient(cfg.bridge, log);
   const smtp = new SmtpClient(cfg.bridge, log);
 
   const server = new McpServer(
-    { name: "protonmail-mcp", version: "0.2.0" },
+    { name: "protonmail-mcp", version: "0.3.0" },
     {
       instructions:
         "Proton Mail via Proton Mail Bridge. Before any operation, call proton_list_folders to see available mailboxes. Use UIDs (not sequence numbers) when modifying messages. Bridge must be running and reachable at the configured host.",
@@ -130,23 +133,39 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
       description:
         "Lists every IMAP mailbox exposed by Proton Bridge (system folders like INBOX/Sent/Trash and user labels/folders). Use the returned 'path' values as the mailbox argument in other tools. Call this first when the agent doesn't know the mailbox layout.",
       inputSchema: {
-        response_format: z.enum(["markdown", "json"]).default("markdown").describe("Output format"),
+        response_format: z
+          .enum(["markdown", "json"])
+          .default("markdown")
+          .describe("Output format"),
       },
       outputSchema: folderListSchema,
-      annotations: { readOnlyHint: true, openWorldHint: true, idempotentHint: true },
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: true,
+        idempotentHint: true,
+      },
     },
     async ({ response_format }) => {
       const mbs = await imap.listMailboxes();
       const structured = { folders: mbs };
       if (response_format === "json") {
-        return { content: [{ type: "text", text: JSON.stringify(mbs, null, 2) }], structuredContent: structured };
+        return {
+          content: [{ type: "text", text: JSON.stringify(mbs, null, 2) }],
+          structuredContent: structured,
+        };
       }
       const lines = [
         "| Path | Name | Special-use | Flags |",
         "|---|---|---|---|",
-        ...mbs.map((m) => `| \`${m.path}\` | ${m.name} | ${m.specialUse ?? "—"} | ${m.flags.join(", ") || "—"} |`),
+        ...mbs.map(
+          (m) =>
+            `| \`${m.path}\` | ${m.name} | ${m.specialUse ?? "—"} | ${m.flags.join(", ") || "—"} |`,
+        ),
       ];
-      return { content: [{ type: "text", text: lines.join("\n") }], structuredContent: structured };
+      return {
+        content: [{ type: "text", text: lines.join("\n") }],
+        structuredContent: structured,
+      };
     },
   );
 
@@ -154,13 +173,25 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
     "proton_create_folder",
     {
       title: "Create a mailbox (folder)",
-      description: "Creates a new IMAP mailbox under the given path (e.g. 'Projects/Afiladocs').",
-      inputSchema: { path: z.string().min(1).describe("Mailbox path to create") },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      description:
+        "Creates a new IMAP mailbox under the given path (e.g. 'Projects/Afiladocs').",
+      inputSchema: {
+        path: z.string().min(1).describe("Mailbox path to create"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ path }) => {
       const res = await imap.createMailbox(path);
-      return { content: [{ type: "text", text: `Created ${res.path} (new=${res.created}).` }] };
+      return {
+        content: [
+          { type: "text", text: `Created ${res.path} (new=${res.created}).` },
+        ],
+      };
     },
   );
 
@@ -168,10 +199,20 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
     "proton_mailbox_status",
     {
       title: "Get mailbox counts",
-      description: "Returns total messages, unseen/unread count and recent count for a mailbox. Fast — useful for Routines to check 'do I have unread mail?'.",
-      inputSchema: { mailbox: z.string().default("INBOX").describe("Mailbox path, e.g. INBOX") },
+      description:
+        "Returns total messages, unseen/unread count and recent count for a mailbox. Fast — useful for Routines to check 'do I have unread mail?'.",
+      inputSchema: {
+        mailbox: z
+          .string()
+          .default("INBOX")
+          .describe("Mailbox path, e.g. INBOX"),
+      },
       outputSchema: mailboxStatusSchema,
-      annotations: { readOnlyHint: true, openWorldHint: true, idempotentHint: true },
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: true,
+        idempotentHint: true,
+      },
     },
     async ({ mailbox }) => {
       const s = await imap.mailboxStatus(mailbox);
@@ -182,7 +223,13 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
             text: `**${mailbox}** — total: ${s.messages}, unseen: ${s.unseen}, recent: ${s.recent}${s.uidNext ? `, uidNext: ${s.uidNext}` : ""}`,
           },
         ],
-        structuredContent: { mailbox, messages: s.messages, unseen: s.unseen, recent: s.recent, ...(s.uidNext ? { uidNext: s.uidNext } : {}) },
+        structuredContent: {
+          mailbox,
+          messages: s.messages,
+          unseen: s.unseen,
+          recent: s.recent,
+          ...(s.uidNext ? { uidNext: s.uidNext } : {}),
+        },
       };
     },
   );
@@ -203,7 +250,11 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
         response_format: z.enum(["markdown", "json"]).default("markdown"),
       },
       outputSchema: emailListSchema,
-      annotations: { readOnlyHint: true, openWorldHint: true, idempotentHint: true },
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: true,
+        idempotentHint: true,
+      },
     },
     async ({ mailbox, limit, offset, response_format }) => {
       const { items, total } = await imap.listEmails(mailbox, limit, offset);
@@ -217,9 +268,22 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
         items,
       };
       if (response_format === "json") {
-        return { content: [{ type: "text", text: JSON.stringify(structured, null, 2) }], structuredContent: structured };
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(structured, null, 2) },
+          ],
+          structuredContent: structured,
+        };
       }
-      return { content: [{ type: "text", text: renderEmailList(items, mailbox, total, offset) }], structuredContent: structured };
+      return {
+        content: [
+          {
+            type: "text",
+            text: renderEmailList(items, mailbox, total, offset),
+          },
+        ],
+        structuredContent: structured,
+      };
     },
   );
 
@@ -236,16 +300,35 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
           .array(z.enum(["text", "subject", "from", "to", "body"]))
           .default(["text"])
           .describe("Which fields to search. 'text' = anywhere."),
-        since: z.string().optional().describe("ISO date — only messages on/after this date"),
-        before: z.string().optional().describe("ISO date — only messages before this date"),
-        unseen_only: z.boolean().default(false).describe("Only return unread messages"),
-        from_address: z.string().optional().describe("Restrict to messages from this address"),
-        to_address: z.string().optional().describe("Restrict to messages to this address"),
+        since: z
+          .string()
+          .optional()
+          .describe("ISO date — only messages on/after this date"),
+        before: z
+          .string()
+          .optional()
+          .describe("ISO date — only messages before this date"),
+        unseen_only: z
+          .boolean()
+          .default(false)
+          .describe("Only return unread messages"),
+        from_address: z
+          .string()
+          .optional()
+          .describe("Restrict to messages from this address"),
+        to_address: z
+          .string()
+          .optional()
+          .describe("Restrict to messages to this address"),
         limit: z.number().int().min(1).max(100).default(25),
         response_format: z.enum(["markdown", "json"]).default("markdown"),
       },
       outputSchema: emailSearchSchema,
-      annotations: { readOnlyHint: true, openWorldHint: true, idempotentHint: true },
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: true,
+        idempotentHint: true,
+      },
     },
     async (args) => {
       // IMAP SEARCH no soporta OR nativo entre campos de forma portable, por
@@ -269,17 +352,32 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
           if (f === "body") criteria.body = args.query;
         }
       }
-      const { items, matched } = await imap.searchEmails(args.mailbox, criteria, args.limit);
-      const structured = { mailbox: args.mailbox, matched, count: items.length, has_more: matched > items.length, items };
+      const { items, matched } = await imap.searchEmails(
+        args.mailbox,
+        criteria,
+        args.limit,
+      );
+      const structured = {
+        mailbox: args.mailbox,
+        matched,
+        count: items.length,
+        has_more: matched > items.length,
+        items,
+      };
       if (args.response_format === "json") {
         return {
-          content: [{ type: "text", text: JSON.stringify(structured, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(structured, null, 2) },
+          ],
           structuredContent: structured,
         };
       }
       return {
         content: [
-          { type: "text", text: `Matched ${matched} message(s), showing ${items.length}.\n\n${renderEmailList(items, args.mailbox, matched, 0)}` },
+          {
+            type: "text",
+            text: `Matched ${matched} message(s), showing ${items.length}.\n\n${renderEmailList(items, args.mailbox, matched, 0)}`,
+          },
         ],
         structuredContent: structured,
       };
@@ -297,21 +395,43 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
         "Fetches one email by UID, with headers, text/html body and attachment metadata. Use proton_get_attachment to download attachment bytes. Large HTML bodies are returned as-is — truncate client-side if needed. To mark as read, call proton_flag_email separately (keeps this tool purely read-only).",
       inputSchema: {
         mailbox: z.string().default("INBOX"),
-        uid: z.number().int().positive().describe("Message UID (from list/search)"),
-        include_html: z.boolean().default(false).describe("Include HTML body in addition to text"),
+        uid: z
+          .number()
+          .int()
+          .positive()
+          .describe("Message UID (from list/search)"),
+        include_html: z
+          .boolean()
+          .default(false)
+          .describe("Include HTML body in addition to text"),
         response_format: z.enum(["markdown", "json"]).default("markdown"),
       },
       outputSchema: emailFullSchema,
-      annotations: { readOnlyHint: true, openWorldHint: true, idempotentHint: true },
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: true,
+        idempotentHint: true,
+      },
     },
     async ({ mailbox, uid, include_html, response_format }) => {
       const msg = await imap.getEmail(mailbox, uid);
       if (!msg) {
-        return { isError: true, content: [{ type: "text", text: `No message with UID ${uid} in ${mailbox}.` }] };
+        return {
+          isError: true,
+          content: [
+            { type: "text", text: `No message with UID ${uid} in ${mailbox}.` },
+          ],
+        };
       }
       const out = include_html ? msg : { ...msg, htmlBody: undefined };
-      const text = response_format === "json" ? JSON.stringify(out, null, 2) : renderFullEmail(out);
-      return { content: [{ type: "text", text }], structuredContent: out as unknown as Record<string, unknown> };
+      const text =
+        response_format === "json"
+          ? JSON.stringify(out, null, 2)
+          : renderFullEmail(out);
+      return {
+        content: [{ type: "text", text }],
+        structuredContent: out as unknown as Record<string, unknown>,
+      };
     },
   );
 
@@ -319,26 +439,45 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
     "proton_get_attachment",
     {
       title: "Download an attachment",
-      description: "Returns the bytes of a specific attachment encoded as base64. Use the attachment index from proton_get_email. Large attachments are truncated to max_bytes (default 10 MB) with a truncated=true flag in the response.",
+      description:
+        "Returns the bytes of a specific attachment encoded as base64. Use the attachment index from proton_get_email. Large attachments are truncated to max_bytes (default 10 MB) with a truncated=true flag in the response.",
       inputSchema: {
         mailbox: z.string().default("INBOX"),
         uid: z.number().int().positive(),
-        index: z.number().int().min(0).describe("Zero-based index in the attachments array"),
+        index: z
+          .number()
+          .int()
+          .min(0)
+          .describe("Zero-based index in the attachments array"),
         max_bytes: z
           .number()
           .int()
           .positive()
           .max(50 * 1024 * 1024)
           .default(10 * 1024 * 1024)
-          .describe("Maximum attachment size in bytes (default 10 MB, hard cap 50 MB)"),
+          .describe(
+            "Maximum attachment size in bytes (default 10 MB, hard cap 50 MB)",
+          ),
       },
       outputSchema: attachmentSchema,
-      annotations: { readOnlyHint: true, openWorldHint: true, idempotentHint: true },
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: true,
+        idempotentHint: true,
+      },
     },
     async ({ mailbox, uid, index, max_bytes }) => {
       const att = await imap.getAttachment(mailbox, uid, index);
       if (!att) {
-        return { isError: true, content: [{ type: "text", text: `Attachment #${index} not found for UID ${uid}.` }] };
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: `Attachment #${index} not found for UID ${uid}.`,
+            },
+          ],
+        };
       }
       // Defensa contra "adjunto gigante satura el contexto del LLM".
       // Devolvemos siempre `size_bytes` (original) y `returned_bytes` (real
@@ -389,11 +528,21 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
           )
           .optional(),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async (args) => {
       if (!args.text && !args.html) {
-        return { isError: true, content: [{ type: "text", text: "Provide at least one of 'text' or 'html'." }] };
+        return {
+          isError: true,
+          content: [
+            { type: "text", text: "Provide at least one of 'text' or 'html'." },
+          ],
+        };
       }
       const res = await smtp.send({
         to: args.to,
@@ -434,11 +583,21 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
         reply_all: z.boolean().default(false),
         include_quote: z.boolean().default(true),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async (args) => {
       if (!args.text && !args.html) {
-        return { isError: true, content: [{ type: "text", text: "Provide at least one of 'text' or 'html'." }] };
+        return {
+          isError: true,
+          content: [
+            { type: "text", text: "Provide at least one of 'text' or 'html'." },
+          ],
+        };
       }
       const opts = await buildReplyOptions(
         imap,
@@ -449,12 +608,27 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
         args.reply_all,
         cfg.bridge.from,
       );
-      if (!opts) return { isError: true, content: [{ type: "text", text: `Original UID ${args.uid} not found.` }] };
-      if (opts.to.length === 0) return { isError: true, content: [{ type: "text", text: "Original has no reply-to address." }] };
+      if (!opts)
+        return {
+          isError: true,
+          content: [
+            { type: "text", text: `Original UID ${args.uid} not found.` },
+          ],
+        };
+      if (opts.to.length === 0)
+        return {
+          isError: true,
+          content: [
+            { type: "text", text: "Original has no reply-to address." },
+          ],
+        };
       const res = await smtp.send(opts);
       return {
         content: [
-          { type: "text", text: `Reply sent to ${opts.to.join(", ")}. messageId=${res.messageId} accepted=${res.accepted.length}` },
+          {
+            type: "text",
+            text: `Reply sent to ${opts.to.join(", ")}. messageId=${res.messageId} accepted=${res.accepted.length}`,
+          },
         ],
       };
     },
@@ -464,7 +638,8 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
     "proton_forward_email",
     {
       title: "Forward an email",
-      description: "Forwards an existing message to new recipients. Optionally includes original attachments.",
+      description:
+        "Forwards an existing message to new recipients. Optionally includes original attachments.",
       inputSchema: {
         mailbox: z.string().default("INBOX"),
         uid: z.number().int().positive(),
@@ -473,7 +648,12 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
         html: z.string().optional(),
         include_attachments: z.boolean().default(true),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async (args) => {
       const opts = await buildForwardOptions(
@@ -484,10 +664,21 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
         { text: args.text, html: args.html },
         args.include_attachments,
       );
-      if (!opts) return { isError: true, content: [{ type: "text", text: `Original UID ${args.uid} not found.` }] };
+      if (!opts)
+        return {
+          isError: true,
+          content: [
+            { type: "text", text: `Original UID ${args.uid} not found.` },
+          ],
+        };
       const res = await smtp.send(opts);
       return {
-        content: [{ type: "text", text: `Forwarded to ${args.to.join(", ")}. messageId=${res.messageId}` }],
+        content: [
+          {
+            type: "text",
+            text: `Forwarded to ${args.to.join(", ")}. messageId=${res.messageId}`,
+          },
+        ],
       };
     },
   );
@@ -504,11 +695,24 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
       inputSchema: {
         mailbox: z.string().default("INBOX"),
         uid: z.number().int().positive(),
-        action: z.enum(["read", "unread", "starred", "unstarred", "custom"]).describe("Shorthand action"),
-        add_flags: z.array(z.string()).optional().describe("Custom flags to add (action=custom only)"),
-        remove_flags: z.array(z.string()).optional().describe("Custom flags to remove (action=custom only)"),
+        action: z
+          .enum(["read", "unread", "starred", "unstarred", "custom"])
+          .describe("Shorthand action"),
+        add_flags: z
+          .array(z.string())
+          .optional()
+          .describe("Custom flags to add (action=custom only)"),
+        remove_flags: z
+          .array(z.string())
+          .optional()
+          .describe("Custom flags to remove (action=custom only)"),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ mailbox, uid, action, add_flags, remove_flags }) => {
       let add: string[] = [];
@@ -532,7 +736,16 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
           break;
       }
       const ok = await imap.setFlags(mailbox, uid, add, remove);
-      return { content: [{ type: "text", text: ok ? `Flags updated on UID ${uid}.` : `Failed to update flags on UID ${uid}.` }] };
+      return {
+        content: [
+          {
+            type: "text",
+            text: ok
+              ? `Flags updated on UID ${uid}.`
+              : `Failed to update flags on UID ${uid}.`,
+          },
+        ],
+      };
     },
   );
 
@@ -540,17 +753,30 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
     "proton_move_email",
     {
       title: "Move an email to another mailbox",
-      description: "Moves a message by UID from one mailbox to another. Use proton_list_folders to see valid targets.",
+      description:
+        "Moves a message by UID from one mailbox to another. Use proton_list_folders to see valid targets.",
       inputSchema: {
         from_mailbox: z.string(),
         uid: z.number().int().positive(),
         to_mailbox: z.string(),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ from_mailbox, uid, to_mailbox }) => {
       const ok = await imap.moveEmail(from_mailbox, uid, to_mailbox);
-      return { content: [{ type: "text", text: ok ? `Moved UID ${uid} → ${to_mailbox}` : `Move failed.` }] };
+      return {
+        content: [
+          {
+            type: "text",
+            text: ok ? `Moved UID ${uid} → ${to_mailbox}` : `Move failed.`,
+          },
+        ],
+      };
     },
   );
 
@@ -564,17 +790,43 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
         mailbox: z.string().default("INBOX"),
         uid: z.number().int().positive(),
         mode: z.enum(["trash", "permanent"]).default("trash"),
-        trash_path: z.string().default("Trash").describe("Path of your Trash mailbox (find via proton_list_folders)"),
+        trash_path: z
+          .string()
+          .default("Trash")
+          .describe(
+            "Path of your Trash mailbox (find via proton_list_folders)",
+          ),
       },
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ mailbox, uid, mode, trash_path }) => {
       if (mode === "trash") {
         const ok = await imap.moveEmail(mailbox, uid, trash_path);
-        return { content: [{ type: "text", text: ok ? `Moved UID ${uid} to ${trash_path}.` : "Delete-to-trash failed." }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: ok
+                ? `Moved UID ${uid} to ${trash_path}.`
+                : "Delete-to-trash failed.",
+            },
+          ],
+        };
       }
       const ok = await imap.deleteEmail(mailbox, uid);
-      return { content: [{ type: "text", text: ok ? `Permanently deleted UID ${uid}.` : "Delete failed." }] };
+      return {
+        content: [
+          {
+            type: "text",
+            text: ok ? `Permanently deleted UID ${uid}.` : "Delete failed.",
+          },
+        ],
+      };
     },
   );
 
@@ -584,7 +836,18 @@ export function buildServer(cfg: Config, log: Logger): { server: McpServer; imap
 // -----------------------------------------------------------------------------
 // Renderers
 // -----------------------------------------------------------------------------
-function renderEmailList(items: { uid: number; from?: string; subject?: string; date?: string; flags: string[] }[], mailbox: string, total: number, offset: number): string {
+function renderEmailList(
+  items: {
+    uid: number;
+    from?: string;
+    subject?: string;
+    date?: string;
+    flags: string[];
+  }[],
+  mailbox: string,
+  total: number,
+  offset: number,
+): string {
   if (items.length === 0) return `No messages in ${mailbox} (total: ${total}).`;
   const head = `**${mailbox}** — showing ${items.length} of ${total} (offset ${offset})\n\n| UID | Date | From | Subject | Flags |\n|---|---|---|---|---|`;
   const rows = items.map((m) => {
@@ -624,11 +887,17 @@ function renderFullEmail(m: {
   if (m.attachments.length > 0) {
     lines.push("", "**Attachments:**");
     m.attachments.forEach((a, i) => {
-      lines.push(`- [${i}] ${a.filename ?? "unnamed"} — ${a.contentType} — ${(a.size / 1024).toFixed(1)} KB`);
+      lines.push(
+        `- [${i}] ${a.filename ?? "unnamed"} — ${a.contentType} — ${(a.size / 1024).toFixed(1)} KB`,
+      );
     });
   }
   if (m.htmlBody) {
-    lines.push("", "---", "HTML body present (fetch with include_html=true and response_format=json to retrieve).");
+    lines.push(
+      "",
+      "---",
+      "HTML body present (fetch with include_html=true and response_format=json to retrieve).",
+    );
   }
   return lines.join("\n");
 }

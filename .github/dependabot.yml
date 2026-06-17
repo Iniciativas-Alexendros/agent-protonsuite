@@ -4,6 +4,8 @@ updates:
   directory: /
   schedule:
     interval: weekly
+  cooldown:
+    default-days: 7
   open-pull-requests-limit: 1
   groups:
     dev-deps:
@@ -17,6 +19,8 @@ updates:
   directory: /
   schedule:
     interval: monthly
+  cooldown:
+    default-days: 7
   open-pull-requests-limit: 1
   groups:
     all-others:
@@ -26,6 +30,8 @@ updates:
   directory: /
   schedule:
     interval: monthly
+  cooldown:
+    default-days: 7
   open-pull-requests-limit: 1
   groups:
     all-others:

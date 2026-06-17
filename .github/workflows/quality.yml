@@ -13,9 +13,17 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Mínimo privilegio a nivel workflow; los jobs que necesiten más lo amplían.
+# Techo de permisos del workflow. Un job NO puede conceder a un reusable más de
+# lo que figura aquí, así que el techo incluye lo que exigen los reusables
+# (_lib-lint-aggregate: checks/security-events; _lib-supply-chain: id-token/attestations).
+# Cada job restringe a lo que realmente usa (mínimo privilegio efectivo).
 permissions:
   contents: read
+  checks: write
+  pull-requests: read
+  security-events: write
+  id-token: write
+  attestations: write
 
 concurrency:
   group: quality-${{ github.ref }}
@@ -29,6 +37,8 @@ jobs:
   detect:
     name: Detect stack
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       has_ts: ${{ steps.detect.outputs.has_ts }}
       has_rust: ${{ steps.detect.outputs.has_rust }}
@@ -53,8 +63,14 @@ jobs:
     name: Lint aggregate
     needs: detect
     uses: Alexendros/plantillas/.github/workflows/_lib-lint-aggregate.yml@main
+    # El reusable declara checks:write + security-events:write + pull-requests:read
+    # (reviewdog publica anotaciones). El caller debe concederlos o el run aborta
+    # con startup_failure (un job no puede otorgar a un reusable más de lo que tiene).
     permissions:
       contents: read
+      checks: write
+      pull-requests: read
+      security-events: write
     with:
       has_ts: ${{ needs.detect.outputs.has_ts }}
       has_rust: ${{ needs.detect.outputs.has_rust }}
@@ -71,6 +87,8 @@ jobs:
   plugin-json:
     name: Plugin JSON syntax
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - name: Parse plugin JSON manifests

@@ -38,6 +38,7 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
+          cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
@@ -93,13 +94,30 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: true
 
-      - name: Dokploy webhook (optional)
+      - name: Coolify deploy (optional)
+        # Despliegue en Coolify tras CI verde (sustituye al webhook de Dokploy, muerto).
+        # Dos formas soportadas; configurar UNA en los secrets de la org y VERIFICAR la
+        # exacta contra la instancia Coolify 4.1.1 antes de confiar en ella:
+        #   a) Webhook por-recurso: secret COOLIFY_DEPLOY_WEBHOOK = URL completa.
+        #   b) API por uuid+token:  secrets COOLIFY_URL + COOLIFY_TOKEN + COOLIFY_RESOURCE_UUID.
+        # No-fatal: si no hay secret configurado, no hace nada (no rompe el release).
         if: github.ref == 'refs/heads/main'
         env:
-          WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
+          WEBHOOK_URL: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}
+          COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_RESOURCE_UUID: ${{ secrets.COOLIFY_RESOURCE_UUID }}
         run: |
+          set -o pipefail
           if [ -n "$WEBHOOK_URL" ]; then
-            curl -fsSL -X POST "$WEBHOOK_URL" || echo "webhook ping failed (non-fatal)"
+            curl -fsSL -X POST "$WEBHOOK_URL" || echo "coolify webhook ping failed (non-fatal)"
+          elif [ -n "$COOLIFY_URL" ] && [ -n "$COOLIFY_TOKEN" ] && [ -n "$COOLIFY_RESOURCE_UUID" ]; then
+            curl -fsSL -X GET \
+              -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+              "${COOLIFY_URL%/}/api/v1/deploy?uuid=${COOLIFY_RESOURCE_UUID}&force=false" \
+              || echo "coolify api deploy failed (non-fatal)"
+          else
+            echo "Coolify deploy no configurado (sin secrets) — se omite."
           fi
 
       - name: Job summary

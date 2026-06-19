@@ -1,0 +1,12 @@
+# CODEOWNERS · protonmail-mcp
+# Documentación: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Propietario por defecto de todo el repositorio
+*                       @alexendros
+
+# Documentos críticos
+/SECURITY.md            @alexendros
+/LICENSE                @alexendros
+/CODE_OF_CONDUCT.md     @alexendros
+/.github/               @alexendros
+/docs/adr/              @alexendros

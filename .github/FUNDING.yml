@@ -1,0 +1,9 @@
+# Configuración de financiación · ver
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+# Sin GitHub Sponsors activo de momento.
+github: []
+
+# Enlaces personalizados (placeholder · revisar antes de publicar repo)
+custom:
+  - "https://ko-fi.com/alexendros"

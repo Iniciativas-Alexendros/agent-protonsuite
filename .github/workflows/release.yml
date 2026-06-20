@@ -139,8 +139,14 @@ jobs:
   # Publicación a npm · SOLO en tags vX.Y.Z. Cierra el hueco histórico por el
   # que npm se quedó en 0.1.0 mientras el repo avanzaba: el plugin y cualquier
   # MCP por `npx -y @alexendros/protonmail-mcp` (Claude Code, OpenCode, …)
-  # tiraban de código obsoleto. Provenance vía OIDC (id-token) + NPM_TOKEN.
-  # Requiere el secret NPM_TOKEN en la org/repo (automation token de npm).
+  # tiraban de código obsoleto.
+  #
+  # Auth: TRUSTED PUBLISHING (OIDC) — sin NPM_TOKEN. El `id-token: write` deja
+  # que npm intercambie el token OIDC de GitHub Actions por credenciales de
+  # publicación efímeras. Requiere configurar el trusted publisher en
+  # npmjs.com (paquete → Settings → Trusted publisher: repo
+  # Iniciativas-Alexendros/plugin-protonmail-claudecode, workflow release.yml).
+  # La provenance se genera automáticamente.
   # ────────────────────────────────────────────────────────────────────
   publish-npm:
     name: Publish to npm
@@ -163,7 +169,9 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6 # zizmor: ignore[cache-poisoning]
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+      # Trusted publishing (OIDC) requiere npm >= 11.5.1; los runners traen 10.x.
+      - name: Upgrade npm (OIDC trusted publishing needs >= 11.5.1)
+        run: npm install -g npm@latest
       - run: npm ci --no-audit --no-fund
       - run: npm run build
       - name: Verify tag matches package.json version
@@ -172,7 +180,7 @@ jobs:
           if [ "$PKG_VERSION" != "${GITHUB_REF_NAME}" ]; then
             echo "Tag ${GITHUB_REF_NAME} != package.json ${PKG_VERSION}"; exit 1
           fi
-      - name: Publish (with provenance)
+      # Sin NODE_AUTH_TOKEN: la autenticación es OIDC (trusted publisher).
+      # Provenance automática. `--access public` por ser paquete con scope.
+      - name: Publish (OIDC trusted publishing + provenance)
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

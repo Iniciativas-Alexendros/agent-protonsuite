@@ -1,0 +1,3 @@
+# Exclusiones para el checker de enlaces lychee.
+# npm devuelve 403 a bots/CI sin sesión; el badge/package link es correcto.
+https://www.npmjs.com/package/@alexendros/protonmail-mcp

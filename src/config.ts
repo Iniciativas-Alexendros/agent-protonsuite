@@ -53,6 +53,61 @@ const ConfigSchema = z.object({
 
 export type Config = z.infer<typeof ConfigSchema>;
 
+/** Lee un entero de env; cae al default si no está definido. Zod valida. */
+function readInt(value: string | undefined, defaultValue: number): number {
+  return Number(value ?? defaultValue);
+}
+
+/** Lee un booleano de env representado como "true" / "false". */
+function readBool(value: string | undefined, defaultValue: boolean): boolean {
+  return (value ?? String(defaultValue)) === "true";
+}
+
+/** CSV → array, normalizando whitespace y descartando entradas vacías. */
+function readCsv(value: string | undefined): string[] {
+  return value
+    ? value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+}
+
+/** Lee el bloque de configuración de Proton Mail Bridge desde `process.env`. */
+function parseBridgeConfig(env: NodeJS.ProcessEnv): Config["bridge"] {
+  return {
+    user: env.PROTON_BRIDGE_USER ?? "",
+    pass: env.PROTON_BRIDGE_PASS ?? "",
+    host: env.PROTON_BRIDGE_HOST ?? "127.0.0.1",
+    imapPort: readInt(env.PROTON_BRIDGE_IMAP_PORT, 1143),
+    smtpPort: readInt(env.PROTON_BRIDGE_SMTP_PORT, 1025),
+    from: env.PROTON_MAIL_FROM ?? env.PROTON_BRIDGE_USER ?? "",
+    tlsInsecure: readBool(env.PROTON_BRIDGE_TLS_INSECURE, true),
+    smtpSecurity: (env.PROTON_BRIDGE_SMTP_SECURITY ?? "starttls") as
+      | "starttls"
+      | "implicit"
+      | "plain",
+  };
+}
+
+/** Lee el bloque de transporte MCP (stdio / HTTP) desde `process.env`. */
+function parseTransportConfig(env: NodeJS.ProcessEnv): Config["transport"] {
+  return {
+    kind: (env.MCP_TRANSPORT ?? "stdio") as "stdio" | "http",
+    httpHost: env.MCP_HTTP_HOST ?? "127.0.0.1",
+    httpPort: readInt(env.MCP_HTTP_PORT, 8787),
+    authToken: env.MCP_AUTH_TOKEN || undefined,
+    allowedOrigins: readCsv(env.MCP_ALLOWED_ORIGINS),
+  };
+}
+
+/** Lee y valida el nivel de log desde `process.env`. */
+function parseLogLevel(
+  env: NodeJS.ProcessEnv,
+): Config["logLevel"] {
+  return (env.LOG_LEVEL ?? "info") as "error" | "warn" | "info" | "debug";
+}
+
 /**
  * Lee `process.env` y lo pasa por Zod. La separación entre "lectura cruda" y
  * "parseo" hace trivial testear el schema desde `tests/config.test.ts`:
@@ -61,32 +116,9 @@ export type Config = z.infer<typeof ConfigSchema>;
 export function loadConfig(): Config {
   const env = process.env;
   const raw = {
-    bridge: {
-      user: env.PROTON_BRIDGE_USER ?? "",
-      pass: env.PROTON_BRIDGE_PASS ?? "",
-      host: env.PROTON_BRIDGE_HOST ?? "127.0.0.1",
-      imapPort: Number(env.PROTON_BRIDGE_IMAP_PORT ?? 1143),
-      smtpPort: Number(env.PROTON_BRIDGE_SMTP_PORT ?? 1025),
-      from: env.PROTON_MAIL_FROM ?? env.PROTON_BRIDGE_USER ?? "",
-      tlsInsecure: (env.PROTON_BRIDGE_TLS_INSECURE ?? "true") === "true",
-      smtpSecurity: (env.PROTON_BRIDGE_SMTP_SECURITY ?? "starttls") as
-        | "starttls"
-        | "implicit"
-        | "plain",
-    },
-    transport: {
-      kind: (env.MCP_TRANSPORT ?? "stdio") as "stdio" | "http",
-      httpHost: env.MCP_HTTP_HOST ?? "127.0.0.1",
-      httpPort: Number(env.MCP_HTTP_PORT ?? 8787),
-      authToken: env.MCP_AUTH_TOKEN || undefined,
-      // CSV → array, normalizando whitespace. Entradas vacías se descartan
-      // para no aceptar `Origin: ""` por accidente.
-      allowedOrigins: (env.MCP_ALLOWED_ORIGINS ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-    },
-    logLevel: (env.LOG_LEVEL ?? "info") as "error" | "warn" | "info" | "debug",
+    bridge: parseBridgeConfig(env),
+    transport: parseTransportConfig(env),
+    logLevel: parseLogLevel(env),
   };
   return ConfigSchema.parse(raw);
 }

@@ -2,13 +2,13 @@
 
 Thanks for thinking about contributing. This is a small, focused project — its scope is intentionally narrow ("expose Proton Mail capabilities to MCP clients **through Bridge**, never around it"). Reading this once will save us both round-trips.
 
-> 🔒 **Security?** Do NOT open a public issue or PR. Email **security@alexendros.me** or use [GitHub Security Advisories](https://github.com/Iniciativas-Alexendros/protonmail-mcp/security/advisories/new). See [SECURITY.md](./SECURITY.md) for the full threat model.
+> 🔒 **Security?** Do NOT open a public issue or PR. Email **security@alexendros.me** or use [GitHub Security Advisories](https://github.com/Iniciativas-Alexendros/plugin-protonmail-claudecode/security/advisories/new). See [SECURITY.md](./SECURITY.md) for the full threat model.
 
 ## Ways to contribute
 
 - **🐛 Report a bug** — use the [Bug report template](./.github/ISSUE_TEMPLATE/bug-report.yml). Include version, transport, Node, OS, repro steps.
 - **💡 Propose a feature** — use the [Feature request template](./.github/ISSUE_TEMPLATE/feature-request.yml). Be concrete (tool name, inputs, outputs). Bridge-only scope, no direct Proton web API calls.
-- **💬 Ask a question** — use [Discussions](https://github.com/Iniciativas-Alexendros/protonmail-mcp/discussions), not the issue tracker.
+- **💬 Ask a question** — use [Discussions](https://github.com/Iniciativas-Alexendros/plugin-protonmail-claudecode/discussions), not the issue tracker.
 - **🧑‍💻 Send a patch** — see "Pull request workflow" below.
 
 ## Pull request workflow
@@ -26,7 +26,7 @@ Requires Node ≥ 20 and a Proton Mail Bridge running locally (or in Docker).
 
 ```bash
 # 1. Clone + install
-git clone https://github.com/Iniciativas-Alexendros/protonmail-mcp.git
+git clone https://github.com/Iniciativas-Alexendros/plugin-protonmail-claudecode.git
 cd protonmail-mcp
 npm install
 

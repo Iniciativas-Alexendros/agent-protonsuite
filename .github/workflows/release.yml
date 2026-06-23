@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
   workflow_dispatch:
 
 permissions:
@@ -38,7 +38,8 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
-          cache: npm
+      # Sin `cache: npm` en el job de pre-publicación: restaurar una cache
+      # comprometida podría envenenar la cadena de suministro previa al push.
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test

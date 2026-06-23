@@ -157,716 +157,744 @@ export function buildServer(
   }
 
   // ---------------------------------------------------------------------------
+  // Registro de las 13 tools agrupado por dominio funcional. Cada helper
+  // encapsula el register de su grupo; los handlers capturan `imap`/`smtp` por
+  // closure, así que el cuerpo de `buildServer` solo orquesta.
+  // ---------------------------------------------------------------------------
+  registerFolderTools();
+  registerListSearchTools();
+  registerReadTools();
+  registerSendTools();
+  registerModifyTools();
+
+  return { server, imap, smtp };
+
+  // ---------------------------------------------------------------------------
   // Folders
   // ---------------------------------------------------------------------------
-  register(
-    "proton_list_folders",
-    {
-      title: "List mailboxes (folders/labels)",
-      description:
-        "Lists every IMAP mailbox exposed by Proton Bridge (system folders like INBOX/Sent/Trash and user labels/folders). Use the returned 'path' values as the mailbox argument in other tools. Call this first when the agent doesn't know the mailbox layout.",
-      inputSchema: {
-        response_format: z
-          .enum(["markdown", "json"])
-          .default("markdown")
-          .describe("Output format"),
+  function registerFolderTools() {
+    register(
+      "proton_list_folders",
+      {
+        title: "List mailboxes (folders/labels)",
+        description:
+          "Lists every IMAP mailbox exposed by Proton Bridge (system folders like INBOX/Sent/Trash and user labels/folders). Use the returned 'path' values as the mailbox argument in other tools. Call this first when the agent doesn't know the mailbox layout.",
+        inputSchema: {
+          response_format: z
+            .enum(["markdown", "json"])
+            .default("markdown")
+            .describe("Output format"),
+        },
+        outputSchema: folderListSchema,
+        annotations: {
+          readOnlyHint: true,
+          openWorldHint: true,
+          idempotentHint: true,
+        },
       },
-      outputSchema: folderListSchema,
-      annotations: {
-        readOnlyHint: true,
-        openWorldHint: true,
-        idempotentHint: true,
-      },
-    },
-    async ({ response_format }) => {
-      const mbs = await imap.listMailboxes();
-      const structured = { folders: mbs };
-      if (response_format === "json") {
+      async ({ response_format }) => {
+        const mbs = await imap.listMailboxes();
+        const structured = { folders: mbs };
+        if (response_format === "json") {
+          return {
+            content: [{ type: "text", text: JSON.stringify(mbs, null, 2) }],
+            structuredContent: structured,
+          };
+        }
+        const lines = [
+          "| Path | Name | Special-use | Flags |",
+          "|---|---|---|---|",
+          ...mbs.map(
+            (m) =>
+              `| \`${m.path}\` | ${m.name} | ${m.specialUse ?? "—"} | ${m.flags.join(", ") || "—"} |`,
+          ),
+        ];
         return {
-          content: [{ type: "text", text: JSON.stringify(mbs, null, 2) }],
+          content: [{ type: "text", text: lines.join("\n") }],
           structuredContent: structured,
         };
-      }
-      const lines = [
-        "| Path | Name | Special-use | Flags |",
-        "|---|---|---|---|",
-        ...mbs.map(
-          (m) =>
-            `| \`${m.path}\` | ${m.name} | ${m.specialUse ?? "—"} | ${m.flags.join(", ") || "—"} |`,
-        ),
-      ];
-      return {
-        content: [{ type: "text", text: lines.join("\n") }],
-        structuredContent: structured,
-      };
-    },
-  );
+      },
+    );
 
-  register(
-    "proton_create_folder",
-    {
-      title: "Create a mailbox (folder)",
-      description:
-        "Creates a new IMAP mailbox under the given path (e.g. 'Projects/Afiladocs').",
-      inputSchema: {
-        path: z.string().min(1).describe("Mailbox path to create"),
-      },
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: true,
-      },
-    },
-    async ({ path }) => {
-      const res = await imap.createMailbox(path);
-      return {
-        content: [
-          { type: "text", text: `Created ${res.path} (new=${res.created}).` },
-        ],
-      };
-    },
-  );
-
-  register(
-    "proton_mailbox_status",
-    {
-      title: "Get mailbox counts",
-      description:
-        "Returns total messages, unseen/unread count and recent count for a mailbox. Fast — useful for Routines to check 'do I have unread mail?'.",
-      inputSchema: {
-        mailbox: z
-          .string()
-          .default("INBOX")
-          .describe("Mailbox path, e.g. INBOX"),
-      },
-      outputSchema: mailboxStatusSchema,
-      annotations: {
-        readOnlyHint: true,
-        openWorldHint: true,
-        idempotentHint: true,
-      },
-    },
-    async ({ mailbox }) => {
-      const s = await imap.mailboxStatus(mailbox);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `**${mailbox}** — total: ${s.messages}, unseen: ${s.unseen}, recent: ${s.recent}${s.uidNext ? `, uidNext: ${s.uidNext}` : ""}`,
-          },
-        ],
-        structuredContent: {
-          mailbox,
-          messages: s.messages,
-          unseen: s.unseen,
-          recent: s.recent,
-          ...(s.uidNext ? { uidNext: s.uidNext } : {}),
+    register(
+      "proton_create_folder",
+      {
+        title: "Create a mailbox (folder)",
+        description:
+          "Creates a new IMAP mailbox under the given path (e.g. 'Projects/Afiladocs').",
+        inputSchema: {
+          path: z.string().min(1).describe("Mailbox path to create"),
         },
-      };
-    },
-  );
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
+      },
+      async ({ path }) => {
+        const res = await imap.createMailbox(path);
+        return {
+          content: [
+            { type: "text", text: `Created ${res.path} (new=${res.created}).` },
+          ],
+        };
+      },
+    );
+
+    register(
+      "proton_mailbox_status",
+      {
+        title: "Get mailbox counts",
+        description:
+          "Returns total messages, unseen/unread count and recent count for a mailbox. Fast — useful for Routines to check 'do I have unread mail?'.",
+        inputSchema: {
+          mailbox: z
+            .string()
+            .default("INBOX")
+            .describe("Mailbox path, e.g. INBOX"),
+        },
+        outputSchema: mailboxStatusSchema,
+        annotations: {
+          readOnlyHint: true,
+          openWorldHint: true,
+          idempotentHint: true,
+        },
+      },
+      async ({ mailbox }) => {
+        const s = await imap.mailboxStatus(mailbox);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `**${mailbox}** — total: ${s.messages}, unseen: ${s.unseen}, recent: ${s.recent}${s.uidNext ? `, uidNext: ${s.uidNext}` : ""}`,
+            },
+          ],
+          structuredContent: {
+            mailbox,
+            messages: s.messages,
+            unseen: s.unseen,
+            recent: s.recent,
+            ...(s.uidNext ? { uidNext: s.uidNext } : {}),
+          },
+        };
+      },
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Listing and search
   // ---------------------------------------------------------------------------
-  register(
-    "proton_list_emails",
-    {
-      title: "List emails in a mailbox",
-      description:
-        "Lists recent emails in a mailbox, newest first. Use pagination with offset+limit. Returns UID, from, to, subject, date, flags, size. Does NOT return the body — use proton_get_email for that.",
-      inputSchema: {
-        mailbox: z.string().default("INBOX"),
-        limit: z.number().int().min(1).max(100).default(25),
-        offset: z.number().int().min(0).default(0),
-        response_format: z.enum(["markdown", "json"]).default("markdown"),
+  function registerListSearchTools() {
+    register(
+      "proton_list_emails",
+      {
+        title: "List emails in a mailbox",
+        description:
+          "Lists recent emails in a mailbox, newest first. Use pagination with offset+limit. Returns UID, from, to, subject, date, flags, size. Does NOT return the body — use proton_get_email for that.",
+        inputSchema: {
+          mailbox: z.string().default("INBOX"),
+          limit: z.number().int().min(1).max(100).default(25),
+          offset: z.number().int().min(0).default(0),
+          response_format: z.enum(["markdown", "json"]).default("markdown"),
+        },
+        outputSchema: emailListSchema,
+        annotations: {
+          readOnlyHint: true,
+          openWorldHint: true,
+          idempotentHint: true,
+        },
       },
-      outputSchema: emailListSchema,
-      annotations: {
-        readOnlyHint: true,
-        openWorldHint: true,
-        idempotentHint: true,
-      },
-    },
-    async ({ mailbox, limit, offset, response_format }) => {
-      const { items, total } = await imap.listEmails(mailbox, limit, offset);
-      const structured = {
-        mailbox,
-        total,
-        count: items.length,
-        offset,
-        has_more: offset + items.length < total,
-        next_offset: offset + items.length,
-        items,
-      };
-      if (response_format === "json") {
-        return {
-          content: [
-            { type: "text", text: JSON.stringify(structured, null, 2) },
-          ],
-          structuredContent: structured,
-        };
-      }
-      return {
-        content: [
-          {
-            type: "text",
-            text: renderEmailList(items, mailbox, total, offset),
-          },
-        ],
-        structuredContent: structured,
-      };
-    },
-  );
+      handleListEmails,
+    );
 
-  register(
-    "proton_search_emails",
-    {
-      title: "Search emails",
-      description:
-        "Keyword-search emails in a mailbox. Filter by text in any field, or restrict to subject/from/to/body. Combine with date range and unseen flag. Returns newest matches first, up to 'limit'. Use 'text' for a broad 'anywhere' match.",
-      inputSchema: {
-        mailbox: z.string().default("INBOX"),
-        query: z.string().optional().describe("Keyword to search for"),
-        fields: z
-          .array(z.enum(["text", "subject", "from", "to", "body"]))
-          .default(["text"])
-          .describe("Which fields to search. 'text' = anywhere."),
-        since: z
-          .string()
-          .refine((v) => !Number.isNaN(Date.parse(v)), "Invalid ISO date")
-          .optional()
-          .describe("ISO date — only messages on/after this date"),
-        before: z
-          .string()
-          .refine((v) => !Number.isNaN(Date.parse(v)), "Invalid ISO date")
-          .optional()
-          .describe("ISO date — only messages before this date"),
-        unseen_only: z
-          .boolean()
-          .default(false)
-          .describe("Only return unread messages"),
-        from_address: z
-          .string()
-          .optional()
-          .describe("Restrict to messages from this address"),
-        to_address: z
-          .string()
-          .optional()
-          .describe("Restrict to messages to this address"),
-        limit: z.number().int().min(1).max(100).default(25),
-        response_format: z.enum(["markdown", "json"]).default("markdown"),
+    register(
+      "proton_search_emails",
+      {
+        title: "Search emails",
+        description:
+          "Keyword-search emails in a mailbox. Filter by text in any field, or restrict to subject/from/to/body. Combine with date range and unseen flag. Returns newest matches first, up to 'limit'. Use 'text' for a broad 'anywhere' match.",
+        inputSchema: {
+          mailbox: z.string().default("INBOX"),
+          query: z.string().optional().describe("Keyword to search for"),
+          fields: z
+            .array(z.enum(["text", "subject", "from", "to", "body"]))
+            .default(["text"])
+            .describe("Which fields to search. 'text' = anywhere."),
+          since: z
+            .string()
+            .refine((v) => !Number.isNaN(Date.parse(v)), "Invalid ISO date")
+            .optional()
+            .describe("ISO date — only messages on/after this date"),
+          before: z
+            .string()
+            .refine((v) => !Number.isNaN(Date.parse(v)), "Invalid ISO date")
+            .optional()
+            .describe("ISO date — only messages before this date"),
+          unseen_only: z
+            .boolean()
+            .default(false)
+            .describe("Only return unread messages"),
+          from_address: z
+            .string()
+            .optional()
+            .describe("Restrict to messages from this address"),
+          to_address: z
+            .string()
+            .optional()
+            .describe("Restrict to messages to this address"),
+          limit: z.number().int().min(1).max(100).default(25),
+          response_format: z.enum(["markdown", "json"]).default("markdown"),
+        },
+        outputSchema: emailSearchSchema,
+        annotations: {
+          readOnlyHint: true,
+          openWorldHint: true,
+          idempotentHint: true,
+        },
       },
-      outputSchema: emailSearchSchema,
-      annotations: {
-        readOnlyHint: true,
-        openWorldHint: true,
-        idempotentHint: true,
-      },
-    },
-    async (args) => {
-      // IMAP SEARCH no soporta OR nativo entre campos de forma portable, por
-      // eso la UX acumula keywords en múltiples campos combinándolos con AND.
-      // Para búsquedas "anywhere" (fields:["text"]) colapsamos a `body:query`:
-      // es lo más cercano a "contiene la palabra en cualquier parte".
-      const criteria: SearchObject = {};
-      if (args.unseen_only) criteria.seen = false;
-      if (args.since) criteria.since = new Date(args.since);
-      if (args.before) criteria.before = new Date(args.before);
-      if (args.from_address) criteria.from = args.from_address;
-      if (args.to_address) criteria.to = args.to_address;
-      if (args.query) {
-        for (const f of args.fields) {
-          if (f === "text") criteria.body = args.query;
-          if (f === "subject") criteria.subject = args.query;
-          // Un `from_address` explícito gana sobre `fields:["from"]` para
-          // evitar sobreescribir un filtro más específico.
-          if (f === "from" && !criteria.from) criteria.from = args.query;
-          if (f === "to" && !criteria.to) criteria.to = args.query;
-          if (f === "body") criteria.body = args.query;
-        }
-      }
-      const { items, matched } = await imap.searchEmails(
-        args.mailbox,
-        criteria,
-        args.limit,
-      );
-      const structured = {
-        mailbox: args.mailbox,
-        matched,
-        count: items.length,
-        has_more: matched > items.length,
-        items,
-      };
-      if (args.response_format === "json") {
-        return {
-          content: [
-            { type: "text", text: JSON.stringify(structured, null, 2) },
-          ],
-          structuredContent: structured,
-        };
-      }
+      handleSearchEmails,
+    );
+  }
+
+  async function handleListEmails({
+    mailbox,
+    limit,
+    offset,
+    response_format,
+  }: {
+    mailbox: string;
+    limit: number;
+    offset: number;
+    response_format: "markdown" | "json";
+  }) {
+    const { items, total } = await imap.listEmails(mailbox, limit, offset);
+    const structured = {
+      mailbox,
+      total,
+      count: items.length,
+      offset,
+      has_more: offset + items.length < total,
+      next_offset: offset + items.length,
+      items,
+    };
+    if (response_format === "json") {
       return {
         content: [
-          {
-            type: "text",
-            text: `Matched ${matched} message(s), showing ${items.length}.\n\n${renderEmailList(items, args.mailbox, matched, 0)}`,
-          },
+          { type: "text" as const, text: JSON.stringify(structured, null, 2) },
         ],
         structuredContent: structured,
       };
+    }
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: renderEmailList(items, mailbox, total, offset),
+        },
+      ],
+      structuredContent: structured,
+    };
+  }
+
+  async function handleSearchEmails(
+    args: {
+      mailbox: string;
+      query?: string;
+      fields: Array<"text" | "subject" | "from" | "to" | "body">;
+      since?: string;
+      before?: string;
+      unseen_only: boolean;
+      from_address?: string;
+      to_address?: string;
+      limit: number;
+      response_format: "markdown" | "json";
     },
-  );
+  ) {
+    const criteria = buildSearchCriteria(args);
+    const { items, matched } = await imap.searchEmails(
+      args.mailbox,
+      criteria,
+      args.limit,
+    );
+    const structured = {
+      mailbox: args.mailbox,
+      matched,
+      count: items.length,
+      has_more: matched > items.length,
+      items,
+    };
+    if (args.response_format === "json") {
+      return {
+        content: [
+          { type: "text" as const, text: JSON.stringify(structured, null, 2) },
+        ],
+        structuredContent: structured,
+      };
+    }
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `Matched ${matched} message(s), showing ${items.length}.\n\n${renderEmailList(items, args.mailbox, matched, 0)}`,
+        },
+      ],
+      structuredContent: structured,
+    };
+  }
 
   // ---------------------------------------------------------------------------
   // Read
   // ---------------------------------------------------------------------------
-  register(
-    "proton_get_email",
-    {
-      title: "Read one email (full body)",
-      description:
-        "Fetches one email by UID, with headers, text/html body and attachment metadata. Use proton_get_attachment to download attachment bytes. Large HTML bodies are returned as-is — truncate client-side if needed. To mark as read, call proton_flag_email separately (keeps this tool purely read-only).",
-      inputSchema: {
-        mailbox: z.string().default("INBOX"),
-        uid: z
-          .number()
-          .int()
-          .positive()
-          .describe("Message UID (from list/search)"),
-        include_html: z
-          .boolean()
-          .default(false)
-          .describe("Include HTML body in addition to text"),
-        response_format: z.enum(["markdown", "json"]).default("markdown"),
+  function registerReadTools() {
+    register(
+      "proton_get_email",
+      {
+        title: "Read one email (full body)",
+        description:
+          "Fetches one email by UID, with headers, text/html body and attachment metadata. Use proton_get_attachment to download attachment bytes. Large HTML bodies are returned as-is — truncate client-side if needed. To mark as read, call proton_flag_email separately (keeps this tool purely read-only).",
+        inputSchema: {
+          mailbox: z.string().default("INBOX"),
+          uid: z
+            .number()
+            .int()
+            .positive()
+            .describe("Message UID (from list/search)"),
+          include_html: z
+            .boolean()
+            .default(false)
+            .describe("Include HTML body in addition to text"),
+          response_format: z.enum(["markdown", "json"]).default("markdown"),
+        },
+        outputSchema: emailFullSchema,
+        annotations: {
+          readOnlyHint: true,
+          openWorldHint: true,
+          idempotentHint: true,
+        },
       },
-      outputSchema: emailFullSchema,
-      annotations: {
-        readOnlyHint: true,
-        openWorldHint: true,
-        idempotentHint: true,
-      },
-    },
-    async ({ mailbox, uid, include_html, response_format }) => {
-      const msg = await imap.getEmail(mailbox, uid);
-      if (!msg) {
+      async ({ mailbox, uid, include_html, response_format }) => {
+        const msg = await imap.getEmail(mailbox, uid);
+        if (!msg) {
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: `No message with UID ${uid} in ${mailbox}.` },
+            ],
+          };
+        }
+        const out = include_html ? msg : { ...msg, htmlBody: undefined };
+        const text =
+          response_format === "json"
+            ? JSON.stringify(out, null, 2)
+            : renderFullEmail(out);
         return {
-          isError: true,
-          content: [
-            { type: "text", text: `No message with UID ${uid} in ${mailbox}.` },
-          ],
+          content: [{ type: "text", text }],
+          structuredContent: out as unknown as Record<string, unknown>,
         };
-      }
-      const out = include_html ? msg : { ...msg, htmlBody: undefined };
-      const text =
-        response_format === "json"
-          ? JSON.stringify(out, null, 2)
-          : renderFullEmail(out);
-      return {
-        content: [{ type: "text", text }],
-        structuredContent: out as unknown as Record<string, unknown>,
-      };
-    },
-  );
+      },
+    );
 
-  register(
-    "proton_get_attachment",
-    {
-      title: "Download an attachment",
-      description:
-        "Returns the bytes of a specific attachment encoded as base64. Use the attachment index from proton_get_email. Large attachments are truncated to max_bytes (default 10 MB) with a truncated=true flag in the response.",
-      inputSchema: {
-        mailbox: z.string().default("INBOX"),
-        uid: z.number().int().positive(),
-        index: z
-          .number()
-          .int()
-          .min(0)
-          .describe("Zero-based index in the attachments array"),
-        max_bytes: z
-          .number()
-          .int()
-          .positive()
-          .max(50 * 1024 * 1024)
-          .default(10 * 1024 * 1024)
-          .describe(
-            "Maximum attachment size in bytes (default 10 MB, hard cap 50 MB)",
-          ),
+    register(
+      "proton_get_attachment",
+      {
+        title: "Download an attachment",
+        description:
+          "Returns the bytes of a specific attachment encoded as base64. Use the attachment index from proton_get_email. Large attachments are truncated to max_bytes (default 10 MB) with a truncated=true flag in the response.",
+        inputSchema: {
+          mailbox: z.string().default("INBOX"),
+          uid: z.number().int().positive(),
+          index: z
+            .number()
+            .int()
+            .min(0)
+            .describe("Zero-based index in the attachments array"),
+          max_bytes: z
+            .number()
+            .int()
+            .positive()
+            .max(50 * 1024 * 1024)
+            .default(10 * 1024 * 1024)
+            .describe(
+              "Maximum attachment size in bytes (default 10 MB, hard cap 50 MB)",
+            ),
+        },
+        outputSchema: attachmentSchema,
+        annotations: {
+          readOnlyHint: true,
+          openWorldHint: true,
+          idempotentHint: true,
+        },
       },
-      outputSchema: attachmentSchema,
-      annotations: {
-        readOnlyHint: true,
-        openWorldHint: true,
-        idempotentHint: true,
-      },
-    },
-    async ({ mailbox, uid, index, max_bytes }) => {
-      const att = await imap.getAttachment(mailbox, uid, index);
-      if (!att) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: `Attachment #${index} not found for UID ${uid}.`,
-            },
-          ],
+      async ({ mailbox, uid, index, max_bytes }) => {
+        const att = await imap.getAttachment(mailbox, uid, index);
+        if (!att) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: `Attachment #${index} not found for UID ${uid}.`,
+              },
+            ],
+          };
+        }
+        // Defensa contra "adjunto gigante satura el contexto del LLM".
+        // Devolvemos siempre `size_bytes` (original) y `returned_bytes` (real
+        // servido) para que el consumidor pueda decidir si reintentar con
+        // max_bytes más alto o solicitar por otra vía.
+        const bytes = Buffer.from(att.base64, "base64");
+        const truncated = bytes.byteLength > max_bytes;
+        const payload = truncated ? bytes.subarray(0, max_bytes) : bytes;
+        const structured = {
+          filename: att.filename,
+          contentType: att.contentType,
+          size_bytes: bytes.byteLength,
+          returned_bytes: payload.byteLength,
+          truncated,
+          base64: payload.toString("base64"),
         };
-      }
-      // Defensa contra "adjunto gigante satura el contexto del LLM".
-      // Devolvemos siempre `size_bytes` (original) y `returned_bytes` (real
-      // servido) para que el consumidor pueda decidir si reintentar con
-      // max_bytes más alto o solicitar por otra vía.
-      const bytes = Buffer.from(att.base64, "base64");
-      const truncated = bytes.byteLength > max_bytes;
-      const payload = truncated ? bytes.subarray(0, max_bytes) : bytes;
-      const structured = {
-        filename: att.filename,
-        contentType: att.contentType,
-        size_bytes: bytes.byteLength,
-        returned_bytes: payload.byteLength,
-        truncated,
-        base64: payload.toString("base64"),
-      };
-      return {
-        content: [{ type: "text", text: JSON.stringify(structured) }],
-        structuredContent: structured,
-      };
-    },
-  );
+        return {
+          content: [{ type: "text", text: JSON.stringify(structured) }],
+          structuredContent: structured,
+        };
+      },
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Send / reply / forward
   // ---------------------------------------------------------------------------
-  register(
-    "proton_send_email",
-    {
-      title: "Send an email",
-      description:
-        "Sends an email via Proton Bridge SMTP. 'from' is fixed to the configured address. Provide either text, html, or both. Attachments are base64-encoded bytes.",
-      inputSchema: {
-        to: z.array(z.string().email()).min(1).describe("Recipient addresses"),
-        subject: z.string().min(1),
-        text: z.string().optional(),
-        html: z.string().optional(),
-        cc: z.array(z.string().email()).optional(),
-        bcc: z.array(z.string().email()).optional(),
-        reply_to: z.string().email().optional(),
-        attachments: z
-          .array(
-            z.object({
-              filename: z.string(),
-              content_base64: z.string(),
-              content_type: z.string().optional(),
-            }),
-          )
-          .optional(),
+  function registerSendTools() {
+    register(
+      "proton_send_email",
+      {
+        title: "Send an email",
+        description:
+          "Sends an email via Proton Bridge SMTP. 'from' is fixed to the configured address. Provide either text, html, or both. Attachments are base64-encoded bytes.",
+        inputSchema: {
+          to: z.array(z.string().email()).min(1).describe("Recipient addresses"),
+          subject: z.string().min(1),
+          text: z.string().optional(),
+          html: z.string().optional(),
+          cc: z.array(z.string().email()).optional(),
+          bcc: z.array(z.string().email()).optional(),
+          reply_to: z.string().email().optional(),
+          attachments: z
+            .array(
+              z.object({
+                filename: z.string(),
+                content_base64: z.string(),
+                content_type: z.string().optional(),
+              }),
+            )
+            .optional(),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
       },
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: true,
-      },
-    },
-    async (args) => {
-      if (!args.text && !args.html) {
+      async (args) => {
+        if (!args.text && !args.html) {
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: "Provide at least one of 'text' or 'html'." },
+            ],
+          };
+        }
+        const res = await smtp.send({
+          to: args.to,
+          cc: args.cc,
+          bcc: args.bcc,
+          subject: args.subject,
+          text: args.text,
+          html: args.html,
+          replyTo: args.reply_to,
+          attachments: args.attachments?.map((a) => ({
+            filename: a.filename,
+            contentBase64: a.content_base64,
+            contentType: a.content_type,
+          })),
+        });
         return {
-          isError: true,
           content: [
-            { type: "text", text: "Provide at least one of 'text' or 'html'." },
+            {
+              type: "text",
+              text: `Sent. messageId=${res.messageId} accepted=${res.accepted.length} rejected=${res.rejected.length}`,
+            },
           ],
         };
-      }
-      const res = await smtp.send({
-        to: args.to,
-        cc: args.cc,
-        bcc: args.bcc,
-        subject: args.subject,
-        text: args.text,
-        html: args.html,
-        replyTo: args.reply_to,
-        attachments: args.attachments?.map((a) => ({
-          filename: a.filename,
-          contentBase64: a.content_base64,
-          contentType: a.content_type,
-        })),
-      });
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Sent. messageId=${res.messageId} accepted=${res.accepted.length} rejected=${res.rejected.length}`,
-          },
-        ],
-      };
-    },
-  );
+      },
+    );
 
-  register(
-    "proton_reply_email",
-    {
-      title: "Reply to an email",
-      description:
-        "Replies to an existing message preserving threading (In-Reply-To, References). Set reply_all=true to include CC recipients. Set include_quote=true to quote the original.",
-      inputSchema: {
-        mailbox: z.string().default("INBOX"),
-        uid: z.number().int().positive(),
-        text: z.string().optional(),
-        html: z.string().optional(),
-        reply_all: z.boolean().default(false),
-        include_quote: z.boolean().default(true),
+    register(
+      "proton_reply_email",
+      {
+        title: "Reply to an email",
+        description:
+          "Replies to an existing message preserving threading (In-Reply-To, References). Set reply_all=true to include CC recipients. Set include_quote=true to quote the original.",
+        inputSchema: {
+          mailbox: z.string().default("INBOX"),
+          uid: z.number().int().positive(),
+          text: z.string().optional(),
+          html: z.string().optional(),
+          reply_all: z.boolean().default(false),
+          include_quote: z.boolean().default(true),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
       },
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: true,
+      async (args) => {
+        if (!args.text && !args.html) {
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: "Provide at least one of 'text' or 'html'." },
+            ],
+          };
+        }
+        const opts = await buildReplyOptions(
+          imap,
+          args.mailbox,
+          args.uid,
+          { text: args.text, html: args.html },
+          args.include_quote,
+          args.reply_all,
+          cfg.bridge.from,
+        );
+        if (!opts)
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: `Original UID ${args.uid} not found.` },
+            ],
+          };
+        if (opts.to.length === 0)
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: "Original has no reply-to address." },
+            ],
+          };
+        const res = await smtp.send(opts);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Reply sent to ${opts.to.join(", ")}. messageId=${res.messageId} accepted=${res.accepted.length}`,
+            },
+          ],
+        };
       },
-    },
-    async (args) => {
-      if (!args.text && !args.html) {
-        return {
-          isError: true,
-          content: [
-            { type: "text", text: "Provide at least one of 'text' or 'html'." },
-          ],
-        };
-      }
-      const opts = await buildReplyOptions(
-        imap,
-        args.mailbox,
-        args.uid,
-        { text: args.text, html: args.html },
-        args.include_quote,
-        args.reply_all,
-        cfg.bridge.from,
-      );
-      if (!opts)
-        return {
-          isError: true,
-          content: [
-            { type: "text", text: `Original UID ${args.uid} not found.` },
-          ],
-        };
-      if (opts.to.length === 0)
-        return {
-          isError: true,
-          content: [
-            { type: "text", text: "Original has no reply-to address." },
-          ],
-        };
-      const res = await smtp.send(opts);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Reply sent to ${opts.to.join(", ")}. messageId=${res.messageId} accepted=${res.accepted.length}`,
-          },
-        ],
-      };
-    },
-  );
+    );
 
-  register(
-    "proton_forward_email",
-    {
-      title: "Forward an email",
-      description:
-        "Forwards an existing message to new recipients. Optionally includes original attachments.",
-      inputSchema: {
-        mailbox: z.string().default("INBOX"),
-        uid: z.number().int().positive(),
-        to: z.array(z.string().email()).min(1),
-        text: z.string().optional(),
-        html: z.string().optional(),
-        include_attachments: z.boolean().default(true),
+    register(
+      "proton_forward_email",
+      {
+        title: "Forward an email",
+        description:
+          "Forwards an existing message to new recipients. Optionally includes original attachments.",
+        inputSchema: {
+          mailbox: z.string().default("INBOX"),
+          uid: z.number().int().positive(),
+          to: z.array(z.string().email()).min(1),
+          text: z.string().optional(),
+          html: z.string().optional(),
+          include_attachments: z.boolean().default(true),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
       },
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: true,
-      },
-    },
-    async (args) => {
-      const opts = await buildForwardOptions(
-        imap,
-        args.mailbox,
-        args.uid,
-        args.to,
-        { text: args.text, html: args.html },
-        args.include_attachments,
-      );
-      if (!opts)
+      async (args) => {
+        const opts = await buildForwardOptions(
+          imap,
+          args.mailbox,
+          args.uid,
+          args.to,
+          { text: args.text, html: args.html },
+          args.include_attachments,
+        );
+        if (!opts)
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: `Original UID ${args.uid} not found.` },
+            ],
+          };
+        const res = await smtp.send(opts);
         return {
-          isError: true,
           content: [
-            { type: "text", text: `Original UID ${args.uid} not found.` },
+            {
+              type: "text",
+              text: `Forwarded to ${args.to.join(", ")}. messageId=${res.messageId}`,
+            },
           ],
         };
-      const res = await smtp.send(opts);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Forwarded to ${args.to.join(", ")}. messageId=${res.messageId}`,
-          },
-        ],
-      };
-    },
-  );
+      },
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Modify
   // ---------------------------------------------------------------------------
-  register(
-    "proton_flag_email",
-    {
-      title: "Flag / unflag emails",
-      description:
-        "Toggles per-message flags. Supported: 'read', 'unread', 'starred', 'unstarred'. For custom flags, pass add_flags/remove_flags directly.",
-      inputSchema: {
-        mailbox: z.string().default("INBOX"),
-        uid: z.number().int().positive(),
-        action: z
-          .enum(["read", "unread", "starred", "unstarred", "custom"])
-          .describe("Shorthand action"),
-        add_flags: z
-          .array(z.string())
-          .optional()
-          .describe("Custom flags to add (action=custom only)"),
-        remove_flags: z
-          .array(z.string())
-          .optional()
-          .describe("Custom flags to remove (action=custom only)"),
+  function registerModifyTools() {
+    register(
+      "proton_flag_email",
+      {
+        title: "Flag / unflag emails",
+        description:
+          "Toggles per-message flags. Supported: 'read', 'unread', 'starred', 'unstarred'. For custom flags, pass add_flags/remove_flags directly.",
+        inputSchema: {
+          mailbox: z.string().default("INBOX"),
+          uid: z.number().int().positive(),
+          action: z
+            .enum(["read", "unread", "starred", "unstarred", "custom"])
+            .describe("Shorthand action"),
+          add_flags: z
+            .array(z.string())
+            .optional()
+            .describe("Custom flags to add (action=custom only)"),
+          remove_flags: z
+            .array(z.string())
+            .optional()
+            .describe("Custom flags to remove (action=custom only)"),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: true,
+        },
       },
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
-    },
-    async ({ mailbox, uid, action, add_flags, remove_flags }) => {
-      let add: string[] = [];
-      let remove: string[] = [];
-      switch (action) {
-        case "read":
-          add = ["\\Seen"];
-          break;
-        case "unread":
-          remove = ["\\Seen"];
-          break;
-        case "starred":
-          add = ["\\Flagged"];
-          break;
-        case "unstarred":
-          remove = ["\\Flagged"];
-          break;
-        case "custom":
-          add = add_flags ?? [];
-          remove = remove_flags ?? [];
-          break;
-      }
-      const ok = await imap.setFlags(mailbox, uid, add, remove);
-      return {
-        content: [
-          {
-            type: "text",
-            text: ok
-              ? `Flags updated on UID ${uid}.`
-              : `Failed to update flags on UID ${uid}.`,
-          },
-        ],
-      };
-    },
-  );
-
-  register(
-    "proton_move_email",
-    {
-      title: "Move an email to another mailbox",
-      description:
-        "Moves a message by UID from one mailbox to another. Use proton_list_folders to see valid targets.",
-      inputSchema: {
-        from_mailbox: z.string(),
-        uid: z.number().int().positive(),
-        to_mailbox: z.string(),
-      },
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: true,
-      },
-    },
-    async ({ from_mailbox, uid, to_mailbox }) => {
-      const ok = await imap.moveEmail(from_mailbox, uid, to_mailbox);
-      return {
-        content: [
-          {
-            type: "text",
-            text: ok ? `Moved UID ${uid} → ${to_mailbox}` : `Move failed.`,
-          },
-        ],
-      };
-    },
-  );
-
-  register(
-    "proton_delete_email",
-    {
-      title: "Delete an email",
-      description:
-        "Deletes a message. Default mode='trash' moves it to Trash (reversible). mode='permanent' expunges immediately — cannot be undone.",
-      inputSchema: {
-        mailbox: z.string().default("INBOX"),
-        uid: z.number().int().positive(),
-        mode: z.enum(["trash", "permanent"]).default("trash"),
-        trash_path: z
-          .string()
-          .optional()
-          .describe(
-            "Override for the Trash mailbox path. If omitted, the \\Trash special-use mailbox is auto-detected (works with Papelera/Corbeille/etc.).",
-          ),
-      },
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: true,
-        idempotentHint: false,
-        openWorldHint: true,
-      },
-    },
-    async ({ mailbox, uid, mode, trash_path }) => {
-      if (mode === "trash") {
-        const target = await resolveTrashPath(trash_path);
-        const ok = await imap.moveEmail(mailbox, uid, target);
+      async ({ mailbox, uid, action, add_flags, remove_flags }) => {
+        let add: string[] = [];
+        let remove: string[] = [];
+        switch (action) {
+          case "read":
+            add = ["\\Seen"];
+            break;
+          case "unread":
+            remove = ["\\Seen"];
+            break;
+          case "starred":
+            add = ["\\Flagged"];
+            break;
+          case "unstarred":
+            remove = ["\\Flagged"];
+            break;
+          case "custom":
+            add = add_flags ?? [];
+            remove = remove_flags ?? [];
+            break;
+        }
+        const ok = await imap.setFlags(mailbox, uid, add, remove);
         return {
           content: [
             {
               type: "text",
               text: ok
-                ? `Moved UID ${uid} to ${target}.`
-                : "Delete-to-trash failed.",
+                ? `Flags updated on UID ${uid}.`
+                : `Failed to update flags on UID ${uid}.`,
             },
           ],
         };
-      }
-      const ok = await imap.deleteEmail(mailbox, uid);
-      return {
-        content: [
-          {
-            type: "text",
-            text: ok ? `Permanently deleted UID ${uid}.` : "Delete failed.",
-          },
-        ],
-      };
-    },
-  );
+      },
+    );
 
-  return { server, imap, smtp };
+    register(
+      "proton_move_email",
+      {
+        title: "Move an email to another mailbox",
+        description:
+          "Moves a message by UID from one mailbox to another. Use proton_list_folders to see valid targets.",
+        inputSchema: {
+          from_mailbox: z.string(),
+          uid: z.number().int().positive(),
+          to_mailbox: z.string(),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
+      },
+      async ({ from_mailbox, uid, to_mailbox }) => {
+        const ok = await imap.moveEmail(from_mailbox, uid, to_mailbox);
+        return {
+          content: [
+            {
+              type: "text",
+              text: ok ? `Moved UID ${uid} → ${to_mailbox}` : `Move failed.`,
+            },
+          ],
+        };
+      },
+    );
+
+    register(
+      "proton_delete_email",
+      {
+        title: "Delete an email",
+        description:
+          "Deletes a message. Default mode='trash' moves it to Trash (reversible). mode='permanent' expunges immediately — cannot be undone.",
+        inputSchema: {
+          mailbox: z.string().default("INBOX"),
+          uid: z.number().int().positive(),
+          mode: z.enum(["trash", "permanent"]).default("trash"),
+          trash_path: z
+            .string()
+            .optional()
+            .describe(
+              "Override for the Trash mailbox path. If omitted, the \\Trash special-use mailbox is auto-detected (works with Papelera/Corbeille/etc.).",
+            ),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
+      },
+      async ({ mailbox, uid, mode, trash_path }) => {
+        if (mode === "trash") {
+          const target = await resolveTrashPath(trash_path);
+          const ok = await imap.moveEmail(mailbox, uid, target);
+          return {
+            content: [
+              {
+                type: "text",
+                text: ok
+                  ? `Moved UID ${uid} to ${target}.`
+                  : "Delete-to-trash failed.",
+              },
+            ],
+          };
+        }
+        const ok = await imap.deleteEmail(mailbox, uid);
+        return {
+          content: [
+            {
+              type: "text",
+              text: ok ? `Permanently deleted UID ${uid}.` : "Delete failed.",
+            },
+          ],
+        };
+      },
+    );
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -940,4 +968,41 @@ function renderFullEmail(m: {
 
 function truncate(s: string, n: number): string {
   return s.length <= n ? s : s.slice(0, n - 1) + "…";
+}
+
+// -----------------------------------------------------------------------------
+// Search criteria builder
+// -----------------------------------------------------------------------------
+
+/** Construye el objeto `SearchObject` de imapflow a partir de los argumentos de
+ * `proton_search_emails`. Aísla la lógica de mapeo de campos (body/subject/from/to)
+ * y evita que un filtro `from_address`/`to_address` explícito sea pisado por el
+ * campo genérico `fields`. */
+function buildSearchCriteria(args: {
+  query?: string;
+  fields: Array<"text" | "subject" | "from" | "to" | "body">;
+  since?: string;
+  before?: string;
+  unseen_only: boolean;
+  from_address?: string;
+  to_address?: string;
+}): SearchObject {
+  const criteria: SearchObject = {};
+  if (args.unseen_only) criteria.seen = false;
+  if (args.since) criteria.since = new Date(args.since);
+  if (args.before) criteria.before = new Date(args.before);
+  if (args.from_address) criteria.from = args.from_address;
+  if (args.to_address) criteria.to = args.to_address;
+  if (args.query) {
+    for (const f of args.fields) {
+      if (f === "text") criteria.body = args.query;
+      if (f === "subject") criteria.subject = args.query;
+      // Un `from_address` explícito gana sobre `fields:["from"]` para
+      // evitar sobreescribir un filtro más específico.
+      if (f === "from" && !criteria.from) criteria.from = args.query;
+      if (f === "to" && !criteria.to) criteria.to = args.query;
+      if (f === "body") criteria.body = args.query;
+    }
+  }
+  return criteria;
 }

@@ -9,7 +9,7 @@ body:
       value: |
         Gracias por reportar. Antes de continuar, comprueba que no exista
         un issue similar en
-        https://github.com/alexendros/protonmail-mcp/issues.
+        https://github.com/Iniciativas-Alexendros/plugin-protonmail-claudecode/issues.
         Para vulnerabilidades de seguridad consulta `SECURITY.md` y NO uses
         este formulario.
   - type: input

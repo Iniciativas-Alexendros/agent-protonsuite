@@ -21,7 +21,7 @@
  */
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { randomUUID } from "node:crypto";
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -61,15 +61,18 @@ export function buildHttpApp(deps: HttpAppDeps): Express {
   // Registro en memoria de sesiones activas. `lastUsed` alimenta la eviction.
   const sessions = new Map<string, { transport: StreamableHTTPServerTransport; server: McpServer; lastUsed: number }>();
 
-  // 120 req/min por bearer (no por IP: detrás de un proxy todas las IPs son
-  // la misma). draft-7 = headers estándar modernos `RateLimit` en vez de los
-  // legacy `X-RateLimit-*`.
+  // 120 req/min por bearer; si no hay bearer (p. ej. preflight OPTIONS) se
+  // recae en la IP via `ipKeyGenerator` de express-rate-limit, y en último
+  // caso en "anon". draft-7 = headers estándar modernos `RateLimit`.
   const limiter = rateLimit({
     windowMs: 60_000,
     limit: 120,
     standardHeaders: "draft-7",
     legacyHeaders: false,
-    keyGenerator: (req) => extractBearer(req.headers.authorization as string | undefined) || req.ip || "anon",
+    keyGenerator: (req) =>
+      extractBearer(req.headers.authorization as string | undefined) ||
+      ipKeyGenerator(req.ip ?? "") ||
+      "anon",
     message: { error: "rate_limit_exceeded" },
   });
 

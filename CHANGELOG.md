@@ -112,7 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `@alexendros/protonmail-mcp` (old npm name) deprecated with `npm deprecate` pointing to the new package.
 
-[0.2.0]: https://github.com/Iniciativas-Alexendros/protonmail-mcp/releases/tag/v0.2.0
-[0.1.2]: https://github.com/Iniciativas-Alexendros/protonmail-mcp/releases/tag/v0.1.2
-[0.1.1]: https://github.com/Iniciativas-Alexendros/protonmail-mcp/releases/tag/v0.1.1
-[0.1.0]: https://github.com/Iniciativas-Alexendros/protonmail-mcp/releases/tag/v0.1.0
+[0.2.0]: https://github.com/Iniciativas-Alexendros/plugin-protonmail-claudecode/releases/tag/v0.2.0
+[0.1.2]: https://github.com/Iniciativas-Alexendros/plugin-protonmail-claudecode/releases/tag/v0.1.2
+[0.1.1]: https://github.com/Iniciativas-Alexendros/plugin-protonmail-claudecode/releases/tag/v0.1.1
+[0.1.0]: https://github.com/Iniciativas-Alexendros/plugin-protonmail-claudecode/releases/tag/v0.1.0

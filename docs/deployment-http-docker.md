@@ -14,7 +14,7 @@ El stack se compone de dos contenedores:
 
 | Imagen              | Dockerfile          | Rol                                                                                                                                                             |
 | ------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **MCP**             | `Dockerfile`        | El servidor MCP en modo HTTP (`MCP_TRANSPORT=http`), Node sobre `node:20-alpine`. Escucha en `8787`.                                                            |
+| **MCP**             | `Dockerfile`        | El servidor MCP en modo HTTP (`MCP_TRANSPORT=http`), Node sobre `node:22-alpine`. Escucha en `8787`.                                                            |
 | **Bridge headless** | `Dockerfile.bridge` | Proton Mail Bridge headless (extiende la imagen community `shenxn/protonmail-bridge`) con el vault persistido en un volumen. Sirve IMAP/SMTP en la red interna. |
 
 `Dockerfile.bridge` añade sobre la imagen base las dependencias que faltan en Bridge
@@ -103,7 +103,7 @@ curl https://tu-dominio.example/healthz
 Respuesta esperada:
 
 ```json
-{ "ok": true, "version": "0.2.0", "sessions": 0 }
+{ "ok": true, "version": "0.4.0", "sessions": 0 }
 ```
 
 ### Handshake MCP (`initialize`)

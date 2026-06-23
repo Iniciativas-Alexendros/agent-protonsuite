@@ -11,7 +11,7 @@ Antes de abrir un issue revisa estas vías:
 ## 2. Discusiones
 
 Para preguntas y conversaciones de uso utiliza la sección
-[Discussions del repositorio](https://github.com/alexendros/protonmail-mcp/discussions)
+[Discussions del repositorio](https://github.com/Iniciativas-Alexendros/plugin-protonmail-claudecode/discussions)
 si está habilitada.
 
 ## 3. Issues

@@ -22,10 +22,31 @@ SOFTWARE.
 
 ---
 
-Nota de dependencias (revisión 2026-06-21)
+Nota de dependencias (revisión 2026-06-23)
 
-El árbol de dependencias de producción se ha revisado y todas las licencias son
-permissivas: MIT, ISC, BSD-2-Clause, BSD-3-Clause o MIT-0. La única excepción es
-`@zone-eu/mailsplit`, publicado bajo licencia dual "MIT OR EUPL-1.1+". Este
-proyecto consume dicho paquete bajo los términos MIT, por lo que no se activan
-obligaciones copyleft en la distribución del paquete.
+El árbol de dependencias se revisa periódicamente y el proyecto solo acepta
+licencias compatibles con su distribución como paquete MIT:
+
+**Allowlist de licencias permitidas**
+
+- Permisivas de uso general: MIT, ISC, BSD-2-Clause, BSD-3-Clause, Apache-2.0, MIT-0.
+- Copyleft débil: MPL-2.0 — aceptable siempre que se use como dependencia sin
+  modificación y no forme parte de un trabajo derivado combinado. En el árbol
+  actual aparece solo en dependencias de desarrollo (`lightningcss`, `lightningcss-*`).
+- Licencias de datos/tooling: CC-BY-3.0 y CC0-1.0 — aceptables en dependencias de
+  desarrollo que no se distribuyen en el tarball (p. ej. bases de datos de identificadores SPDX).
+- Licencias duales: se acepta `(MIT OR EUPL-1.1+)` únicamente consumiendo el
+  paquete bajo los términos MIT. No se activan obligaciones copyleft de EUPL.
+
+**Dependencias con licencias especiales**
+
+- `@zone-eu/mailsplit@5.x` — licencia dual "MIT OR EUPL-1.1+". Este proyecto
+  lo consume bajo los términos MIT, por lo que no se activan obligaciones
+  copyleft en la distribución del paquete.
+- `lightningcss@1.x` y sus crates binarios de plataforma — MPL-2.0. Son
+  dependencias de desarrollo (`vitest`) y no se incluyen en el tarball de
+  producción.
+
+El script `npm run license-check` (`license-checker --direct --onlyAllow ...)
+verifica el árbol directo contra esta allowlist. Para producción se usa la
+variante `--production` que excluye las dependencias de desarrollo.

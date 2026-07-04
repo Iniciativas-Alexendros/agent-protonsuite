@@ -1,6 +1,6 @@
-# Quickstart para humanos — Proton Mail MCP
+# Quickstart para humanos — Proton Mail Agent
 
-Este documento te lleva de cero a "leer el inbox con un agente IA" en 10 minutos.
+Este documento te lleva de cero a "leer el inbox con un agente IA" y, opcionalmente, organizar el buzón de forma autónoma.
 
 ## Qué necesitas
 
@@ -28,24 +28,35 @@ Verifica que escucha en local:
 ss -ltn | grep -E '127.0.0.1:1143'
 ```
 
-## 2. Instalar el MCP
+## 2. Instalar el agente
 
 Opción A: usar el paquete npm (recomendado):
 
 ```bash
-npx -y @alexendros/protonmail-mcp
+npx -y @alexendros/protonmail-agent setup
 ```
 
 Opción B: clonar y construir:
 
 ```bash
-git clone https://github.com/Iniciativas-Alexendros/protonmailbrige-mcptool.git
-cd protonmailbrige-mcptool
+git clone https://github.com/Iniciativas-Alexendros/agent-protonmail.git
+cd agent-protonmail
 npm install
 npm run build
 ```
 
-## 3. Configurar tu agente
+## 3. Verificar conexión
+
+```bash
+export PROTON_BRIDGE_USER=you@proton.me
+export PROTON_BRIDGE_PASS=your-bridge-password
+export PROTON_MAIL_FROM=you@proton.me
+npx -y @alexendros/protonmail-agent setup
+```
+
+Si todo va bien, verás las carpetas detectadas y una recomendación para ejecutar `organize`.
+
+## 4. Configurar tu agente
 
 Añade esto a la configuración MCP de tu agente (formato genérico):
 
@@ -54,35 +65,54 @@ Añade esto a la configuración MCP de tu agente (formato genérico):
   "mcpServers": {
     "protonmail": {
       "command": "npx",
-      "args": ["-y", "@alexendros/protonmail-mcp"],
+      "args": ["-y", "@alexendros/protonmail-agent", "protonmail-mcp"],
       "env": {
         "MCP_TRANSPORT": "stdio",
         "PROTON_BRIDGE_USER": "you@proton.me",
         "PROTON_BRIDGE_PASS": "your-bridge-password",
         "PROTON_MAIL_FROM": "you@proton.me",
-        "PROTON_BRIDGE_TLS_INSECURE": "true"
+        "PROTON_BRIDGE_TLS_INSECURE": "true",
+        "AGENT_DRY_RUN": "true"
       }
     }
   }
 }
 ```
 
-## 4. No guardes el bridge password en claro
+## 5. No guardes el bridge password en claro
 
 Copia [`connectors/stdio-wrapper.sh.example`](../connectors/stdio-wrapper.sh.example) a tu máquina, rellena tus datos y el puntero a tu gestor de secretos, y usa el wrapper como `command` del MCP en lugar de `npx`. Así el password nunca toca el disco del cliente.
 
-## 5. Primer uso
+## 6. Organizar el buzón (modo dry-run)
+
+```bash
+npx -y @alexendros/protonmail-agent organize
+```
+
+Por defecto, `AGENT_DRY_RUN=true`, así que el agente solo presenta un plan de:
+
+- Carpetas propuestas (`Legal`, `Admin`, `Banca`, `Tech`, etc.).
+- Etiquetas sugeridas (`keep`, `spam`, `commercial`, etc.).
+- Alertas de seguridad (phishing, spam, fraudes).
+
+Revisa el plan. Si te parece correcto, vuelve a ejecutar con `AGENT_DRY_RUN=false` para aplicar los cambios.
+
+## 7. Primer uso con el agente IA
 
 Reinicia tu agente para que registre el MCP. Luego prueba:
 
 - "¿Qué correos tengo en el inbox?"
 - "Resume los correos no leídos de la última semana."
 - "¿Hay algo importante de banca o administraciones?"
+- "Genera un plan de organización de mi buzón."
 
-El agente llamará a `proton_list_folders` y `proton_list_emails` automáticamente.
+El agente llamará a `proton_list_folders` y `proton_agent_plan` automáticamente.
 
-## 6. Siguientes pasos
+## 8. Siguientes pasos
 
 - Para workflows automáticos: [`playbooks/triage-email.md`](../playbooks/triage-email.md).
+- Para organización: [`playbooks/organize-inbox.md`](../playbooks/organize-inbox.md).
 - Para desplegar en servidor: [`deployment-http-docker.md`](./deployment-http-docker.md).
 - Para problemas con Bridge: [`bridge-core.md`](./bridge-core.md).
+- Para alertas: [`alerting.md`](./alerting.md).
+- Para el knowledge base de clasificación: [`knowledge-base.md`](./knowledge-base.md).

@@ -14,7 +14,7 @@ La forma ingenua de registrar el MCP es poner las env vars directamente en el `m
   "mcpServers": {
     "protonmail": {
       "command": "npx",
-      "args": ["-y", "@alexendros/protonmail-mcp"],
+      "args": ["-y", "@alexendros/protonmail-agent"],
       "env": {
         "PROTON_BRIDGE_USER": "you@proton.me",
         "PROTON_BRIDGE_PASS": "el-bridge-password-en-claro" // ← secreto en disco
@@ -44,7 +44,7 @@ El `mcpServers` del cliente queda sin secretos:
 {
   "mcpServers": {
     "protonmail": {
-      "command": "/ruta/a/protonmail-mcp-stdio.sh"
+      "command": "/ruta/a/protonmail-agent-stdio.sh"
     }
   }
 }
@@ -74,7 +74,7 @@ Plantilla de referencia: [`connectors/stdio-wrapper.sh.example`](../connectors/s
 
 ```bash
 #!/usr/bin/env bash
-# wrapper stdio seguro para el MCP de Proton Mail.
+# wrapper stdio seguro para el MCP server de Proton Mail.
 # Resuelve PROTON_BRIDGE_PASS JIT desde tu gestor de secretos.
 set -euo pipefail
 
@@ -93,9 +93,9 @@ export MCP_TRANSPORT="stdio"
 # o con env-file efímero:
 # ENV_FILE="$(mktemp)"
 # trap 'rm -f "$ENV_FILE"' EXIT
-# tu-secret-manager run --env-file "$ENV_FILE" -- npx -y @alexendros/protonmail-mcp
+# tu-secret-manager run --env-file "$ENV_FILE" -- npx -y @alexendros/protonmail-agent protonmail-mcp
 
-exec npx -y @alexendros/protonmail-mcp
+exec npx -y @alexendros/protonmail-agent protonmail-mcp
 ```
 
 Puntos clave:

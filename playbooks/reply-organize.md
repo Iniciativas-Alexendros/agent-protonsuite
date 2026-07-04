@@ -1,6 +1,6 @@
 ---
 name: reply-organize
-description: Responde a un correo de Proton Mail y, opcionalmente, lo archiva en una carpeta. Preserva el hilo y nunca borra.
+description: Responde a un correo de Proton Mail y, opcionalmente, lo archiva en una carpeta. Preserva el hilo y nunca borra. Puede usar proton_agent_plan para obtener contexto de organización.
 ---
 
 # Responder y organizar

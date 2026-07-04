@@ -37,8 +37,10 @@ Describe what you ran. Examples:
 - [ ] `npm test` passes.
 - [ ] `npm run build` succeeds; `dist/` was NOT committed.
 - [ ] If a new tool was added, it's documented in the README tools table and exposed via `tools/list` in `src/server.ts`.
+- [ ] If a new agent feature was added, it's documented in `docs/` and `playbooks/` and has tests.
 - [ ] If env vars changed, both `.env.example` and the README env table were updated.
 - [ ] If the threat model changed, `SECURITY.md` reflects it.
+- [ ] License compatibility checked: `npm run license-check` and `npm run license-check:prod` pass.
 - [ ] No references to exclusive clients (Claude, Anthropic, etc.) in README/docs.
 - [ ] No secrets, tokens, or personal email addresses in commits, comments, or fixtures.
 - [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (e.g. `feat(imap): add archive tool`, `fix(http): close session on auth failure`).

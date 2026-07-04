@@ -29,6 +29,16 @@ function cfg(overrides: Partial<Config["transport"]> = {}): Config {
       allowedOrigins: [],
       ...overrides,
     },
+    alerts: {
+      enabled: false,
+      logDir: "logs",
+      minSeverity: "warning",
+    },
+    agent: {
+      dryRun: true,
+      maxInspectEmails: 10,
+      minConfidence: 0.6,
+    },
     logLevel: "error",
   };
 }

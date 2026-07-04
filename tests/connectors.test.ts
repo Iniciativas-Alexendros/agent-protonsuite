@@ -19,7 +19,8 @@ describe("connectors · stdio-npx.json", () => {
     expect(parsed.mcpServers.protonmail.command).toBe("npx");
     expect(parsed.mcpServers.protonmail.args).toEqual([
       "-y",
-      "@alexendros/protonmail-mcp",
+      "@alexendros/protonmail-agent",
+      "protonmail-mcp",
     ]);
     expect(parsed.mcpServers.protonmail.env.MCP_TRANSPORT).toBe("stdio");
   });

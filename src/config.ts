@@ -48,6 +48,27 @@ const ConfigSchema = z.object({
     // lista vacía, ver `index.ts`.
     allowedOrigins: z.array(z.string()).default([]),
   }),
+  alerts: z.object({
+    // URL para enviar alertas de contenido vía POST. Si no está configurada,
+    // solo se escriben a fichero y stderr.
+    webhookUrl: z.string().url().optional(),
+    // Severidad mínima que dispara salida a fichero/webhook. stderr refleja
+    // info en adelante si LOG_LEVEL lo permite.
+    minSeverity: z.enum(["info", "warning", "alert", "critical"]).default("warning"),
+    // Directorio donde se escriben logs de alertas y auditoría.
+    logDir: z.string().default("logs"),
+    // Activar o desactivar el sistema de alertas por completo.
+    enabled: z.boolean().default(true),
+  }),
+  agent: z.object({
+    // Los pipelines de organización/setup presentan el plan sin aplicarlo.
+    // Poner a false solo cuando el operador haya validado el comportamiento.
+    dryRun: z.boolean().default(true),
+    // Máximo de correos inspeccionados en un análisis de organización.
+    maxInspectEmails: z.number().int().positive().default(1000),
+    // Confianza mínima (0-1) para aceptar una clasificación propuesta.
+    minConfidence: z.number().min(0).max(1).default(0.6),
+  }),
   logLevel: z.enum(["error", "warn", "info", "debug"]).default("info"),
 });
 
@@ -108,6 +129,25 @@ function parseLogLevel(
   return (env.LOG_LEVEL ?? "info") as "error" | "warn" | "info" | "debug";
 }
 
+/** Lee el bloque de configuración de alertas desde `process.env`. */
+function parseAlertConfig(env: NodeJS.ProcessEnv): Config["alerts"] {
+  return {
+    webhookUrl: env.ALERT_WEBHOOK_URL || undefined,
+    minSeverity: (env.ALERT_MIN_SEVERITY ?? "warning") as Config["alerts"]["minSeverity"],
+    logDir: env.ALERT_LOG_DIR ?? "logs",
+    enabled: readBool(env.ALERTS_ENABLED, true),
+  };
+}
+
+/** Lee el bloque de configuración del agente desde `process.env`. */
+function parseAgentConfig(env: NodeJS.ProcessEnv): Config["agent"] {
+  return {
+    dryRun: readBool(env.AGENT_DRY_RUN, true),
+    maxInspectEmails: readInt(env.AGENT_MAX_INSPECT_EMAILS, 1000),
+    minConfidence: Number(env.AGENT_MIN_CONFIDENCE ?? "0.6"),
+  };
+}
+
 /**
  * Lee `process.env` y lo pasa por Zod. La separación entre "lectura cruda" y
  * "parseo" hace trivial testear el schema desde `tests/config.test.ts`:
@@ -118,6 +158,8 @@ export function loadConfig(): Config {
   const raw = {
     bridge: parseBridgeConfig(env),
     transport: parseTransportConfig(env),
+    alerts: parseAlertConfig(env),
+    agent: parseAgentConfig(env),
     logLevel: parseLogLevel(env),
   };
   return ConfigSchema.parse(raw);

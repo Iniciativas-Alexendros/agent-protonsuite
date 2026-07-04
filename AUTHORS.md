@@ -1,4 +1,4 @@
-# Autoría de protonmail-mcp
+# Autoría de Proton Mail Agent
 
 Personas que han contribuido al proyecto. La lista se actualiza tras cada
 release o tras la primera contribución mergeada.

@@ -9,7 +9,7 @@
 set -euo pipefail
 
 IMAGE="greenmail/standalone:2.1.0"
-NAME="protonmail-mcp-e2e-greenmail"
+NAME="protonmail-agent-e2e-greenmail"
 IMAP_PORT="${GREENMAIL_IMAP_PORT:-3143}"
 SMTP_PORT="${GREENMAIL_SMTP_PORT:-3025}"
 

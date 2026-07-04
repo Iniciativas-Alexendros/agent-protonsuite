@@ -110,6 +110,6 @@ jobs:
         with:
           context: .
           push: false
-          tags: protonmail-mcp:ci
+          tags: protonmail-agent:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -1,28 +1,34 @@
 {
-  "name": "@alexendros/protonmail-mcp",
-  "version": "0.4.0",
-  "mcpName": "io.github.Alexendros/protonmail-mcp",
-  "description": "MCP server for Proton Mail via Proton Mail Bridge (IMAP/SMTP). Dual transport: stdio + streamable HTTP.",
-  "license": "MIT",
+  "name": "@alexendros/protonmail-agent",
+  "version": "0.5.0",
+  "mcpName": "io.github.Alexendros/protonmail-agent",
+  "description": "Agente ProtonMail con MCP server embebido: auto-configuración, organización inteligente del buzón, alertas de seguridad y gestión documental profesional.",
+  "license": "AGPL-3.0",
   "type": "module",
   "bin": {
+    "protonmail-agent": "dist/agent-cli.js",
     "protonmail-mcp": "dist/index.js"
   },
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE.md",
+    "server.json",
+    "docs",
+    "playbooks",
+    "connectors"
   ],
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Iniciativas-Alexendros/protonmailbrige-mcptool.git"
+    "url": "git+https://github.com/Iniciativas-Alexendros/agent-protonmail.git"
   },
-  "homepage": "https://github.com/Iniciativas-Alexendros/protonmailbrige-mcptool#readme",
+  "homepage": "https://github.com/Iniciativas-Alexendros/agent-protonmail#readme",
   "bugs": {
-    "url": "https://github.com/Iniciativas-Alexendros/protonmailbrige-mcptool/issues"
+    "url": "https://github.com/Iniciativas-Alexendros/agent-protonmail/issues"
   },
   "keywords": [
     "mcp",
@@ -33,7 +39,14 @@
     "smtp",
     "email",
     "ai-agent",
-    "agent-tool"
+    "agent-tool",
+    "email-agent",
+    "protonmail-agent",
+    "knowledge-graph",
+    "spam-detection",
+    "email-automation",
+    "email-organization",
+    "document-management"
   ],
   "scripts": {
     "build": "tsc",
@@ -46,8 +59,10 @@
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:e2e:local": "bash scripts/e2e-greenmail.sh",
     "smoke": "bash scripts/smoke.sh",
-    "license-check": "license-checker --direct --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;MIT-0;MPL-2.0;CC-BY-3.0;CC0-1.0;(MIT OR EUPL-1.1+)'",
-    "license-check:prod": "license-checker --direct --production --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;MIT-0;(MIT OR EUPL-1.1+)'"
+    "agent:setup": "node dist/agent-cli.js setup",
+    "agent:organize": "node dist/agent-cli.js organize",
+    "license-check": "license-checker --direct --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;MIT-0;MPL-2.0;AGPL-3.0;GPL-3.0;LGPL-3.0;CC-BY-3.0;CC0-1.0;(MIT OR EUPL-1.1+)'",
+    "license-check:prod": "license-checker --direct --production --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;MIT-0;AGPL-3.0;GPL-3.0;LGPL-3.0;(MIT OR EUPL-1.1+)'"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
@@ -55,21 +70,18 @@
     "express-rate-limit": "^8.4.1",
     "imapflow": "^1.4.3",
     "mailparser": "^3.9.12",
-    "nodemailer": "^9.0.1",
+    "nodemailer": "^6.10.1",
     "zod": "^4.3.6"
-  },
-  "overrides": {
-    "nodemailer": "^9.0.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/mailparser": "^3.4.6",
     "@types/node": "^22.0.0",
-    "@types/nodemailer": "^8.0.1",
+    "@types/nodemailer": "^6.4.17",
     "@types/supertest": "^7.2.0",
     "license-checker": "^25.0.1",
     "supertest": "^7.2.2",
-    "typescript": "^5.7.0",
+    "typescript": "^5.8.0",
     "vitest": "^3.0.0"
   },
   "engines": {

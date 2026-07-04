@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.Alexendros/protonmail-mcp",
-  "description": "Proton Mail MCP via Bridge (IMAP/SMTP) · 13 tools · dual transport stdio + HTTP.",
+  "name": "io.github.Alexendros/protonmail-agent",
+  "description": "Proton Mail Agent via Bridge (IMAP/SMTP) · 14 tools · dual transport stdio + HTTP · agent setup, organization and alerting.",
   "repository": {
-    "url": "https://github.com/Iniciativas-Alexendros/protonmailbrige-mcptool",
+    "url": "https://github.com/Iniciativas-Alexendros/agent-protonmail",
     "source": "github"
   },
-  "version": "0.4.0",
+  "version": "0.5.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "@alexendros/protonmail-mcp",
-      "version": "0.4.0",
+      "identifier": "@alexendros/protonmail-agent",
+      "version": "0.5.0",
       "transport": {
         "type": "stdio"
       },
@@ -75,6 +75,55 @@
         {
           "name": "MCP_TRANSPORT",
           "description": "Transport mode: stdio (default, local client) or http (advanced remote deployment).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "AGENT_DRY_RUN",
+          "description": "If true, the agent prints plans without applying changes (default: true). Set to false only after validating the plan manually.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "AGENT_MAX_INSPECT_EMAILS",
+          "description": "Maximum emails inspected during an agent organization pass (default: 1000).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "AGENT_MIN_CONFIDENCE",
+          "description": "Minimum confidence threshold (0-1) for the agent to accept a classification proposal (default: 0.6).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "ALERTS_ENABLED",
+          "description": "Enable the content alerting subsystem (default: true).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "ALERT_WEBHOOK_URL",
+          "description": "Optional webhook URL that receives JSON POSTs for content/security alerts.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "ALERT_MIN_SEVERITY",
+          "description": "Minimum severity that triggers file and webhook output: info, warning, alert or critical (default: warning).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "ALERT_LOG_DIR",
+          "description": "Directory for structured alert and audit logs (default: logs).",
           "isRequired": false,
           "format": "string",
           "isSecret": false

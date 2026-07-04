@@ -1,17 +1,17 @@
-# Soporte para protonmail-mcp
+# Soporte para Proton Mail Agent
 
 Antes de abrir un issue revisa estas vías:
 
 ## 1. Documentación
 
 - `README.md` para una visión general del proyecto.
-- `docs/` para guías y referencias técnicas (si existen).
+- `docs/` para guías y referencias técnicas.
 - `docs/adr/` para entender las decisiones de arquitectura.
 
 ## 2. Discusiones
 
 Para preguntas y conversaciones de uso utiliza la sección
-[Discussions del repositorio](https://github.com/Iniciativas-Alexendros/protonmailbrige-mcptool/discussions)
+[Discussions del repositorio](https://github.com/Iniciativas-Alexendros/agent-protonmail/discussions)
 si está habilitada.
 
 ## 3. Issues

@@ -1,5 +1,5 @@
 /**
- * Cobertura de las 13 tools `proton_*` registradas en `buildServer`.
+ * Cobertura de las 14 tools `proton_*` registradas en `buildServer`.
  *
  * Estrategia: `imapflow`, `nodemailer` y `mailparser` se MOCKEAN con `vi.mock`,
  * así no hay red real contra Bridge. Levantamos un `McpServer` real vía
@@ -137,6 +137,16 @@ const cfg: Config = {
     httpPort: 8787,
     allowedOrigins: [],
   },
+  alerts: {
+    enabled: false,
+    logDir: "logs",
+    minSeverity: "warning",
+  },
+  agent: {
+    dryRun: true,
+    maxInspectEmails: 10,
+    minConfidence: 0.6,
+  },
   logLevel: "error",
 };
 
@@ -232,10 +242,10 @@ beforeEach(() => {
 
 // -----------------------------------------------------------------------------
 describe("buildServer · tool registration", () => {
-  it("exposes exactly 13 proton_* tools", async () => {
+  it("exposes exactly 14 proton_* tools", async () => {
     const client = await makeClient();
     const { tools } = await client.listTools();
-    expect(tools.filter((t) => t.name.startsWith("proton_"))).toHaveLength(13);
+    expect(tools.filter((t) => t.name.startsWith("proton_"))).toHaveLength(14);
   });
 });
 

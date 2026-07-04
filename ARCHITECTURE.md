@@ -1,4 +1,4 @@
-# Arquitectura de protonmail-mcp
+# Arquitectura de Proton Mail Agent
 
 Documento dedicado de arquitectura. El `README.md` da la visión orientada
 a uso; aquí se consolida el modelo interno, los flujos y las fronteras de
@@ -6,12 +6,12 @@ seguridad. Las decisiones de fondo se registran en `docs/adr/`.
 
 ## 1. Propósito y encaje
 
-`protonmail-mcp` es un servidor **MCP (Model Context Protocol)** que expone
-una cuenta Proton Mail — lectura, búsqueda, envío, mover, etiquetar,
-borrar — a cualquier cliente MCP, hablando IMAP/SMTP contra **Proton Mail
-Bridge**. Proton no ofrece API pública y su correo es E2E; Bridge resuelve
-ambos puntos exponiendo IMAP/SMTP locales tras realizar la criptografía en
-una máquina que controla el operador.
+`Proton Mail Agent` es un agente de correo con un **MCP server embebido**
+para Proton Mail: lectura, búsqueda, envío, mover, etiquetar, borrar,
+configuración guiada, organización autónoma y alertas de contenido.
+Habla IMAP/SMTP contra **Proton Mail Bridge**. Proton no ofrece API pública
+y su correo es E2E; Bridge resuelve ambos puntos exponiendo IMAP/SMTP locales
+tras realizar la criptografía en una máquina que controla el operador.
 
 ## 2. Capas
 
@@ -20,8 +20,9 @@ Consumidores MCP            stdio: cliente MCP local (agente IA, CLI)
                             HTTP : cliente MCP remoto / backend propio
         │ JSON-RPC                │ HTTPS + Bearer + Origin allowlist
         ▼                         ▼
-protonmail-mcp (TypeScript · @modelcontextprotocol/sdk@^1.29)
+Proton Mail Agent (TypeScript · @modelcontextprotocol/sdk@^1.29)
    config.ts · auth.ts · http.ts · server.ts · imap.ts · smtp.ts
+   agent/* · alerts/*
         │ IMAP 1143 STARTTLS      │ SMTP 1025 STARTTLS
         ▼                         ▼
 Proton Mail Bridge  ── FRONTERA CRIPTOGRÁFICA E2E ──
@@ -32,8 +33,8 @@ Servidores Proton (cifrado E2E)
 
 - **Consumidores MCP**: clientes que hablan JSON-RPC vía `stdio` (local) o
   `streamable HTTP` (remoto, con Bearer + allowlist de origen).
-- **protonmail-mcp**: este servidor. Doble transporte, validación Zod,
-  pools persistentes a Bridge.
+- **Proton Mail Agent**: este servidor. Doble transporte, validación Zod,
+  pools persistentes a Bridge, agente autónomo y subsistema de alertas.
 - **Proton Mail Bridge**: corre en host/red controlados por el operador.
   Es la frontera criptográfica: todo lo que queda a su izquierda opera
   sobre correo en claro; nada se filtra a terceros.
@@ -49,7 +50,9 @@ Servidores Proton (cifrado E2E)
 | `http.ts` | `buildHttpApp`: Express con per-session StreamableHTTP, rate-limit, origin allowlist |
 | `imap.ts` | `ImapClient`: pool imapflow + retry/backoff + mailbox locks |
 | `smtp.ts` | `SmtpClient`: pool nodemailer + helpers de threading (reply/forward) |
-| `server.ts` | `McpServer` con registro de las 13 tools (Zod in, markdown/json out) |
+| `server.ts` | `McpServer` con registro de las 14 tools (Zod in, markdown/json out) |
+| `agent/*` | Parser de goals, setup, clasificación, organización y ejecución del agente |
+| `alerts/*` | Reglas de contenido, detección de amenazas, webhook y fichero de alertas |
 
 ### Claves de diseño
 
@@ -66,12 +69,15 @@ Servidores Proton (cifrado E2E)
   JSON-RPC; contaminarlo rompería el protocolo. Ningún cuerpo de request ni
   credencial se registra.
 
-## 4. Las 13 tools
+## 4. Las 14 tools
 
 Las tools de lectura aceptan `response_format: "markdown" | "json"`. Cada
 una se registra con `annotations` del SDK (`readOnlyHint`,
 `idempotentHint`, `destructiveHint`, `openWorldHint`) para que el modelo
 razone sobre el efecto antes de invocar.
+
+La tool `proton_agent_plan` es de solo lectura y expone el plan de
+organización y alertas del agente sin aplicar cambios.
 
 | Tool | Tipo | Descripción |
 |---|---|---|
@@ -88,6 +94,7 @@ razone sobre el efecto antes de invocar.
 | `proton_flag_email` | write (idempotente) | read/unread/starred/unstarred/flags custom |
 | `proton_move_email` | write | Mueve entre mailboxes por UID |
 | `proton_delete_email` | **destructiva** | `trash` (reversible) o `permanent` (expunge) |
+| `proton_agent_plan` | read | Plan de organización y alertas del agente (sin aplicar cambios) |
 
 ### Flujo de una llamada
 
@@ -98,8 +105,10 @@ razone sobre el efecto antes de invocar.
    la tool.
 4. La tool delega en `ImapClient` (`imap.ts`) o `SmtpClient` (`smtp.ts`),
    reutilizando el pool a Bridge.
-5. Bridge resuelve sobre el vault cifrado y devuelve correo en claro al MCP.
-6. La respuesta se serializa según `response_format` y vuelve por el
+5. Las tools de agente (`proton_agent_plan`) delegan en `agent/organizer.ts`
+   y `alerts/*`, siempre en modo read-only.
+6. Bridge resuelve sobre el vault cifrado y devuelve correo en claro al MCP.
+7. La respuesta se serializa según `response_format` y vuelve por el
    transporte; los logs van a stderr.
 
 ## 5. Despliegue (Docker)
@@ -110,8 +119,9 @@ Dos contenedores en `docker-compose.yml`:
   (extiende `shenxn/protonmail-bridge:build` con libfido2, dbus-x11,
   credential-helpers, libGL/libOpenGL y libs Qt XCB). Requiere un login
   one-off interactivo; el volumen persiste el vault.
-- **mcp**: este servidor en modo HTTP. Imagen `Dockerfile` (multi-stage
-  `node:22-alpine`).
+- **agent**: este servidor en modo HTTP. Imagen `Dockerfile` (multi-stage
+  `node:22-alpine`). Expone el MCP server y, opcionalmente, recibe variables
+  de agente (`AGENT_*`, `ALERT_*`) para organización y alertas.
 
 Red `proton-net` interna entre ambos; `proxy-network` externa para que el
 reverse proxy (Traefik, Caddy, Nginx, etc.) emita el cert y exponga `/mcp`.
@@ -123,10 +133,13 @@ En `NODE_ENV=production` el servidor se niega a arrancar si
 - No reimplementa criptografía Proton: delega toda la E2E en Bridge.
 - No expone un endpoint HTTP público sin autenticación.
 - No permite spoofing del remitente: `from` queda fijo al configurado.
+- No envía contenido de correo a modelos o servicios externos para clasificación.
+- No ejecuta acciones destructivas en modo autónomo sin confirmación humana
+  (modo dry-run por defecto).
 - No es un boilerplate genérico de correo; es un cliente específico de
   Proton vía Bridge.
 
-## 7. Seguridad — modelo de amenazas (T1–T7)
+## 7. Seguridad — modelo de amenazas (T1–T9)
 
 Detalle completo y controles en `SECURITY.md`. Resumen:
 
@@ -139,14 +152,19 @@ Detalle completo y controles en `SECURITY.md`. Resumen:
 | T5 | Robo de credenciales IMAP del entorno | Secretos solo en deployment secrets / `.env` 0600; rotación vía Bridge |
 | T6 | Exfiltración vía adjuntos en contexto LLM | Cap `max_bytes` (10 MB, hard 50 MB) + revisión del operador |
 | T7 | Downgrade TLS del canal Bridge local | Bridge en `127.0.0.1` / red interna; `PROTON_BRIDGE_CA_PATH` para pinning |
+| T8 | Acción autónoma no autorizada | Modo dry-run por defecto; `AGENT_DRY_RUN=false` requiere confirmación explícita |
+| T9 | Hallucinación en clasificación | Knowledge base local, reglas explicables y umbral de confianza configurable |
 
 La E2E de Proton se detiene en la frontera de Bridge: todo aguas abajo (este
 MCP, el agente, cualquier dashboard) opera sobre texto en claro por diseño.
+
+Los riesgos T8 y T9 son específicos del agente autónomo; ver el baseline de
+seguridad de agentes IA en `SECURITY.md`.
 
 ## 8. Stack
 
 TypeScript 5.7 (`strict`, `NodeNext`) · Node ≥22 ·
 `@modelcontextprotocol/sdk@^1.29` · `imapflow` · `nodemailer` ·
 `mailparser` · `zod` · `express` + `express-rate-limit` · Vitest +
-`supertest`. CI: matrix Node 20/22 (typecheck, test, build, smoke),
-`npm audit`, CodeQL, docker build; release a GHCR en push a `main`.
+`supertest`. CI: matrix Node 20/22 (typecheck, test, build, smoke,
+license-check), `npm audit`, CodeQL, docker build; release a GHCR en push a `main`.

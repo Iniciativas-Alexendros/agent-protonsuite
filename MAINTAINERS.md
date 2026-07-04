@@ -1,4 +1,4 @@
-# Mantenimiento de protonmail-mcp
+# Mantenimiento de Proton Mail Agent
 
 Lista de personas mantenedoras y áreas de responsabilidad.
 

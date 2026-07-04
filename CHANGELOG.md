@@ -1,29 +1,37 @@
 # Changelog
 
-All notable changes to `@alexendros/protonmail-mcp` (renamed back from `@alexendros/proton-mail-mcp` at v0.2.0) are documented in this file.
+All notable changes to `@alexendros/protonmail-agent` (formerly `@alexendros/protonmail-mcp`) are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-07-04
 
 ### Changed
 
-- **Agnosticismo de agente IA.** Eliminadas todas las referencias exclusivas a Claude Code/Anthropic del README, docs y metadatos. El paquete sigue publicado como `@alexendros/protonmail-mcp` y el `mcpName` como `io.github.Alexendros/protonmail-mcp`.
-- **README reestructurado.** De 501 líneas a ~130, con quickstart de 5 minutos, tablas de documentación y enlaces a `docs/human-quickstart.md`, `docs/agent-quickstart.md`, `connectors/` y `playbooks/`.
-- **Stack estabilizado.** Node ≥ 22 LTS, TypeScript 5.7, `@types/node` 22, Vitest 3.x, MCP SDK 1.29, Dockerfile `node:22-alpine`.
+- **Rebrand a agente de correo.** El paquete pasa a llamarse `@alexendros/protonmail-agent`, el binario principal es `protonmail-agent` y el repositorio se renombra a `Iniciativas-Alexendros/agent-protonmail`. El MCP server sigue disponible como `protonmail-mcp`.
+- **Licencia cambiada a AGPL-3.0.** De MIT a GNU Affero General Public License v3.0, con `NOTICE.md` explicando el cambio y la relación con Proton AG.
+- **Seguridad ampliada para agentes IA.** `SECURITY.md` incluye ahora un baseline de agentes autónomos (acción no autorizada, hallucinación, goal injection, data retention, alert fatigue) y controles correspondientes.
 
 ### Added
 
-- **`connectors/`** — ejemplos de configuración stdio y HTTP genéricos para cualquier cliente MCP.
-- **`playbooks/`** — workflows agnósticos de triaje, respuesta/organización y checklist de puesta en marcha.
-- **`docs/human-quickstart.md`** y **`docs/agent-quickstart.md`** — guías separadas para usuarios humanos y agentes IA.
-- **Test de coherencia de metadatos** (`tests/metadata-coherence.test.ts`) verifica que no se reintroduzcan referencias a clientes específicos en los docs públicos.
+- **Módulo de agente** (`src/agent/`) con goals (`discover`, `setup`, `organize`, `monitor`, `alert`), setup, organización y clasificación de correos.
+- **Sistema de alertas** (`src/alerts/`) con reglas de contenido local, detección de amenazas (phishing, spam, fraude), salida a fichero estructurado y webhook.
+- **Tool MCP `proton_agent_plan`** para consultar el plan de organización/alertas sin aplicar cambios.
+- **CLI de agente** (`src/agent-cli.ts`) ejecutable como `npx protonmail-agent <goal>`.
+- **Documentación del agente**: `docs/alerting.md`, `docs/knowledge-base.md`, `playbooks/onboarding.md`, `playbooks/organize-inbox.md`, `playbooks/fraud-detection.md`.
+- **Tests de alertas** (`tests/alerts.test.ts`) para reglas de clasificación y detección de amenazas.
+- **Configuración del agente** (`AGENT_DRY_RUN`, `AGENT_MAX_INSPECT_EMAILS`, `AGENT_MIN_CONFIDENCE`) y de alertas (`ALERT_WEBHOOK_URL`, `ALERT_MIN_SEVERITY`, `ALERT_LOG_DIR`, `ALERTS_ENABLED`) en `src/config.ts` y `.env.example`.
 
 ### Removed
 
-- **Plugin de Claude Code** (`plugins/protonmail-mcp/`, `.claude-plugin/`). El MCP ahora se consume mediante el formato `mcpServers` estándar.
-- **`docker-compose.coolify.yml`** y referencias a Dokploy en la documentación; el despliegue Docker es ahora genérico para cualquier reverse proxy.
+- **Nombre anterior** `@alexendros/protonmail-mcp` queda como alias histórico; el paquete se publica a partir de ahora como `@alexendros/protonmail-agent`.
+
+## [0.4.0] - 2026-06-20
+
+### Fixed
+
+- **Version single-source.** The server version was hardcoded in three places that had drifted (`package.json` 0.3.1, `src/server.ts` "0.3.0", `src/http.ts` `/healthz` "0.2.0"). It is now derived once from `package.json` at runtime via `src/version.ts`.
 
 ## [0.4.0] - 2026-06-20
 
@@ -45,25 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Per-handler debug logging** (`{ tool, ms }`, no payloads) and consolidated address parsing into `src/addresses.ts` (deduplicated between `imap.ts` and `smtp.ts`).
 
-## [Unreleased]
-
-### Changed
-
-- **Documentation restructure.** The local **stdio** transport is now documented as the **primary** usage mode; the HTTP/Docker deployment moves to an **advanced** mode under `docs/`. The README focuses on the stdio flow and links out to the new `docs/` for the rest.
-- **Env var reconciliation in `server.json`.** The declared environment variables in `server.json` were reconciled with the actual names read by `src/config.ts` (`PROTON_BRIDGE_USER`, `PROTON_BRIDGE_PASS`, `PROTON_BRIDGE_HOST`, `PROTON_BRIDGE_IMAP_PORT`, `PROTON_BRIDGE_SMTP_PORT`), removing the previously documented but non-matching names.
-
-### Added
-
-- **`docs/bridge-core.md`** — full guide to the headless `protonmail-bridge-core` package (headless vs GUI AUR install, `--cli` login/2FA flow, obtaining the bridge password with `info`, IMAP/SMTP ports, keychain persistence via gnome-keyring/secret-service, and troubleshooting including `ss -ltn | grep 1143`, bootstrap WARN noise, and bridge-password reconciliation after re-login).
-- **`docs/local-stdio-secrets.md`** — the secure stdio configuration pattern: why `PROTON_BRIDGE_PASS` must not live in clear text in the client config, registering a wrapper script as the MCP `command`, just-in-time secret resolution, clean stdout (logs to stderr), and ephemeral env-file via `mktemp` + `trap`. Includes a complete placeholder wrapper; references the template at `connectors/stdio-wrapper.sh.example`.
-- **`docs/deployment-http-docker.md`** — the HTTP/Docker/Dokploy deployment content retired from the README (advanced mode): the two images (`Dockerfile` + `Dockerfile.bridge`), `docker-compose` with internal network + Traefik, HTTP env vars (`MCP_AUTH_TOKEN` via `openssl rand -hex 32`, `MCP_ALLOWED_ORIGINS`, `LOG_LEVEL`), the `NODE_ENV=production` refusal to start with an empty allowlist, one-off Bridge login inside the container, `/healthz` and `/mcp` verification, and registration as a Remote MCP Server in Claude Routines.
-- **Triage skill documentation** — documented the mail-triage skill that drives inbox review/cleanup through the MCP over the local Bridge IMAP.
-- **Installable Claude Code plugin** — the project is now packaged as an installable Claude Code plugin (`plugins/protonmail-mcp/`), bundling the stdio wrapper template and MCP registration.
-
-### Notes
-
-- Documentation + plugin packaging work only. **No package version change** — this remains `0.2.0`. No functional/runtime behavior change to the MCP server itself.
-
 ## [0.2.0] · 2026-05-18
 
 ### Changed
@@ -81,9 +70,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 
-- **Reason for rename U-turn.** The intermediate name `proton-mail-mcp` (kebab-case) introduced in `0.1.0` was chosen for "brand alignment" but read awkwardly (`proton-mail` reads as two separate words while Proton's product is `Proton Mail` — a brand, not a compound). The single-word `protonmail-mcp` matches Proton AG's own `protonmail.com` heritage domain and aligns with the upstream community Docker image `shenxn/protonmail-bridge`. After two months of operational use the kebab form was found to introduce friction in autocomplete and verbal communication. This is the **last** rename — version `0.2.x` series locks the identity.
+- **Reason for rename U-turn.** The intermediate name `proton-mail-mcp` (kebab-case) introduced in `0.1.0` was chosen for "brand alignment" but read awkwardly (`proton-mail` reads as two separate words while Proton's product is `Proton Mail` — a brand, not a compound). The single-word `protonmail-mcp` matches Proton AG's own `protonmail.com` heritage domain and aligns with the upstream community Docker image `shenxn/protonmail-bridge`. After two months of operational use the kebab form was found to introduce friction in autocomplete and verbal communication.
 - Old package `@alexendros/proton-mail-mcp@0.1.x` deprecated with pointer to the new name. Old deprecation on the original `@alexendros/protonmail-mcp@<pre-0.1.0>` cleared (`npm deprecate '@alexendros/protonmail-mcp' ''`).
 - No functional changes; this is a metadata-only release.
+- > **Nota histórica (2026-07-04):** en `v0.5.0` el proyecto se transformó en agente y se renombró a `@alexendros/protonmail-agent` / `agent-protonmail`. La afirmación de "último rename" queda reflejada como decisión válida para la serie `0.2.x`.
 
 ## [0.1.2] · 2026-05-02
 

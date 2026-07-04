@@ -1,4 +1,4 @@
-# Documentación de protonmail-mcp
+# Documentación de Proton Mail Agent
 
 Esta carpeta agrupa la documentación del proyecto. Encontrarás:
 

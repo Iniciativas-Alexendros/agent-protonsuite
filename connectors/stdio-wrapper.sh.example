@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# protonmail-mcp stdio wrapper (EXAMPLE / TEMPLATE)
+# Proton Mail Agent stdio wrapper (EXAMPLE / TEMPLATE)
 #
 # Lanza el Proton Mail MCP server sobre STDIO con los ajustes de conexión
 # a Proton Bridge, resolviendo el Bridge password desde un gestor de secretos
@@ -24,6 +24,7 @@ export PROTON_BRIDGE_IMAP_PORT="1143"
 export PROTON_BRIDGE_SMTP_PORT="1025"
 export PROTON_BRIDGE_TLS_INSECURE="true"
 export MCP_TRANSPORT="stdio"
+export AGENT_DRY_RUN="true"
 
 # --- Resolve Bridge password from your secrets manager -----------------------
 # The Bridge password is NEVER stored here. Fetch it just-in-time from your
@@ -48,11 +49,11 @@ export MCP_TRANSPORT="stdio"
 # } > "$ENV_FILE"
 
 # --- stdout must stay clean (only JSON-RPC); logs go to stderr --------------
-echo "protonmail-mcp wrapper: launching MCP server over stdio..." >&2
+echo "protonmail-agent wrapper: launching MCP server over stdio..." >&2
 
 # --- Launch the server -------------------------------------------------------
 # `exec` replaces the shell so stdout reaches the MCP client unchanged.
-exec npx -y @alexendros/protonmail-mcp
+exec npx -y @alexendros/protonmail-agent protonmail-mcp
 
 # Alternative: if you run a local checkout, build first and then:
-# exec node /ruta/absoluta/a/protonmailbrige-mcptool/dist/index.js
+# exec node /ruta/absoluta/a/agent-protonmail/dist/index.js

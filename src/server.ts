@@ -25,6 +25,8 @@ import type { SearchObject } from "imapflow";
 import { SmtpClient, buildForwardOptions, buildReplyOptions } from "./smtp.js";
 import { VERSION } from "./version.js";
 import type { Config } from "./config.js";
+import { AlertSystem } from "./alerts/index.js";
+import { buildOrganizationPlan, parseGoal, buildGoalContext } from "./agent/index.js";
 
 type Logger = ReturnType<typeof import("./config.js").createLogger>;
 
@@ -117,7 +119,7 @@ export function buildServer(
   const smtp = new SmtpClient(cfg.bridge, log);
 
   const server = new McpServer(
-    { name: "protonmail-mcp", version: VERSION },
+    { name: "protonmail-agent", version: VERSION },
     {
       instructions:
         "Proton Mail via Proton Mail Bridge. Before any operation, call proton_list_folders to see available mailboxes. Use UIDs (not sequence numbers) when modifying messages. Bridge must be running and reachable at the configured host.",
@@ -161,11 +163,14 @@ export function buildServer(
   // encapsula el register de su grupo; los handlers capturan `imap`/`smtp` por
   // closure, así que el cuerpo de `buildServer` solo orquesta.
   // ---------------------------------------------------------------------------
+  const alerts = new AlertSystem(cfg.alerts, log);
+
   registerFolderTools();
   registerListSearchTools();
   registerReadTools();
   registerSendTools();
   registerModifyTools();
+  registerAgentTools();
 
   return { server, imap, smtp };
 
@@ -891,6 +896,83 @@ export function buildServer(
               text: ok ? `Permanently deleted UID ${uid}.` : "Delete failed.",
             },
           ],
+        };
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Agent
+  // ---------------------------------------------------------------------------
+  function registerAgentTools() {
+    register(
+      "proton_agent_plan",
+      {
+        title: "Get agent organization/alert plan",
+        description:
+          "Analyzes the mailbox using the embedded agent rules and returns a proposed folder/label structure plus content alerts. This is a read-only planning tool; it does not move, flag or delete emails. Use it before running the CLI agent:organize command.",
+        inputSchema: {
+          goal: z
+            .enum(["organize", "monitor", "alert"])
+            .default("organize")
+            .describe("Agent goal: organize (propose folders/labels), monitor (inspect only), alert (threats only)."),
+          response_format: z
+            .enum(["markdown", "json"])
+            .default("json")
+            .describe("Output format. JSON is recommended for programmatic consumers."),
+        },
+        outputSchema: {
+          newFolders: z.array(z.string()),
+          folderProposals: z.array(
+            z.object({ path: z.string(), reason: z.string(), emails: z.array(z.number()) }),
+          ),
+          labelProposals: z.array(
+            z.object({ name: z.string(), reason: z.string(), emails: z.array(z.number()) }),
+          ),
+          alerts: z.array(
+            z.object({
+              severity: z.enum(["info", "warning", "alert", "critical"]),
+              category: z.string(),
+              message: z.string(),
+              uids: z.array(z.number()),
+            }),
+          ),
+        },
+        annotations: {
+          readOnlyHint: true,
+          openWorldHint: true,
+          idempotentHint: true,
+        },
+      },
+      async ({ goal, response_format }) => {
+        const ctx = buildGoalContext(parseGoal(goal), cfg.agent);
+        // Force read-only: even if the operator disabled dryRun, this tool never writes.
+        const readOnlyCtx = { ...ctx, dryRun: true };
+        const plan = await buildOrganizationPlan(cfg, readOnlyCtx, log, alerts);
+        if (response_format === "json") {
+          return {
+            content: [{ type: "text", text: JSON.stringify(plan, null, 2) }],
+            structuredContent: plan,
+          };
+        }
+        const lines = [
+          `# Plan del agente (${goal})`,
+          "",
+          "## Carpetas propuestas",
+          ...plan.newFolders.map((f) => `- **${f}** (nueva)`),
+          "",
+          "## Movimientos propuestos",
+          ...plan.folderProposals.map((p) => `- ${p.path}: ${p.emails.length} correos — ${p.reason}`),
+          "",
+          "## Etiquetas propuestas",
+          ...plan.labelProposals.map((p) => `- ${p.name}: ${p.emails.length} correos — ${p.reason}`),
+          "",
+          "## Alertas",
+          ...plan.alerts.map((a) => `- [${a.severity}] ${a.message}`),
+        ];
+        return {
+          content: [{ type: "text", text: lines.join("\n") }],
+          structuredContent: plan,
         };
       },
     );

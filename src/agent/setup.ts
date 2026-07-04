@@ -4,7 +4,7 @@ import type { Config } from "../config.js";
 import type { SetupReport } from "./types.js";
 import type { Logger } from "../alerts/index.js";
 
-export async function runSetup(
+export async function runImapCheck(
   cfg: Config,
   log: Logger,
 ): Promise<SetupReport> {
@@ -38,6 +38,22 @@ export async function runSetup(
     await imap.close().catch(() => { /* noop */ });
   }
 
+  if (!report.folders.includes("INBOX")) {
+    report.recommendations.push("No se detectó INBOX. Revisa la configuración de cuenta en Bridge.");
+  }
+
+  return report;
+}
+
+export async function runSetup(
+  cfg: Config,
+  log: Logger,
+): Promise<SetupReport> {
+  const report = await runImapCheck(cfg, log);
+  if (!report.imapOk) {
+    return report;
+  }
+
   const smtp = new SmtpClient(cfg.bridge, log);
   try {
     await smtp.send({
@@ -56,10 +72,6 @@ export async function runSetup(
 
   if (report.imapOk && report.smtpOk) {
     report.recommendations.push("Bridge está configurado correctamente. Puedes ejecutar 'agent:organize' para analizar el buzón.");
-  }
-
-  if (!report.folders.includes("INBOX")) {
-    report.recommendations.push("No se detectó INBOX. Revisa la configuración de cuenta en Bridge.");
   }
 
   return report;

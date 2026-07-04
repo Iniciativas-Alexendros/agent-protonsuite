@@ -1,4 +1,4 @@
-export type AgentGoal = "discover" | "setup" | "organize" | "monitor" | "alert";
+export type AgentGoal = "discover" | "setup" | "organize" | "monitor" | "alert" | "check-imap";
 
 export interface GoalContext {
   goal: AgentGoal;

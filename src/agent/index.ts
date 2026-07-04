@@ -1,5 +1,5 @@
 export { runAgent } from "./executor.js";
 export { parseGoal, describeGoal, buildGoalContext } from "./goals.js";
-export { runSetup } from "./setup.js";
+export { runSetup, runImapCheck } from "./setup.js";
 export { buildOrganizationPlan, applyOrganizationPlan } from "./organizer.js";
 export type { AgentGoal, GoalContext, SetupReport, OrganizationPlan } from "./types.js";

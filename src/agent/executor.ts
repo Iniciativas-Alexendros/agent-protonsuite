@@ -2,7 +2,7 @@ import { loadConfig, type Config } from "../config.js";
 import { createLogger } from "../config.js";
 import { AlertSystem } from "../alerts/index.js";
 import { parseGoal, buildGoalContext, describeGoal } from "./goals.js";
-import { runSetup } from "./setup.js";
+import { runSetup, runImapCheck } from "./setup.js";
 import { buildOrganizationPlan, applyOrganizationPlan } from "./organizer.js";
 import type { AgentGoal } from "./types.js";
 
@@ -29,6 +29,14 @@ export async function runAgent(goalName: AgentGoal | string, env: NodeJS.Process
         log.info("setup complete", { folders: report.folders.length });
       } else {
         log.error("setup incomplete", { recommendations: report.recommendations });
+        process.exit(2);
+      }
+      break;
+    }
+    case "check-imap": {
+      const report = await runImapCheck(cfg, log);
+      log.info("check-imap report", { imapOk: report.imapOk, authOk: report.authOk, folders: report.folders.length });
+      if (!report.imapOk) {
         process.exit(2);
       }
       break;

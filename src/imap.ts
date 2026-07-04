@@ -66,7 +66,7 @@ export class ImapClient {
   private client: ImapFlow | null = null;
   private connecting: Promise<ImapFlow> | null = null;
 
-  constructor(private readonly cfg: Config["bridge"], private readonly log: { debug: (m: string, e?: unknown) => void; info: (m: string, e?: unknown) => void; error: (m: string, e?: unknown) => void; }) {}
+  constructor(private readonly cfg: Config["bridge"], private readonly log: { debug: (m: string, e?: unknown) => void; info: (m: string, e?: unknown) => void; warn: (m: string, e?: unknown) => void; error: (m: string, e?: unknown) => void; }) {}
 
   private buildOpts(): ImapFlowOptions {
     return {
@@ -82,9 +82,14 @@ export class ImapClient {
       // Bridge vía `PROTON_BRIDGE_CA_PATH` (roadmap).
       tls: { rejectUnauthorized: !this.cfg.tlsInsecure },
       auth: { user: this.cfg.user, pass: this.cfg.pass },
-      // Silenciamos el logger de imapflow (pino) para que no compita con
-      // nuestro logger stderr. Si hace falta debug, se reactiva aquí.
-      logger: false,
+      // Delegamos el logger de imapflow a nuestro logger stderr para que
+      // LOG_LEVEL=debug capture la conversación IMAP completa.
+      logger: {
+        debug: (obj: unknown) => this.log.debug("imapflow", obj),
+        info: (obj: unknown) => this.log.info("imapflow", obj),
+        warn: (obj: unknown) => this.log.warn("imapflow", obj),
+        error: (obj: unknown) => this.log.error("imapflow", obj),
+      },
       // Bridge soporta IDLE. 60s de keepalive = Bridge no nos tira por idle
       // timeout y nosotros no pagamos el coste de reconectar.
       maxIdleTime: 60_000,
@@ -160,13 +165,15 @@ export class ImapClient {
     let friendly: string;
     if (code === "ECONNREFUSED" || blob.includes("econnrefused")) {
       friendly = `Proton Bridge no escucha IMAP en ${where} (ECONNREFUSED). ¿Está el Bridge corriendo? Lánzalo con 'protonmail-bridge-core --cli' y verifica con 'ss -ltn | grep ${this.cfg.imapPort}'.`;
+    } else if (blob.includes("no such user")) {
+      friendly = `Proton Bridge no reconoce el usuario '${this.cfg.user}' en ${where}. Revisa PROTON_BRIDGE_USER: en la app oficial debe coincidir con la cuenta configurada en Bridge (normalmente tu dirección principal o username de Proton).`;
     } else if (
       e?.authenticationFailed ||
       blob.includes("authenticationfailed") ||
       blob.includes("invalid credentials") ||
       blob.includes("auth")
     ) {
-      friendly = `Proton Bridge rechazó las credenciales en ${where} (auth). Usa el app-password que genera Bridge para este equipo, NO la contraseña de tu cuenta Proton.`;
+      friendly = `Proton Bridge rechazó las credenciales en ${where} (auth). Usa el app-password/mailbox password que genera Bridge para este equipo, NO la contraseña de tu cuenta Proton.`;
     } else if (code === "ETIMEDOUT" || blob.includes("timeout") || blob.includes("etimedout")) {
       friendly = `Sin respuesta de Proton Bridge en ${where} (timeout). ¿Host/puerto correctos o firewall bloqueando?`;
     } else {

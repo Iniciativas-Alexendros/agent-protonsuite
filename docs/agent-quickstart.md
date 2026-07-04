@@ -136,7 +136,10 @@ Después del `initialize`, guarda el header `Mcp-Session-Id` y envíalo en cada 
 
 ## Errores comunes y mensajes accionables
 
-- `ECONNREFUSED`: Bridge no corre. Verificar `ss -ltn | grep 1143`.
-- `AUTHENTICATIONFAILED`: bridge password desactualizado. Reconciliar con `protonmail-bridge-core --cli` → `info`.
+- `ECONNREFUSED`: Bridge no corre. Verificar `ss -ltn | grep 1143`. Con la app oficial de escritorio, asegúrate de que la función Bridge está habilitada en la cuenta.
+- `AUTHENTICATIONFAILED`: la contraseña no es el mailbox password de Bridge o está desactualizada. En la app oficial, genera el mailbox password desde `Account > Mailbox password`. En la CLI, usa `protonmail-bridge-core --cli` → `info`.
+- `no such user`: Bridge acepta la conexión TCP/TLS pero no reconoce `PROTON_BRIDGE_USER`. Sucede con la app oficial Proton Mail Beta cuando la cuenta no está cargada: cierra la app, vuelve a iniciar sesión y confirma que la cuenta muestra IMAP activo. Luego repite `check-imap`.
 - `origin_not_allowed`: en HTTP, el `Origin` no está en `MCP_ALLOWED_ORIGINS`.
 - `rate_limit_exceeded`: rebajas la frecuencia de llamadas; límite 120/min/token.
+
+Para diagnosticar conexión IMAP sin enviar email, ejecuta `bash scripts/diagnose-bridge.sh` tras `npm run build`, o `npx -y @alexendros/protonmail-agent check-imap` con `LOG_LEVEL=debug`.

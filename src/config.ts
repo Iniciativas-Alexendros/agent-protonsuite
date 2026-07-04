@@ -97,12 +97,12 @@ function readCsv(value: string | undefined): string[] {
 /** Lee el bloque de configuración de Proton Mail Bridge desde `process.env`. */
 function parseBridgeConfig(env: NodeJS.ProcessEnv): Config["bridge"] {
   return {
-    user: env.PROTON_BRIDGE_USER ?? "",
-    pass: env.PROTON_BRIDGE_PASS ?? "",
+    user: (env.PROTON_BRIDGE_USER ?? "").trim(),
+    pass: (env.PROTON_BRIDGE_PASS ?? "").trim(),
     host: env.PROTON_BRIDGE_HOST ?? "127.0.0.1",
     imapPort: readInt(env.PROTON_BRIDGE_IMAP_PORT, 1143),
     smtpPort: readInt(env.PROTON_BRIDGE_SMTP_PORT, 1025),
-    from: env.PROTON_MAIL_FROM ?? env.PROTON_BRIDGE_USER ?? "",
+    from: (env.PROTON_MAIL_FROM ?? env.PROTON_BRIDGE_USER ?? "").trim(),
     tlsInsecure: readBool(env.PROTON_BRIDGE_TLS_INSECURE, true),
     smtpSecurity: (env.PROTON_BRIDGE_SMTP_SECURITY ?? "starttls") as
       | "starttls"

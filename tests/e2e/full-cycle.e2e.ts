@@ -34,7 +34,7 @@ const bridge: Config["bridge"] = {
   smtpSecurity: "plain",
 };
 
-const silentLog = { error() {}, info() {}, debug() {} };
+const silentLog = { error() {}, warn() {}, info() {}, debug() {} };
 const imap = new ImapClient(bridge, silentLog as never);
 const smtp = new SmtpClient(bridge, silentLog as never);
 

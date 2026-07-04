@@ -138,6 +138,7 @@ const bridgeCfg: Config["bridge"] = {
 
 const silentLog = {
   error: vi.fn(),
+  warn: vi.fn(),
   info: vi.fn(),
   debug: vi.fn(),
 };
@@ -310,6 +311,12 @@ describe("ImapClient · differentiated connection errors", () => {
     const err = await failWith("AUTHENTICATIONFAILED invalid credentials");
     expect(err.message).toMatch(/credenciales/i);
     expect(err.message).toMatch(/app-password/i);
+  });
+
+  it("maps 'no such user' to a PROTON_BRIDGE_USER hint", async () => {
+    const err = await failWith("no such user");
+    expect(err.message).toMatch(/no reconoce el usuario/);
+    expect(err.message).toMatch(/PROTON_BRIDGE_USER/);
   });
 
   it("maps a timeout to a host/port/firewall hint", async () => {

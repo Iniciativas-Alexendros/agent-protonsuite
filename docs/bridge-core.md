@@ -182,3 +182,27 @@ Cuando esto ocurra hay que **reconciliar** el nuevo valor:
 
 Si el MCP da errores de autenticación IMAP (`AUTHENTICATIONFAILED`) pero el puerto
 `1143` sí escucha, casi siempre es un bridge password desincronizado: reconcílialo.
+
+### `no such user` con la app oficial Proton Mail Beta
+
+La app oficial **Proton Mail Beta para Linux** (paquete `proton-mail` / `proton-mail-beta`)
+también expone puertos IMAP/SMTP, pero su Bridge embebido **solo acepta conexiones si la
+cuenta está realmente cargada y signed-in en la app**. Si el agente conecta TCP/TLS
+correctamente pero Bridge responde `4 NO no such user` para todos los usuarios probados,
+la app está abierta pero no tiene la sesión activa:
+
+1. **Cierra completamente** la app Proton Mail Beta (incluyendo el icono de bandeja).
+2. **Vuelve a abrirla** e inicia sesión con tu cuenta Proton.
+3. Confirma en la interfaz que la cuenta aparece **signed in** y que el apartado de
+   configuración de Bridge/Import-Export muestra **IMAP activo**.
+4. Reinicia el agente y ejecuta el diagnóstico:
+
+   ```bash
+   LOG_LEVEL=debug bash scripts/diagnose-bridge.sh
+   # o, si ya tienes el binario instalado:
+   LOG_LEVEL=debug npx -y @alexendros/protonmail-agent check-imap
+   ```
+
+Si el diagnóstico responde con las carpetas esperadas (`INBOX`, `Sent`, `Trash`, etc.),
+la cuenta está correctamente cargada en Bridge y puedes continuar con `setup` y
+`organize` en modo dry-run.

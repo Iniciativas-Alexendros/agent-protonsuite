@@ -11,6 +11,7 @@ export interface FolderProposal {
   path: string;
   reason: string;
   emails: number[];
+  suggestedLabels?: string[];
 }
 
 export interface LabelProposal {

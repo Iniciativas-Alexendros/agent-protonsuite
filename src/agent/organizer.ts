@@ -1,5 +1,5 @@
 import { ImapClient, type EmailSummary } from "../imap.js";
-import { classifyEmail, detectThreats, type AlertSystem } from "../alerts/index.js";
+import { classifyEmail, detectThreats, inferStateLabels, type AlertSystem } from "../alerts/index.js";
 import type { Config } from "../config.js";
 import type { OrganizationPlan, GoalContext } from "./types.js";
 import type { Logger } from "../alerts/index.js";
@@ -7,6 +7,7 @@ import type { Logger } from "../alerts/index.js";
 interface ClassifiedEmail {
   uid: number;
   summary: EmailSummary;
+  full: Awaited<ReturnType<ImapClient["getEmail"]>>;
   classification: ReturnType<typeof classifyEmail>;
   threats: ReturnType<typeof detectThreats>;
 }
@@ -46,7 +47,7 @@ export async function buildOrganizationPlan(
         text: full.textBody,
         html: full.htmlBody,
       });
-      classified.push({ uid: summary.uid, summary, classification, threats });
+      classified.push({ uid: summary.uid, summary, full, classification, threats });
     }
 
     // Group by category and propose folders.
@@ -69,18 +70,28 @@ export async function buildOrganizationPlan(
         path: folder,
         reason: `${emails.length} correos clasificados como ${category} (${sample.reason})`,
         emails: emails.map((e) => e.uid),
+        suggestedLabels: [],
       });
 
-      for (const label of sample.suggestedLabels) {
-        const existing = plan.labelProposals.find((l) => l.name === label);
-        if (existing) {
-          existing.emails.push(...emails.map((e) => e.uid));
-        } else {
-          plan.labelProposals.push({
-            name: label,
-            reason: `Etiqueta sugerida para ${category}`,
-            emails: emails.map((e) => e.uid),
-          });
+      for (const e of emails) {
+        const state = inferStateLabels({
+          from: e.full?.from,
+          subject: e.full?.subject,
+          text: e.full?.textBody,
+          html: e.full?.htmlBody,
+          category: e.classification.category,
+        });
+        for (const label of state.labels) {
+          const existing = plan.labelProposals.find((l) => l.name === label);
+          if (existing) {
+            existing.emails.push(e.uid);
+          } else {
+            plan.labelProposals.push({
+              name: label,
+              reason: `Etiqueta de estado inferida: ${state.reason}`,
+              emails: [e.uid],
+            });
+          }
         }
       }
     }
@@ -127,7 +138,11 @@ export async function applyOrganizationPlan(
   const imap = new ImapClient(cfg.bridge, log);
   try {
     for (const folder of plan.newFolders) {
-      await imap.createMailbox(folder);
+      await imap.createMailbox(folder).catch((err) => {
+        // Bridge puede devolver "already subscribed" si la carpeta existe.
+        if (String(err).toLowerCase().includes("already subscribed")) return;
+        throw err;
+      });
       log.info("Created folder", { folder });
     }
 
@@ -138,17 +153,38 @@ export async function applyOrganizationPlan(
     for (const proposal of plan.labelProposals) {
       if (foldersByPath.has(proposal.name.toLowerCase())) continue;
       await imap.createMailbox(proposal.name).catch(() => { /* may exist */ });
+      let applied = 0;
       for (const uid of proposal.emails) {
-        await imap.copyEmail("INBOX", uid, proposal.name).catch(() => { /* label already applied */ });
+        const ok = await imap.copyEmail("INBOX", uid, proposal.name).catch(() => false);
+        if (ok) applied++;
       }
-      log.info("Applied label", { label: proposal.name, count: proposal.emails.length });
+      log.info("Applied label", { label: proposal.name, applied });
     }
 
     for (const proposal of plan.folderProposals) {
+      let moved = 0;
       for (const uid of proposal.emails) {
-        await imap.moveEmail("INBOX", uid, proposal.path);
+        const ok = await imap.moveEmail("INBOX", uid, proposal.path).catch(() => false);
+        if (ok) moved++;
       }
-      log.info("Moved emails", { folder: proposal.path, count: proposal.emails.length });
+      log.info("Moved emails", { folder: proposal.path, moved, expected: proposal.emails.length });
+
+      // After moving, ensure the category labels are also applied to the moved
+      // messages. This covers the case where the run was interrupted or labels
+      // could not be created from INBOX because of naming issues.
+      if (proposal.suggestedLabels && moved > 0) {
+        const { items: movedItems } = await imap.listEmails(proposal.path, moved, 0).catch(() => ({ items: [], total: 0 }));
+        for (const label of proposal.suggestedLabels) {
+          if (foldersByPath.has(label.toLowerCase())) continue;
+          await imap.createMailbox(label).catch(() => { /* may exist */ });
+          let labelApplied = 0;
+          for (const item of movedItems) {
+            const ok = await imap.copyEmail(proposal.path, item.uid, label).catch(() => false);
+            if (ok) labelApplied++;
+          }
+          log.info("Applied label from folder", { folder: proposal.path, label, applied: labelApplied });
+        }
+      }
     }
   } finally {
     await imap.close().catch(() => { /* noop */ });

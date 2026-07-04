@@ -6,7 +6,7 @@ import { SEVERITY_RANK, type AlertEvent, type AlertSeverity } from "./types.js";
 import { classifyEmail, detectThreats } from "./rules.js";
 
 export type { AlertEvent, AlertSeverity } from "./types.js";
-export { classifyEmail, detectThreats } from "./rules.js";
+export { classifyEmail, detectThreats, inferStateLabels } from "./rules.js";
 
 export type Logger = {
   error: (msg: string, extra?: unknown) => void;

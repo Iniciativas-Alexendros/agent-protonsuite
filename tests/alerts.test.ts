@@ -16,42 +16,42 @@ const baseAlerts: Config["alerts"] = {
 };
 
 describe("alert classification rules", () => {
-  it("classifies a legal email", () => {
+  it("classifies a legal/communication email", () => {
     const res = classifyEmail({
       from: "bufete@ejemplo.com",
       subject: "Contrato de confidencialidad",
       text: "Adjunto encontrará el contrato y la cláusula de NDA.",
     });
-    expect(res.category).toBe("legal");
+    expect(res.category).toBe("comunicaciones");
     expect(res.confidence).toBeGreaterThan(0.5);
-    expect(res.suggestedFolder).toBe("Legal");
+    expect(res.suggestedFolder).toBe("Folders/Comunicaciones");
   });
 
-  it("classifies an admin email", () => {
+  it("classifies an admin/tax email", () => {
     const res = classifyEmail({
       from: "hacienda@example.com",
       subject: "Recordatorio declaración IVA",
       text: "Debe presentar el modelo 303 antes del día 20.",
     });
-    expect(res.category).toBe("admin");
+    expect(res.category).toBe("comunicaciones");
     expect(res.confidence).toBeGreaterThan(0.5);
   });
 
-  it("classifies spam", () => {
+  it("classifies commercial/marketing email", () => {
     const res = classifyEmail({
       from: "offers@spam.com",
       subject: "Limited time offer! Act now only!",
       text: "Unsubscribe now to stop receiving these emails.",
     });
-    expect(res.category).toBe("spam");
-    expect(res.severity).toBe("warning");
+    expect(res.category).toBe("comercial");
+    expect(res.severity).toBe("info");
   });
 
-  it("detects phishing threats", () => {
+  it("detects phishing threats with multiple indicators", () => {
     const threats = detectThreats({
       from: "bad@example.com",
       subject: "Verify your account",
-      text: "Click here to verify your account: https://evil.proton.ru/login",
+      text: 'Click here to verify your account: https://evil.proton.ru/login and also <a href="https://evil.proton.tk/confirm">confirm</a>',
     });
     expect(threats.length).toBeGreaterThan(0);
     expect(threats.some((t) => t.threat === "phishing_link")).toBe(true);

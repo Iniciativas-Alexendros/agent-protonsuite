@@ -25,6 +25,7 @@ const imapState = {
   mailboxCreateResult: { path: "X", created: true },
   appendResult: { uid: 1 } as unknown,
   moveResult: true as unknown,
+  copyResult: true as unknown,
   deleteResult: true as unknown,
   flagsAddResult: true as unknown,
   flagsRemoveResult: true as unknown,
@@ -94,6 +95,9 @@ vi.mock("imapflow", () => {
     }
     async messageMove() {
       return imapState.moveResult;
+    }
+    async messageCopy() {
+      return imapState.copyResult;
     }
     async messageDelete() {
       return imapState.deleteResult;
@@ -670,6 +674,23 @@ describe("ImapClient · moveEmail", () => {
     imapState.moveResult = false;
     const c = makeClient();
     expect(await c.moveEmail("INBOX", 42, "Trash")).toBe(false);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// copyEmail()
+// -----------------------------------------------------------------------------
+describe("ImapClient · copyEmail", () => {
+  it("returns true on a successful copy", async () => {
+    imapState.copyResult = { uidMap: new Map() };
+    const c = makeClient();
+    expect(await c.copyEmail("INBOX", 42, "Archive")).toBe(true);
+  });
+
+  it("returns false when the copy yields a falsy result", async () => {
+    imapState.copyResult = false;
+    const c = makeClient();
+    expect(await c.copyEmail("INBOX", 42, "Archive")).toBe(false);
   });
 });
 

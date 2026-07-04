@@ -349,6 +349,17 @@ export class ImapClient {
     }
   }
 
+  async copyEmail(fromMailbox: string, uid: number, toMailbox: string): Promise<boolean> {
+    const c = await this.connect();
+    const lock = await c.getMailboxLock(fromMailbox);
+    try {
+      const res = await c.messageCopy(String(uid), toMailbox, { uid: true });
+      return !!res;
+    } finally {
+      lock.release();
+    }
+  }
+
   async deleteEmail(mailbox: string, uid: number): Promise<boolean> {
     const c = await this.connect();
     const lock = await c.getMailboxLock(mailbox);

@@ -23,7 +23,7 @@ const RULES: Rule[] = [
     category: "fraud",
     severity: "critical",
     suggestedFolder: "Fraud/Review",
-    suggestedLabels: ["phishing", "review-urgent"],
+    suggestedLabels: ["phishing", "revisar-urgente"],
     patterns: [
       /\b(click\s+here\s+to\s+verify\s+your\s+account)\b/i,
       /\b(update\s+your\s+payment\s+information)\b/i,
@@ -41,7 +41,7 @@ const RULES: Rule[] = [
     category: "spam",
     severity: "warning",
     suggestedFolder: "Spam",
-    suggestedLabels: ["spam"],
+    suggestedLabels: ["basura"],
     patterns: [
       /\b(unsubscribe\s*now)\b/i,
       /\b(limited\s+time\s+offer)\b/i,
@@ -56,7 +56,7 @@ const RULES: Rule[] = [
     category: "legal",
     severity: "alert",
     suggestedFolder: "Legal",
-    suggestedLabels: ["legal", "keep"],
+    suggestedLabels: ["legal", "conservar"],
     patterns: [
       /\b(lawyer|abogado|bufete|despacho|judicial|juzgado|demanda|demandar)\b/i,
       /\b(contract|contrato|agreement|acuerdo|terms\s+of\s+service)\b/i,
@@ -70,7 +70,7 @@ const RULES: Rule[] = [
     category: "admin",
     severity: "alert",
     suggestedFolder: "Admin",
-    suggestedLabels: ["admin", "keep"],
+    suggestedLabels: ["admin", "conservar"],
     patterns: [
       /\b(hacienda|agencia\s+tributaria|aeat|irpf|iva|declaración)\b/i,
       /\b(seguridad\s+social|tgss|registro\s+mercantil)\b/i,
@@ -84,7 +84,7 @@ const RULES: Rule[] = [
     category: "government",
     severity: "alert",
     suggestedFolder: "Gobierno",
-    suggestedLabels: ["official", "keep"],
+    suggestedLabels: ["oficial", "conservar"],
     patterns: [
       /\b(gobierno|ministerio|delegación|conselleria|generalitat|junta)\b/i,
       /\b(subvención|ayuda|convocatoria|subsidio|beca)\b/i,
@@ -97,7 +97,7 @@ const RULES: Rule[] = [
     category: "banking",
     severity: "alert",
     suggestedFolder: "Banca",
-    suggestedLabels: ["bank", "keep"],
+    suggestedLabels: ["banca", "conservar"],
     patterns: [
       /\b(bank|banco|cuenta|iban|transferencia|ingreso|cargo|recibo)\b/i,
       /\b(tarjeta|compra|pago|paypal|stripe|factura)\b/i,
@@ -110,7 +110,7 @@ const RULES: Rule[] = [
     category: "tech",
     severity: "info",
     suggestedFolder: "Tech",
-    suggestedLabels: ["tech", "devops"],
+    suggestedLabels: ["tech", "devops", "conservar"],
     patterns: [
       /\b(git|github|gitlab|ci\/cd|deploy|deployment|build)\b/i,
       /\b(error|incident|alert|monitoring|status\s+page|downtime)\b/i,
@@ -124,7 +124,7 @@ const RULES: Rule[] = [
     category: "commercial",
     severity: "info",
     suggestedFolder: "Comercial",
-    suggestedLabels: ["commercial"],
+    suggestedLabels: ["comercial"],
     patterns: [
       /\b(sales|ventas|cliente|lead|oportunidad|propuesta)\b/i,
       /\b(cotización|presupuesto|pedido|order|invoice|factura)\b/i,

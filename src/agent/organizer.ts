@@ -131,22 +131,24 @@ export async function applyOrganizationPlan(
       log.info("Created folder", { folder });
     }
 
+    // Labels are treated as additional IMAP mailboxes. Copy from INBOX first so
+    // the message remains visible under the label even after it is moved to its
+    // primary category folder.
+    const foldersByPath = new Set(plan.folderProposals.map((p) => p.path.toLowerCase()));
+    for (const proposal of plan.labelProposals) {
+      if (foldersByPath.has(proposal.name.toLowerCase())) continue;
+      await imap.createMailbox(proposal.name).catch(() => { /* may exist */ });
+      for (const uid of proposal.emails) {
+        await imap.copyEmail("INBOX", uid, proposal.name).catch(() => { /* label already applied */ });
+      }
+      log.info("Applied label", { label: proposal.name, count: proposal.emails.length });
+    }
+
     for (const proposal of plan.folderProposals) {
       for (const uid of proposal.emails) {
         await imap.moveEmail("INBOX", uid, proposal.path);
       }
       log.info("Moved emails", { folder: proposal.path, count: proposal.emails.length });
-    }
-
-    // Proton Bridge/labels: labels are implemented as mailboxes in IMAP.
-    for (const proposal of plan.labelProposals) {
-      if (!plan.newFolders.includes(proposal.name)) {
-        await imap.createMailbox(proposal.name).catch(() => { /* may exist */ });
-      }
-      for (const uid of proposal.emails) {
-        await imap.moveEmail("INBOX", uid, proposal.name).catch(() => { /* label already applied */ });
-      }
-      log.info("Applied label", { label: proposal.name, count: proposal.emails.length });
     }
   } finally {
     await imap.close().catch(() => { /* noop */ });

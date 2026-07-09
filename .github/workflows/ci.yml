@@ -16,7 +16,7 @@ permissions:
 jobs:
   verify:
     name: Verify (Node ${{ matrix.node }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ts]
     strategy:
       fail-fast: false
       matrix:
@@ -48,7 +48,7 @@ jobs:
 
   audit:
     name: Dependency audit
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ts]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -63,7 +63,7 @@ jobs:
 
   e2e:
     name: E2E (GreenMail · IMAP/SMTP reales)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ts]
     services:
       greenmail:
         image: greenmail/standalone:2.1.0
@@ -99,7 +99,7 @@ jobs:
 
   docker-build:
     name: Docker build smoke
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ts]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

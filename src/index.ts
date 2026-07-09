@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Entry point del MCP server.
+ * Entry point del MCP server de Proton Suite.
  *
  * Dos modos de arranque según `MCP_TRANSPORT`:
  *  - `stdio`: pensado para cliente MCP local. Un único `McpServer` + `ImapClient`
@@ -22,8 +22,8 @@
  */
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig, createLogger } from "./config.js";
-import { buildServer } from "./server.js";
 import { buildHttpApp } from "./http.js";
+import { buildServer } from "./server.js";
 
 async function main(): Promise<void> {
   // Primera línea de defensa: Zod valida env vars o peta con mensaje legible.

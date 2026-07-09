@@ -117,19 +117,27 @@ vi.mock("mailparser", () => ({
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { buildServer } from "../src/server.js";
 import type { Config } from "../src/config.js";
+import { buildServer } from "../src/server.js";
 
 const cfg: Config = {
-  bridge: {
-    user: "me@proton.me",
-    pass: "x",
-    host: "127.0.0.1",
-    imapPort: 1143,
-    smtpPort: 1025,
-    from: "me@proton.me",
-    tlsInsecure: true,
-    smtpSecurity: "starttls",
+  products: {
+    mail: {
+      enabled: true,
+      bridge: {
+        user: "me@proton.me",
+        pass: "x",
+        host: "127.0.0.1",
+        imapPort: 1143,
+        smtpPort: 1025,
+        from: "me@proton.me",
+        tlsInsecure: true,
+        smtpSecurity: "starttls" as const,
+      },
+    },
+    pass: { enabled: false, storeDir: "/tmp" },
+    calendar: { enabled: false },
+    drive: { enabled: false },
   },
   transport: {
     kind: "stdio",
@@ -242,10 +250,10 @@ beforeEach(() => {
 
 // -----------------------------------------------------------------------------
 describe("buildServer · tool registration", () => {
-  it("exposes exactly 14 proton_* tools", async () => {
+  it("exposes exactly 15 proton_* tools", async () => {
     const client = await makeClient();
     const { tools } = await client.listTools();
-    expect(tools.filter((t) => t.name.startsWith("proton_"))).toHaveLength(14);
+    expect(tools.filter((t) => t.name.startsWith("proton_"))).toHaveLength(15);
   });
 });
 

@@ -1,45 +1,46 @@
-# Proton Mail Agent
+# Proton Suite Agent
 
-[![npm version](https://img.shields.io/npm/v/@alexendros/protonmail-agent.svg)](https://www.npmjs.com/package/@alexendros/protonmail-agent)
+[![npm version](https://img.shields.io/npm/v/@alexendros/protonsuite-agent.svg)](https://www.npmjs.com/package/@alexendros/protonsuite-agent)
 [![CI](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/ci.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/codeql.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/codeql.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen.svg)](./package.json)
 [![MCP SDK](https://img.shields.io/badge/%40modelcontextprotocol%2Fsdk-%5E1.29-blue.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
 
-Agente de correo para **Proton Mail** vía Proton Mail Bridge. Incluye un **MCP server** embebido y una capa de agente autónomo con dos funciones principales:
+Agente multi-producto para **Proton Suite** con un **MCP server** embebido. Integra Mail (Bridge IMAP/SMTP), Pass (pass-cli) y prepara Calendar + Drive. Funciones principales:
 
-1. **Operar el buzón** como servidor MCP — lectura, búsqueda, envío, mover, etiquetar, borrar — compatible con cualquier cliente MCP.
-2. **Configurar, organizar y vigilar** el buzón de forma inteligente — auto-detección de Bridge, clasificación profesional de correos, propuesta de carpetas/etiquetas, alertas de spam/fraude y archivado.
+1. **Operar el buzón** como servidor MCP — lectura, búsqueda, envío, mover, etiquetar, borrar.
+2. **Gestionar contraseñas** vía Proton Pass — listar, recuperar (sin exponer valores al chat), generar, auditar fortaleza.
+3. **Configurar, organizar y vigilar** de forma inteligente — auto-detección de Bridge, clasificación profesional de correos, propuesta de carpetas/etiquetas, alertas de spam/fraude, auditoría de vault Pass.
 
 - **Modo primario:** `stdio` local, sin exponer nada a la red.
 - **Modo avanzado:** `streamable HTTP` con bearer auth + origin allowlist.
-- **Privacidad:** Bridge descifra el correo en tu máquina; el agente nunca ve tu contraseña Proton.
+- **Privacidad:** Bridge descifra el correo en tu máquina; Pass nunca revela secretos en texto al chat; el agente nunca ve tu contraseña Proton.
 - **Licencia:** AGPL-3.0 — software libre con copyleft de red.
 
 ---
 
 ## Quickstart — 5 minutos
 
-Prerrequisitos: **Node ≥ 22** y **Proton Mail Bridge** corriendo en local (`protonmail-bridge-core --cli` → `login` → `info` para copiar el bridge password).
+Prerrequisitos: **Node ≥ 22**, **Proton Mail Bridge** corriendo en local y, para Pass, **`pass` CLI** instalado (`apt install pass`).
 
 ### 1. Instalar
 
 ```bash
-npx -y @alexendros/protonmail-agent setup
+npx -y @alexendros/protonsuite-agent setup
 # o, si prefieres el MCP server directamente:
-npx -y @alexendros/protonmail-agent protonmail-mcp
+npx -y @alexendros/protonsuite-agent protonsuite-mcp
 ```
 
-> El binario `protonmail-agent` ejecuta el agente; `protonmail-mcp` ejecuta el MCP server.
+> El binario `protonsuite-agent` ejecuta el agente; `protonsuite-mcp` ejecuta el MCP server.
 
-### 2. Verificar conexión
+### 2. Verificar conexión (Mail)
 
 ```bash
 export PROTON_BRIDGE_USER=you@proton.me
 export PROTON_BRIDGE_PASS=your-bridge-password
 export PROTON_MAIL_FROM=you@proton.me
-npx -y @alexendros/protonmail-agent setup
+npx -y @alexendros/protonsuite-agent setup
 ```
 
 Si Bridge responde, el agente reporta carpetas y recomienda el siguiente paso.
@@ -51,27 +52,29 @@ Añade este bloque a tu cliente MCP (formato genérico `mcpServers`):
 ```jsonc
 {
   "mcpServers": {
-    "protonmail": {
+    "protonsuite": {
       "command": "npx",
-      "args": ["-y", "@alexendros/protonmail-agent", "protonmail-mcp"],
+      "args": ["-y", "@alexendros/protonsuite-agent", "protonsuite-mcp"],
       "env": {
         "MCP_TRANSPORT": "stdio",
         "PROTON_BRIDGE_USER": "you@proton.me",
         "PROTON_BRIDGE_PASS": "your-bridge-password",
         "PROTON_MAIL_FROM": "you@proton.me",
-        "PROTON_BRIDGE_TLS_INSECURE": "true"
+        "PROTON_BRIDGE_TLS_INSECURE": "true",
+        "PROTON_PASS_ENABLED": "true",
+        "PROTON_PASS_STORE_DIR": "~/.password-store"
       }
     }
   }
 }
 ```
 
-> **Seguridad:** no dejes el bridge password en claro en el disco. Usa un wrapper que lo resuelva just-in-time desde tu gestor de secretos. Plantilla en [`connectors/stdio-wrapper.sh.example`](./connectors/stdio-wrapper.sh.example).
+> **Seguridad:** no dejes el bridge password en claro en el disco. Usa Proton Pass como backend de secretos con `PROTON_PASS_BRIDGE_PATH=proton/bridge/password` o el wrapper JIT en [`connectors/stdio-wrapper.sh.example`](./connectors/stdio-wrapper.sh.example).
 
 ### 4. Organizar el buzón
 
 ```bash
-npx -y @alexendros/protonmail-agent organize
+npx -y @alexendros/protonsuite-agent organize
 ```
 
 En modo `AGENT_DRY_RUN=true` (default), el agente analiza el buzón y presenta un plan de carpetas, etiquetas y alertas sin aplicar cambios. Cuando hayas validado el plan, desactiva `AGENT_DRY_RUN` para ejecutar.
@@ -82,8 +85,8 @@ En modo `AGENT_DRY_RUN=true` (default), el agente analiza el buzón y presenta u
 
 | Documento | Para quién | Qué cubre |
 |---|---|---|
-| [`docs/human-quickstart.md`](./docs/human-quickstart.md) | Usuarios no técnicos | Instalación paso a paso, Bridge, primer uso, modo agente. |
-| [`docs/agent-quickstart.md`](./docs/agent-quickstart.md) | Agentes IA / desarrolladores | Cómo consumir las 14 tools, formatos de respuesta, ejemplos. |
+| [`docs/human-quickstart.md`](./docs/human-quickstart.md) | Usuarios no técnicos | Instalación paso a paso, Bridge, Pass, primer uso, modo agente. |
+| [`docs/agent-quickstart.md`](./docs/agent-quickstart.md) | Agentes IA / desarrolladores | Cómo consumir las tools, formatos de respuesta, ejemplos. |
 | [`docs/bridge-core.md`](./docs/bridge-core.md) | Todos | `protonmail-bridge-core` headless, puertos, vault, troubleshooting. |
 | [`docs/local-stdio-secrets.md`](./docs/local-stdio-secrets.md) | Operadores | Wrapper stdio que no deja secretos en disco. |
 | [`docs/deployment-http-docker.md`](./docs/deployment-http-docker.md) | DevOps | Despliegue HTTP con Docker, auth, allowlist, healthcheck. |
@@ -104,12 +107,16 @@ En modo `AGENT_DRY_RUN=true` (default), el agente analiza el buzón y presenta u
 - [`playbooks/reply-organize.md`](./playbooks/reply-organize.md): responder y organizar correos.
 - [`playbooks/fraud-detection.md`](./playbooks/fraud-detection.md): revisión de correos sospechosos.
 - [`playbooks/setup-checklist.md`](./playbooks/setup-checklist.md): checklist de puesta en marcha.
+- [`playbooks/pass-audit.md`](./playbooks/pass-audit.md): auditoría de fortaleza de contraseñas y rotación.
+- [`playbooks/suite-daily-briefing.md`](./playbooks/suite-daily-briefing.md): briefing diario cross-producto.
 
 ---
 
-## Las 14 tools MCP
+## Tools MCP
 
-Todas las tools de lectura aceptan `response_format: "markdown" | "json"`. La tool adicional del agente (`proton_agent_plan`) expone el plan de organización/alertas para consumo por clientes MCP.
+Todas las tools de lectura aceptan `response_format: "markdown" | "json"`. Organizadas por producto.
+
+### Mail (14 tools)
 
 | Tool | Tipo | Descripción |
 |---|---|---|
@@ -126,7 +133,40 @@ Todas las tools de lectura aceptan `response_format: "markdown" | "json"`. La to
 | `proton_flag_email` | write idempotent | read/unread/starred/unstarred/custom. |
 | `proton_move_email` | write | Mueve entre mailboxes por UID. |
 | `proton_delete_email` | destructive | `trash` (default) o `permanent`. |
-| `proton_agent_plan` | read | Devuelve el plan de organización/alertas del agente en formato JSON. |
+
+### Pass (4 tools)
+
+| Tool | Tipo | Descripción |
+|---|---|---|
+| `proton_pass_list` | read | Lista entradas del password store (solo nombres, nunca valores). |
+| `proton_pass_get` | read | Recupera un secreto y lo inyecta en el entorno — respuesta `{found:true}` sin el valor. |
+| `proton_pass_generate` | write | Genera contraseña segura y la guarda en el store. |
+| `proton_pass_health` | read | Verifica conectividad y estado del store. |
+
+### Suite (1 tool)
+
+| Tool | Tipo | Descripción |
+|---|---|---|
+| `proton_suite_status` | read | Estado unificado de todos los productos configurados (Mail, Pass, Calendar, Drive). |
+
+### Calendar y Drive (stubs — próximamente)
+
+Las tools `proton_calendar_*` y `proton_drive_*` están registradas y visibles en `tools/list`, pero devuelven `{available: false}` hasta que Proton exponga CalDAV vía Bridge y se complete la integración OAuth de Drive.
+
+---
+
+## Agente
+
+| Goal | Pipeline |
+|---|---|
+| `setup` | Verifica conectividad Bridge (IMAP + SMTP), envía email de prueba. |
+| `organize` | Analiza inbox, clasifica, propone carpetas/etiquetas, detecta amenazas. |
+| `monitor` | Igual que organize pero solo lectura — presenta alertas. |
+| `alert` | Inspecciona solo amenazas de seguridad. |
+| `pass-audit` | Audita fortaleza de contraseñas en el vault Pass, detecta duplicados y entradas sin rotación. |
+| `suite-status` | Reporte unificado de todos los productos configurados. |
+| `discover` | Check rápido de conectividad Bridge. |
+| `check-imap` | Solo verificación IMAP (sin enviar email). |
 
 ---
 
@@ -145,6 +185,7 @@ npm run license-check:prod
 - Bearer timing-safe, origin allowlist, rate-limit 120/min/token.
 - Per-session HTTP transport, sesiones idle evicted a los 30 min.
 - Sin credenciales ni cuerpos de request en logs; stdout reservado a JSON-RPC en modo `stdio`.
+- Proton Pass nunca expone valores de secreto en respuestas MCP — solo confirma `{found: true}`.
 - Alertas de contenido con webhook + salida estructurada a fichero.
 - Modo dry-run por defecto en el agente hasta validación del operador.
 

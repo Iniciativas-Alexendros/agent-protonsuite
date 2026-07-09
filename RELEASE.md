@@ -1,38 +1,25 @@
-# Procedimiento de release de Proton Mail Agent
+# Procedimiento de release de Proton Suite Agent
 
-Las releases siguen [SemVer 2.0.0](https://semver.org/lang/es/) y se
-publican a través de tags firmados.
+Las releases se gestionan automáticamente con [semantic-release](https://github.com/semantic-release/semantic-release) a partir de los [Conventional Commits](https://www.conventionalcommits.org/).
 
-## Antes de la release
+## Cómo funciona
 
-- Todos los cambios relevantes están en `CHANGELOG.md` bajo `[Sin publicar]`.
-- El CI está verde en `main`.
-- La documentación está actualizada (README, ARCHITECTURE, docs/).
-- Se han verificado las dependencias con `pnpm audit` o herramienta
-  equivalente.
+1. Cada commit en `main` sigue el formato conventional commit (`feat:`, `fix:`, `BREAKING CHANGE:`).
+2. commitlint + Husky bloquean commits no conformes en local.
+3. Al hacer push a `main`, el workflow `release.yml` ejecuta `semantic-release`:
+   - Analiza los commits desde el último release.
+   - Determina la próxima versión (MAJOR, MINOR o PATCH).
+   - Genera/actualiza `CHANGELOG.md`.
+   - Publica el paquete en npm (vía OIDC trusted publishing).
+   - Crea un release en GitHub con las notas generadas.
+   - Crea un tag `vX.Y.Z` y hace push del bump de versión a `main`.
 
-## Pasos
+## Publicación
 
-1. Mover los cambios de `[Sin publicar]` a una nueva sección con número de
-   versión y fecha en `CHANGELOG.md`.
-2. Actualizar la versión en `package.json` (o el manifest correspondiente).
-3. Crear commit `chore(release): vX.Y.Z`.
-4. Crear tag firmado: `git tag -s vX.Y.Z -m "vX.Y.Z"`.
-5. Empujar tag y rama: `git push --follow-tags`.
-6. Crear release en GitHub copiando la sección del CHANGELOG.
-7. Verificar que el workflow de release publicó los artefactos esperados.
-
-## Versionado
-
-- `MAJOR` para cambios incompatibles.
-- `MINOR` para nuevas funcionalidades retrocompatibles.
-- `PATCH` para correcciones retrocompatibles.
+- **npm:** Trusted publishing (OIDC), sin `NPM_TOKEN`. Configurado en npmjs.com.
+- **GHCR:** Imagen Docker multi-tag (`:latest`, `:vX.Y.Z`, `:vX.Y`, `:sha-XXXXX`).
+- **Provenance y SBOM:** Generados en cada release para la cadena de suministro.
 
 ## Hotfix
 
-Para correcciones críticas en una versión publicada:
-
-1. Rama `hotfix/vX.Y.Z+1` desde el tag.
-2. Aplicar la corrección y bumpear `PATCH`.
-3. Seguir los pasos estándar.
-4. Mergear de vuelta a `main` para no perder la corrección.
+Si se necesita un hotfix, crear una rama `hotfix/<slug>` desde `main`, hacer el fix, y mergear de vuelta a `main`. Semantic-release detectará el `fix:` y hará un PATCH bump.

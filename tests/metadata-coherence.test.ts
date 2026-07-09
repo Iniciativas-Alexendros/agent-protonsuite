@@ -7,10 +7,10 @@
  * Si alguien desincroniza una versión, deja una URL antigua o reintroduce
  * referencias exclusivas a un cliente de IA, este test falla.
  */
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, it, expect } from "vitest";
 import { VERSION } from "../src/version.js";
 
 const here = dirname(fileURLToPath(import.meta.url));

@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.Alexendros/protonmail-agent",
-  "description": "Proton Mail Agent via Bridge (IMAP/SMTP) · 14 tools · dual transport stdio + HTTP · agent setup, organization and alerting.",
+  "name": "io.github.Alexendros/protonsuite-agent",
+  "description": "Proton Suite Agent · Mail (Bridge IMAP/SMTP) + Pass (pass-cli) + Calendar + Drive · multi-transport stdio + HTTP · agent setup, organization and alerting.",
   "repository": {
     "url": "https://github.com/Iniciativas-Alexendros/agent-protonmail",
     "source": "github"
   },
-  "version": "0.5.0",
+  "version": "0.7.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "@alexendros/protonmail-agent",
-      "version": "0.5.0",
+      "identifier": "@alexendros/protonsuite-agent",
+      "version": "0.7.0",
       "transport": {
         "type": "stdio"
       },

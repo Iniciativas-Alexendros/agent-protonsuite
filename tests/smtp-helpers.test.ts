@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { prefixSubject, addrMatches, extractEmail, collectReferences } from "../src/smtp.js";
 import type { EmailFull } from "../src/imap.js";
+import { prefixSubject, addrMatches, extractEmail, collectReferences } from "../src/smtp.js";
 
 describe("prefixSubject", () => {
   it("adds prefix when missing", () => {

@@ -19,14 +19,15 @@
  * de llamar primero a `proton_list_folders` y de usar UIDs (no seq numbers).
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
-import { ImapClient } from "./imap.js";
 import type { SearchObject } from "imapflow";
+import { z } from "zod";
+import { buildOrganizationPlan, parseGoal, buildGoalContext } from "./agent/index.js";
+import { AlertSystem } from "./alerts/index.js";
+import type { Config } from "./config.js";
+import { ImapClient } from "./imap.js";
+import { PassClient } from "./pass.js";
 import { SmtpClient, buildForwardOptions, buildReplyOptions } from "./smtp.js";
 import { VERSION } from "./version.js";
-import type { Config } from "./config.js";
-import { AlertSystem } from "./alerts/index.js";
-import { buildOrganizationPlan, parseGoal, buildGoalContext } from "./agent/index.js";
 
 type Logger = ReturnType<typeof import("./config.js").createLogger>;
 
@@ -115,14 +116,24 @@ export function buildServer(
   cfg: Config,
   log: Logger,
 ): { server: McpServer; imap: ImapClient; smtp: SmtpClient } {
-  const imap = new ImapClient(cfg.bridge, log);
-  const smtp = new SmtpClient(cfg.bridge, log);
+  const bridgeCfg = cfg.products.mail.bridge;
+  let passwordResolver: () => Promise<string>;
+  if (cfg.products.pass.enabled && bridgeCfg.passPath) {
+    const passClient = new PassClient({ storeDir: cfg.products.pass.storeDir }, log);
+    passwordResolver = () => passClient.get(bridgeCfg.passPath!);
+  } else {
+    passwordResolver = () => Promise.resolve(bridgeCfg.pass);
+  }
+  const resolvedBridgeCfg = { ...bridgeCfg, passwordResolver };
+
+  const imap = new ImapClient(resolvedBridgeCfg, log);
+  const smtp = new SmtpClient(resolvedBridgeCfg, log);
 
   const server = new McpServer(
-    { name: "protonmail-agent", version: VERSION },
+    { name: "protonsuite-agent", version: VERSION },
     {
       instructions:
-        "Proton Mail via Proton Mail Bridge. Before any operation, call proton_list_folders to see available mailboxes. Use UIDs (not sequence numbers) when modifying messages. Bridge must be running and reachable at the configured host.",
+        "Proton Suite agent with multiple products. Mail: via Proton Mail Bridge (IMAP/SMTP) — call proton_list_folders first, use UIDs. Pass: via pass-cli — never returns secret values, only confirms found/generated. Calendar and Drive tools available as stubs until backend support is ready. Before any write operation, review the plan in read-only mode.",
     },
   );
 
@@ -133,7 +144,7 @@ export function buildServer(
   // (éxito o error) — sin volcar args, que pueden traer cuerpos o direcciones.
   const register: typeof server.registerTool = ((name, config, cb) =>
     server.registerTool(
-      name as never,
+      name,
       config as never,
       (async (...callArgs: unknown[]) => {
         const startedAt = Date.now();
@@ -171,6 +182,11 @@ export function buildServer(
   registerSendTools();
   registerModifyTools();
   registerAgentTools();
+
+  registerPassTools();
+  registerCalendarTools();
+  registerDriveTools();
+  registerSuiteTool();
 
   return { server, imap, smtp };
 
@@ -406,7 +422,7 @@ export function buildServer(
     args: {
       mailbox: string;
       query?: string;
-      fields: Array<"text" | "subject" | "from" | "to" | "body">;
+      fields: ("text" | "subject" | "from" | "to" | "body")[];
       since?: string;
       before?: string;
       unseen_only: boolean;
@@ -673,7 +689,7 @@ export function buildServer(
           { text: args.text, html: args.html },
           args.include_quote,
           args.reply_all,
-          cfg.bridge.from,
+          cfg.products.mail.bridge.from,
         );
         if (!opts)
           return {
@@ -977,6 +993,145 @@ export function buildServer(
       },
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Proton Pass
+  // ---------------------------------------------------------------------------
+  function registerPassTools() {
+    if (!cfg.products.pass.enabled) return;
+    const passClient = new PassClient({ storeDir: cfg.products.pass.storeDir }, log);
+
+    register(
+      "proton_pass_list",
+      { title: "List Proton Pass entries", description: "Lists entries in the Proton Pass password store. Returns entry names/paths only — NEVER secret values.",
+        inputSchema: { filter: z.string().optional(), response_format: z.enum(["markdown", "json"]).default("json") },
+        annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+      },
+      async ({ filter, response_format }) => {
+        try {
+          const entries = await passClient.list(filter);
+          if (response_format === "json") {
+            return { content: [{ type: "text", text: JSON.stringify({ entries, count: entries.length }) }] };
+          }
+          return { content: [{ type: "text", text: entries.length === 0 ? "No entries found." : `**${entries.length} entries:**\n${entries.map((e) => `- ${e}`).join("\n")}` }] };
+        } catch (err) { return { isError: true, content: [{ type: "text", text: String(err) }] }; }
+      },
+    );
+
+    register(
+      "proton_pass_get",
+      { title: "Resolve a secret from Proton Pass", description: "Resolves a secret from Proton Pass. Returns {found:true} without the secret value.",
+        inputSchema: { path: z.string().describe("Entry path in the password store") },
+        annotations: { openWorldHint: true },
+      },
+      async ({ path }) => {
+        try {
+          await passClient.get(path);
+          return { content: [{ type: "text", text: JSON.stringify({ found: true, path, injected: true }) }] };
+        } catch (err) { return { content: [{ type: "text", text: JSON.stringify({ found: false, path, error: String(err) }) }] }; }
+      },
+    );
+
+    register(
+      "proton_pass_generate",
+      { title: "Generate a secure password", description: "Generates a strong random password and saves it to the Proton Pass store.",
+        inputSchema: { path: z.string(), length: z.number().int().min(12).max(128).default(24) },
+        annotations: { destructiveHint: true, openWorldHint: true },
+      },
+      async ({ path, length }) => {
+        try {
+          const result = await passClient.generate(path, length);
+          return { content: [{ type: "text", text: JSON.stringify({ generated: true, ...result }) }] };
+        } catch (err) { return { isError: true, content: [{ type: "text", text: String(err) }] }; }
+      },
+    );
+
+    register(
+      "proton_pass_health",
+      { title: "Check Proton Pass store health", description: "Verifies the Proton Pass password store is accessible.",
+        annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+      },
+      async () => { const r = await passClient.health(); return { content: [{ type: "text", text: JSON.stringify(r) }] }; },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Calendar stubs
+  // ---------------------------------------------------------------------------
+  function registerCalendarTools() {
+    if (!cfg.products.calendar.enabled) return;
+    const unavailable = JSON.stringify({ available: false, reason: "Calendar CalDAV not yet exposed by Proton Bridge." });
+    for (const t of ["proton_calendar_list_events", "proton_calendar_create_event", "proton_calendar_list_calendars"]) {
+      register(t, { title: t, description: `[STUB] ${t}`, annotations: { readOnlyHint: true, openWorldHint: true } },
+        async () => ({ content: [{ type: "text", text: unavailable }] }));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Drive stubs
+  // ---------------------------------------------------------------------------
+  function registerDriveTools() {
+    if (!cfg.products.drive.enabled) return;
+    const unavailable = JSON.stringify({ available: false, reason: "Drive OAuth not yet configured." });
+    const tools = ["proton_drive_list_files", "proton_drive_upload_file", "proton_drive_download_file", "proton_drive_delete_file", "proton_drive_share_file"];
+    for (const t of tools) {
+      register(t, { title: t, description: `[STUB] ${t}`, annotations: { openWorldHint: true } },
+        async () => ({ content: [{ type: "text", text: unavailable }] }));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Suite status with diagnostics
+  // ---------------------------------------------------------------------------
+  function registerSuiteTool() {
+    register(
+      "proton_suite_status",
+      {
+        title: "Get Proton Suite unified status",
+        description: "Reports the connection status, diagnostics, and metrics of all configured Proton Suite products.",
+        annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+      },
+      async () => {
+        let mailStatus: Record<string, unknown> = { available: false, error: "not_configured" };
+        let passStatus: Record<string, unknown> = { available: false, error: "not_configured" };
+
+        if (cfg.products.mail.enabled) {
+          try {
+            const { diagnoseMail } = await import("./diagnostics.js");
+            const diag = await diagnoseMail(bridgeCfg, passwordResolver);
+            let connected = false;
+            let mailboxes: number | undefined;
+            let unread: number | undefined;
+            if (diag.auth?.ok && diag.folders?.accessible) {
+              connected = true;
+              mailboxes = diag.folders?.count;
+              try {
+                const folders = await imap.listMailboxes();
+                const status = await imap.mailboxStatus("INBOX");
+                mailboxes = folders.length;
+                unread = status?.unseen ?? 0;
+              } catch { /* fallback to diagnostics count */ }
+            }
+            mailStatus = { available: true, connected, mailboxes, unread, error: connected ? undefined : (diag.auth?.error ?? diag.imapHandshake?.error ?? diag.tcp.error), diagnostics: diag };
+          } catch (err) { mailStatus = { available: false, connected: false, error: String(err) }; }
+        }
+
+        if (cfg.products.pass.enabled) {
+          try {
+            const pc = new PassClient({ storeDir: cfg.products.pass.storeDir }, log);
+            const h = await pc.health();
+            passStatus = { available: true, connected: h.ok, entries: h.entries, error: h.error };
+          } catch (err) { passStatus = { available: false, connected: false, error: String(err) }; }
+        }
+
+        return { content: [{ type: "text", text: JSON.stringify({
+          mail: mailStatus, pass: passStatus,
+          calendar: cfg.products.calendar.enabled ? { available: false, reason: "CalDAV not yet exposed by Bridge" } : { available: false },
+          drive: cfg.products.drive.enabled ? { available: false, reason: "OAuth not yet configured" } : { available: false },
+        }, null, 2) }] };
+      },
+    );
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -1029,7 +1184,7 @@ function renderFullEmail(m: {
     "---",
     "",
     m.textBody ?? "(no text body)",
-  ].filter((x) => x !== null) as string[];
+  ].filter((x) => x !== null);
   if (m.attachments.length > 0) {
     lines.push("", "**Attachments:**");
     m.attachments.forEach((a, i) => {
@@ -1062,7 +1217,7 @@ function truncate(s: string, n: number): string {
  * campo genérico `fields`. */
 function buildSearchCriteria(args: {
   query?: string;
-  fields: Array<"text" | "subject" | "from" | "to" | "body">;
+  fields: ("text" | "subject" | "from" | "to" | "body")[];
   since?: string;
   before?: string;
   unseen_only: boolean;

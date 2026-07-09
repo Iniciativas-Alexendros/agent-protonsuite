@@ -53,7 +53,7 @@ echo "protonmail-agent wrapper: launching MCP server over stdio..." >&2
 
 # --- Launch the server -------------------------------------------------------
 # `exec` replaces the shell so stdout reaches the MCP client unchanged.
-exec npx -y @alexendros/protonmail-agent protonmail-mcp
+exec npx -y @alexendros/protonsuite-agent protonsuite-mcp
 
 # Alternative: if you run a local checkout, build first and then:
 # exec node /ruta/absoluta/a/agent-protonmail/dist/index.js

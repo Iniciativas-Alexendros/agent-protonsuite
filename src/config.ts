@@ -1,5 +1,5 @@
 /**
- * Configuración y logger del servidor.
+ * Configuración y logger — Proton Suite Agent.
  *
  * Filosofía:
  *  - Validación única al arranque con Zod. Si falta algo, el proceso muere
@@ -11,80 +11,116 @@
  *  - Niveles estándar (error/warn/info/debug) sin dependencia de librerías
  *    pesadas como pino/winston. Si en el futuro queremos structured logs,
  *    `createLogger` se sustituye sin tocar el resto del código.
+ *  - Schema multi-producto: cada producto (mail, pass, calendar, drive) tiene
+ *    su bloque de configuración con `enabled` como gate. Los productos no
+ *    configurados no se inicializan y sus tools no se registran.
  */
 import { z } from "zod";
 
+// ---------------------------------------------------------------------------
+// Mail Bridge schema — compartido entre ConfigSchema y el runtime para
+// extenderlo con el passwordResolver (inyectado por buildServer, no por env).
+// ---------------------------------------------------------------------------
+export const MailBridgeSchema = z.object({
+  user: z.string().min(1, "PROTON_BRIDGE_USER is required when mail is enabled"),
+  pass: z.string().default(""),
+  // Path en el password store de Pass desde el que resolver la contraseña
+  // JIT. Si se define y PROTON_PASS_ENABLED=true, `pass` puede estar vacío.
+  passPath: z.string().optional(),
+  host: z.string().default("127.0.0.1"),
+  imapPort: z.number().int().positive().default(1143),
+  smtpPort: z.number().int().positive().default(1025),
+  from: z.string().email("PROTON_MAIL_FROM must be a valid email"),
+  tlsInsecure: z.boolean().default(true),
+  smtpSecurity: z.enum(["starttls", "implicit", "plain"]).default("starttls"),
+}).refine(
+  (data) => data.pass.length > 0 || !!data.passPath,
+  { message: "PROTON_BRIDGE_PASS or PROTON_BRIDGE_PASS_PATH is required when mail is enabled" },
+);
+
 const ConfigSchema = z.object({
-  bridge: z.object({
-    user: z.string().min(1, "PROTON_BRIDGE_USER is required"),
-    pass: z.string().min(1, "PROTON_BRIDGE_PASS is required"),
-    // Bridge escucha en 127.0.0.1 por defecto; en docker-compose el nombre
-    // del servicio (`bridge`) reemplaza la IP local.
-    host: z.string().default("127.0.0.1"),
-    imapPort: z.number().int().positive().default(1143),
-    smtpPort: z.number().int().positive().default(1025),
-    // El `from` puede diferir del usuario autenticado si la cuenta tiene
-    // alias. Si no se configura, cae al user.
-    from: z.string().email("PROTON_MAIL_FROM must be a valid email"),
-    // Bridge usa un cert autofirmado en localhost. `true` (default) acepta
-    // sin validar. Poner a `false` sólo si importas la CA de Bridge al
-    // trust store del contenedor/host.
-    tlsInsecure: z.boolean().default(true),
-    // Estrategia TLS del SMTP. Proton Bridge habla STARTTLS en 1025, así que
-    // `starttls` (default) preserva el comportamiento histórico. `implicit`
-    // (SMTPS, secure:true) e `plain` (sin TLS) existen para interoperar con
-    // otros servidores SMTP — p. ej. GreenMail en los tests E2E. No afecta a
-    // Bridge mientras se quede en el default.
-    smtpSecurity: z.enum(["starttls", "implicit", "plain"]).default("starttls"),
+  products: z.object({
+    mail: z.object({
+      enabled: z.boolean().default(true),
+      bridge: MailBridgeSchema,
+    }),
+    pass: z.object({
+      enabled: z.boolean().default(false),
+      storeDir: z.string().default("~/.password-store"),
+      // Path en el store del que resolver la contraseña de Bridge si
+      // PROTON_BRIDGE_PASS no está configurada directamente.
+      bridgePath: z.string().optional(),
+    }),
+    calendar: z.object({
+      enabled: z.boolean().default(false),
+    }),
+    drive: z.object({
+      enabled: z.boolean().default(false),
+    }),
   }),
   transport: z.object({
     kind: z.enum(["stdio", "http"]).default("stdio"),
     httpHost: z.string().default("127.0.0.1"),
     httpPort: z.number().int().positive().default(8787),
-    // Bearer obligatorio en modo HTTP. Se compara timing-safe en `auth.ts`.
     authToken: z.string().optional(),
-    // Allowlist de `Origin`. Lista vacía = no se valida (sólo bearer). En
-    // producción (`NODE_ENV=production`) el server se niega a arrancar con
-    // lista vacía, ver `index.ts`.
     allowedOrigins: z.array(z.string()).default([]),
   }),
   alerts: z.object({
-    // URL para enviar alertas de contenido vía POST. Si no está configurada,
-    // solo se escriben a fichero y stderr.
     webhookUrl: z.string().url().optional(),
-    // Severidad mínima que dispara salida a fichero/webhook. stderr refleja
-    // info en adelante si LOG_LEVEL lo permite.
     minSeverity: z.enum(["info", "warning", "alert", "critical"]).default("warning"),
-    // Directorio donde se escriben logs de alertas y auditoría.
     logDir: z.string().default("logs"),
-    // Activar o desactivar el sistema de alertas por completo.
     enabled: z.boolean().default(true),
   }),
   agent: z.object({
-    // Los pipelines de organización/setup presentan el plan sin aplicarlo.
-    // Poner a false solo cuando el operador haya validado el comportamiento.
     dryRun: z.boolean().default(true),
-    // Máximo de correos inspeccionados en un análisis de organización.
     maxInspectEmails: z.number().int().positive().default(1000),
-    // Confianza mínima (0-1) para aceptar una clasificación propuesta.
     minConfidence: z.number().min(0).max(1).default(0.6),
   }),
   logLevel: z.enum(["error", "warn", "info", "debug"]).default("info"),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
+export type BridgeConfig = z.infer<typeof MailBridgeSchema>;
+export type ResolvedBridgeConfig = BridgeConfig & {
+  passwordResolver: () => Promise<string>;
+};
 
-/** Lee un entero de env; cae al default si no está definido. Zod valida. */
+/**
+ * Resuelve el BridgeConfig a un ResolvedBridgeConfig con JIT password.
+ * Si Pass está habilitado y hay passPath, usa PassClient. Si no, fallback a env var.
+ */
+export async function resolveBridgeConfig(
+  cfg: Config,
+  log: { debug: (m: string, e?: unknown) => void; info: (m: string, e?: unknown) => void; warn?: (m: string, e?: unknown) => void; error?: (m: string, e?: unknown) => void },
+): Promise<ResolvedBridgeConfig> {
+  const bridge = cfg.products.mail.bridge;
+  if (cfg.products.pass.enabled && bridge.passPath) {
+    const { PassClient } = await import("./pass.js");
+    const passLog = { debug: log.debug, info: log.info, warn: log.warn ?? log.debug, error: log.error ?? log.info };
+    const passClient = new PassClient({ storeDir: cfg.products.pass.storeDir }, passLog);
+    return {
+      ...bridge,
+      passwordResolver: () => passClient.get(bridge.passPath!),
+    };
+  }
+  return {
+    ...bridge,
+    passwordResolver: () => Promise.resolve(bridge.pass),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Helpers de lectura de env vars
+// ---------------------------------------------------------------------------
+
 function readInt(value: string | undefined, defaultValue: number): number {
   return Number(value ?? defaultValue);
 }
 
-/** Lee un booleano de env representado como "true" / "false". */
 function readBool(value: string | undefined, defaultValue: boolean): boolean {
   return (value ?? String(defaultValue)) === "true";
 }
 
-/** CSV → array, normalizando whitespace y descartando entradas vacías. */
 function readCsv(value: string | undefined): string[] {
   return value
     ? value
@@ -94,11 +130,15 @@ function readCsv(value: string | undefined): string[] {
     : [];
 }
 
-/** Lee el bloque de configuración de Proton Mail Bridge desde `process.env`. */
-function parseBridgeConfig(env: NodeJS.ProcessEnv): Config["bridge"] {
+// ---------------------------------------------------------------------------
+// Parsers por bloque
+// ---------------------------------------------------------------------------
+
+function parseBridgeConfig(env: NodeJS.ProcessEnv) {
   return {
     user: (env.PROTON_BRIDGE_USER ?? "").trim(),
     pass: (env.PROTON_BRIDGE_PASS ?? "").trim(),
+    passPath: env.PROTON_BRIDGE_PASS_PATH || undefined,
     host: env.PROTON_BRIDGE_HOST ?? "127.0.0.1",
     imapPort: readInt(env.PROTON_BRIDGE_IMAP_PORT, 1143),
     smtpPort: readInt(env.PROTON_BRIDGE_SMTP_PORT, 1025),
@@ -111,8 +151,27 @@ function parseBridgeConfig(env: NodeJS.ProcessEnv): Config["bridge"] {
   };
 }
 
-/** Lee el bloque de transporte MCP (stdio / HTTP) desde `process.env`. */
-function parseTransportConfig(env: NodeJS.ProcessEnv): Config["transport"] {
+function parseProductsConfig(env: NodeJS.ProcessEnv) {
+  return {
+    mail: {
+      enabled: readBool(env.PROTON_MAIL_ENABLED, true),
+      bridge: parseBridgeConfig(env),
+    },
+    pass: {
+      enabled: readBool(env.PROTON_PASS_ENABLED, false),
+      storeDir: env.PROTON_PASS_STORE_DIR ?? "~/.password-store",
+      bridgePath: env.PROTON_PASS_BRIDGE_PATH || undefined,
+    },
+    calendar: {
+      enabled: readBool(env.PROTON_CALENDAR_ENABLED, false),
+    },
+    drive: {
+      enabled: readBool(env.PROTON_DRIVE_ENABLED, false),
+    },
+  };
+}
+
+function parseTransportConfig(env: NodeJS.ProcessEnv) {
   return {
     kind: (env.MCP_TRANSPORT ?? "stdio") as "stdio" | "http",
     httpHost: env.MCP_HTTP_HOST ?? "127.0.0.1",
@@ -122,15 +181,11 @@ function parseTransportConfig(env: NodeJS.ProcessEnv): Config["transport"] {
   };
 }
 
-/** Lee y valida el nivel de log desde `process.env`. */
-function parseLogLevel(
-  env: NodeJS.ProcessEnv,
-): Config["logLevel"] {
+function parseLogLevel(env: NodeJS.ProcessEnv) {
   return (env.LOG_LEVEL ?? "info") as "error" | "warn" | "info" | "debug";
 }
 
-/** Lee el bloque de configuración de alertas desde `process.env`. */
-function parseAlertConfig(env: NodeJS.ProcessEnv): Config["alerts"] {
+function parseAlertConfig(env: NodeJS.ProcessEnv) {
   return {
     webhookUrl: env.ALERT_WEBHOOK_URL || undefined,
     minSeverity: (env.ALERT_MIN_SEVERITY ?? "warning") as Config["alerts"]["minSeverity"],
@@ -139,8 +194,7 @@ function parseAlertConfig(env: NodeJS.ProcessEnv): Config["alerts"] {
   };
 }
 
-/** Lee el bloque de configuración del agente desde `process.env`. */
-function parseAgentConfig(env: NodeJS.ProcessEnv): Config["agent"] {
+function parseAgentConfig(env: NodeJS.ProcessEnv) {
   return {
     dryRun: readBool(env.AGENT_DRY_RUN, true),
     maxInspectEmails: readInt(env.AGENT_MAX_INSPECT_EMAILS, 1000),
@@ -148,15 +202,10 @@ function parseAgentConfig(env: NodeJS.ProcessEnv): Config["agent"] {
   };
 }
 
-/**
- * Lee `process.env` y lo pasa por Zod. La separación entre "lectura cruda" y
- * "parseo" hace trivial testear el schema desde `tests/config.test.ts`:
- * basta con mutar `process.env` y volver a llamar a `loadConfig()`.
- */
 export function loadConfig(): Config {
   const env = process.env;
   const raw = {
-    bridge: parseBridgeConfig(env),
+    products: parseProductsConfig(env),
     transport: parseTransportConfig(env),
     alerts: parseAlertConfig(env),
     agent: parseAgentConfig(env),
@@ -165,11 +214,16 @@ export function loadConfig(): Config {
   return ConfigSchema.parse(raw);
 }
 
+export function mailBridge(cfg: Config): Config["products"]["mail"]["bridge"] {
+  return cfg.products.mail.bridge;
+}
+
+export function isDryRun(cfg: Config): boolean {
+  return cfg.agent.dryRun;
+}
+
 // -----------------------------------------------------------------------------
 // Logger
-//
-// stderr-only por diseño. Formato `[ISO] LEVEL message {extra-json}` — fácil de
-// grepear en `docker logs` y suficientemente estructurado para awk/jq.
 // -----------------------------------------------------------------------------
 const LEVELS = { error: 0, warn: 1, info: 2, debug: 3 } as const;
 export type LogLevel = keyof typeof LEVELS;
@@ -183,14 +237,13 @@ export function createLogger(level: LogLevel) {
     process.stderr.write(`[${ts}] ${lvl.toUpperCase()} ${msg}${tail}\n`);
   };
   return {
-    error: (msg: string, extra?: unknown) => write("error", msg, extra),
-    warn: (msg: string, extra?: unknown) => write("warn", msg, extra),
-    info: (msg: string, extra?: unknown) => write("info", msg, extra),
-    debug: (msg: string, extra?: unknown) => write("debug", msg, extra),
+    error: (msg: string, extra?: unknown) => { write("error", msg, extra); },
+    warn: (msg: string, extra?: unknown) => { write("warn", msg, extra); },
+    info: (msg: string, extra?: unknown) => { write("info", msg, extra); },
+    debug: (msg: string, extra?: unknown) => { write("debug", msg, extra); },
   };
 }
 
-/** Stringify tolerante: objetos circulares o no serializables caen a `String(v)`. */
 function safeStringify(v: unknown): string {
   try {
     return typeof v === "string" ? v : JSON.stringify(v);

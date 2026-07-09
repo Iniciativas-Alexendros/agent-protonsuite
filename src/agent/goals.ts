@@ -1,6 +1,15 @@
 import type { AgentGoal, GoalContext } from "./types.js";
 
-const ALLOWED_GOALS: AgentGoal[] = ["discover", "setup", "check-imap", "organize", "monitor", "alert"];
+const ALLOWED_GOALS: AgentGoal[] = [
+  "discover",
+  "setup",
+  "check-imap",
+  "organize",
+  "monitor",
+  "alert",
+  "pass-audit",
+  "suite-status",
+];
 
 export function parseGoal(value: string | undefined): AgentGoal {
   const g = (value ?? "setup") as AgentGoal;
@@ -27,6 +36,8 @@ export function describeGoal(goal: AgentGoal): string {
     organize: "Analiza el buzón y propone/crea carpetas, etiquetas y archivado.",
     monitor: "Revisa el buzón buscando alertas de seguridad sin realizar cambios.",
     alert: "Revisa y emite alertas para correos de alto riesgo.",
+    "pass-audit": "Audita el vault de Proton Pass: fortaleza de contraseñas, duplicados y rotación pendiente.",
+    "suite-status": "Reporte unificado del estado de todos los productos configurados (Mail, Pass, Calendar, Drive).",
   };
   return map[goal];
 }

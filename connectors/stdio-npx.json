@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "protonmail": {
+    "protonsuite": {
       "command": "npx",
-      "args": ["-y", "@alexendros/protonmail-agent", "protonmail-mcp"],
+      "args": ["-y", "@alexendros/protonsuite-agent", "protonsuite-mcp"],
       "env": {
         "MCP_TRANSPORT": "stdio",
         "PROTON_BRIDGE_USER": "you@proton.me",

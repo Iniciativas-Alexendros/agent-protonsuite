@@ -12,7 +12,7 @@
  */
 import nodemailer, { type Transporter } from "nodemailer";
 import { addrMatches, extractEmail } from "./addresses.js";
-import type { Config } from "./config.js";
+import type { ResolvedBridgeConfig } from "./config.js";
 import type { EmailFull, ImapClient } from "./imap.js";
 
 // Re-export para consumidores históricos (tests/smtp-helpers.test.ts) que los
@@ -29,11 +29,11 @@ export interface SendOptions {
   replyTo?: string;
   inReplyTo?: string;
   references?: string[];
-  attachments?: Array<{
+  attachments?: {
     filename: string;
     contentBase64: string;
     contentType?: string;
-  }>;
+  }[];
 }
 
 export interface SendResult {
@@ -44,32 +44,31 @@ export interface SendResult {
 }
 
 export class SmtpClient {
-  private transporter: Transporter;
+  private transporter: Transporter | null = null;
 
-  constructor(private readonly cfg: Config["bridge"], private readonly log: { info: (m: string, e?: unknown) => void; debug: (m: string, e?: unknown) => void; }) {
-    // Bridge escucha SMTP submission con STARTTLS, no TLS directo. Por eso el
-    // default `starttls` = secure:false + requireTLS:true ("inicia plaintext y
-    // súbete a TLS con STARTTLS, obligatorio"). `implicit` = SMTPS (secure:true);
-    // `plain` = sin TLS (solo servidores de confianza, p. ej. GreenMail E2E).
-    const security = cfg.smtpSecurity ?? "starttls";
+  constructor(private readonly cfg: ResolvedBridgeConfig, private readonly log: { info: (m: string, e?: unknown) => void; debug: (m: string, e?: unknown) => void; }) {}
+
+  private async ensureConnected(): Promise<Transporter> {
+    if (this.transporter) return this.transporter;
+    const resolvedPass = await this.cfg.passwordResolver();
+    const security = this.cfg.smtpSecurity ?? "starttls";
     this.transporter = nodemailer.createTransport({
-      host: cfg.host,
-      port: cfg.smtpPort,
+      host: this.cfg.host,
+      port: this.cfg.smtpPort,
       secure: security === "implicit",
       requireTLS: security === "starttls",
-      tls: { rejectUnauthorized: !cfg.tlsInsecure },
-      auth: { user: cfg.user, pass: cfg.pass },
-      // Pool: 2 conexiones simultáneas es más que suficiente para un MCP —
-      // los clientes llaman secuencialmente. maxMessages=50 recicla la
-      // conexión cada 50 envíos para evitar leaks en Bridge.
+      tls: { rejectUnauthorized: !this.cfg.tlsInsecure },
+      auth: { user: this.cfg.user, pass: resolvedPass },
       pool: true,
       maxConnections: 2,
       maxMessages: 50,
     });
+    return this.transporter;
   }
 
   async send(opts: SendOptions): Promise<SendResult> {
-    const info = await this.transporter.sendMail({
+    const transporter = await this.ensureConnected();
+    const info = await transporter.sendMail({
       from: this.cfg.from,
       to: opts.to.join(", "),
       cc: opts.cc?.join(", "),
@@ -96,7 +95,10 @@ export class SmtpClient {
   }
 
   async close(): Promise<void> {
-    this.transporter.close();
+    if (this.transporter) {
+      this.transporter.close();
+      this.transporter = null;
+    }
   }
 }
 
@@ -161,7 +163,7 @@ export async function buildForwardOptions(
   const attachments: SendOptions["attachments"] = [];
   if (includeAttachments && original.attachments.length > 0) {
     for (let i = 0; i < original.attachments.length; i++) {
-      const meta = original.attachments[i]!;
+      const meta = original.attachments[i];
       const data = await imap.getAttachment(mailbox, uid, i);
       if (data) {
         attachments.push({
@@ -198,7 +200,7 @@ export function prefixSubject(subject: string | undefined, prefix: string): stri
  * separados (pueden venir con saltos de línea y espacios variables).
  */
 export function collectReferences(original: EmailFull): string[] {
-  const refsHeader = original.headers["references"] ?? "";
+  const refsHeader = original.headers.references ?? "";
   const existing: string[] = refsHeader.match(/<[^>]+>/g) ?? [];
   if (original.messageId) existing.push(original.messageId);
   return existing;

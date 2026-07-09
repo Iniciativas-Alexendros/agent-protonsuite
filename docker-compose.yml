@@ -1,10 +1,11 @@
-# Docker Compose para Proton Mail Agent en modo HTTP (avanzado).
+# Docker Compose para Proton Suite Agent en modo HTTP (avanzado).
 #
 # Este stack arranca:
 #   - proton-bridge: Proton Mail Bridge headless (imagen community
 #                    shenxn/protonmail-bridge) con vault persistido en volumen.
-#   - agent:         el MCP server en modo HTTP, hablando con proton-bridge
-#                    por la red interna proton-net.
+#   - agent:         el MCP server en modo HTTP (Mail + Pass), hablando con
+#                    proton-bridge por la red interna proton-net y con acceso
+#                    al password store de Pass y claves GPG si se montan como volúmenes.
 #
 # El servicio se llama proton-bridge (no bridge) para evitar colisión de DNS
 # embebido de Docker con otros stacks.
@@ -14,6 +15,9 @@
 #   docker compose run --rm --entrypoint="" proton-bridge /protonmail/proton-bridge --cli
 #   Dentro: login → 2FA → info (copiar "Bridge password") → exit
 #   Pegar el bridge password en PROTON_BRIDGE_PASS
+#
+#   Para configurar Pass JIT:
+#     bash pass/gpg-setup.sh
 #
 # Tras el login inicial, el volumen bridge-data persiste el vault y los
 # siguientes arranques son automáticos.
@@ -47,6 +51,11 @@ services:
     depends_on:
       proton-bridge:
         condition: service_healthy
+    volumes:
+      # Volúmenes opcionales para Pass: montar el password store y claves GPG
+      # desde el host. Descomenta si usas PROTON_BRIDGE_PASS_PATH.
+      # - pass-data:/home/node/.password-store:ro
+      # - gnupg-data:/home/node/.gnupg:ro
     environment:
       PROTON_BRIDGE_HOST: proton-bridge
       # 143/25 son los puertos externos del entrypoint de shenxn/protonmail-bridge
@@ -55,6 +64,7 @@ services:
       PROTON_BRIDGE_SMTP_PORT: 25
       PROTON_BRIDGE_USER: ${PROTON_BRIDGE_USER}
       PROTON_BRIDGE_PASS: ${PROTON_BRIDGE_PASS}
+      PROTON_BRIDGE_PASS_PATH: ${PROTON_BRIDGE_PASS_PATH:-}
       PROTON_MAIL_FROM: ${PROTON_MAIL_FROM}
       PROTON_BRIDGE_TLS_INSECURE: "true"
       NODE_ENV: production
@@ -64,6 +74,7 @@ services:
       MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN}
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      PROTON_PASS_ENABLED: ${PROTON_PASS_ENABLED:-false}
     expose:
       - "8787"
     networks:
@@ -72,6 +83,9 @@ services:
 
 volumes:
   bridge-data:
+  # Volúmenes opcionales para Pass
+  # pass-data:
+  # gnupg-data:
 
 networks:
   proton-net:

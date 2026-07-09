@@ -9,12 +9,12 @@
 import type { ParsedMail } from "mailparser";
 
 /** Forma de dirección tal como la entrega el `envelope` de imapflow. */
-export type EnvelopeAddress = {
+export interface EnvelopeAddress {
   name?: string;
   address?: string;
   mailbox?: string;
   host?: string;
-};
+}
 
 /** Una dirección de envelope → `"Nombre <email>"` o `"email"`, o undefined si no hay email. */
 export function envelopeAddrToString(a: EnvelopeAddress): string | undefined {
@@ -40,13 +40,13 @@ export function addrListToArray(list: EnvelopeAddress[] | undefined): string[] {
 
 /** Campo de direcciones de `mailparser` (to/cc/bcc/replyTo) → array de strings legibles. */
 export function addressesToArray(
-  field: ParsedMail["to"] | ParsedMail["cc"] | ParsedMail["bcc"] | ParsedMail["replyTo"],
+  field: ParsedMail["to"]     | ParsedMail["replyTo"],
 ): string[] {
   if (!field) return [];
   const list = Array.isArray(field) ? field : [field];
   const out: string[] = [];
   for (const item of list) {
-    if (!item?.value) continue;
+    if (!item.value) continue;
     for (const v of item.value) {
       if (v.address) out.push(v.name ? `${v.name} <${v.address}>` : v.address);
     }
@@ -56,13 +56,13 @@ export function addressesToArray(
 
 /** Extrae el email puro de un `"Nombre <email>"` (o devuelve la entrada tal cual). */
 export function extractEmail(s: string): string {
-  const m = s.match(/<([^>]+)>/);
+  const m = /<([^>]+)>/.exec(s);
   return (m?.[1] ?? s).trim();
 }
 
 /** ¿La dirección `addr` (en cualquier forma) corresponde al email `target`? Case-insensitive. */
 export function addrMatches(addr: string, target: string): boolean {
-  const m = addr.match(/<([^>]+)>/);
+  const m = /<([^>]+)>/.exec(addr);
   const email = (m?.[1] ?? addr).toLowerCase().trim();
   return email === target.toLowerCase().trim();
 }

@@ -125,7 +125,7 @@ export function classifyEmail(input: { from?: string; subject?: string; text?: s
   const scores = RULES.map((rule) => ({ rule, score: scoreRule(text, rule) })).sort((a, b) => b.score - a.score);
   const best = scores[0];
 
-  if (!best || best.score === 0) {
+  if (best.score === 0) {
     return {
       category: "uncategorized",
       confidence: 0,
@@ -161,7 +161,7 @@ export function detectThreats(input: { from?: string; subject?: string; text?: s
   const text = normalizeText(input);
   const threats: ThreatResult[] = [];
 
-  const checks: Array<{ threat: string; severity: AlertSeverity; patterns: RegExp[] }> = [
+  const checks: { threat: string; severity: AlertSeverity; patterns: RegExp[] }[] = [
     {
       threat: "phishing_link",
       severity: "critical",

@@ -1,4 +1,12 @@
-export type AgentGoal = "discover" | "setup" | "organize" | "monitor" | "alert" | "check-imap";
+export type AgentGoal =
+  | "discover"
+  | "setup"
+  | "organize"
+  | "monitor"
+  | "alert"
+  | "check-imap"
+  | "pass-audit"
+  | "suite-status";
 
 export interface GoalContext {
   goal: AgentGoal;
@@ -25,12 +33,12 @@ export interface OrganizationPlan {
   newFolders: string[];
   folderProposals: FolderProposal[];
   labelProposals: LabelProposal[];
-  alerts: Array<{
+  alerts: {
     severity: "info" | "warning" | "alert" | "critical";
     category: string;
     message: string;
     uids: number[];
-  }>;
+  }[];
 }
 
 export interface SetupReport {
@@ -40,4 +48,20 @@ export interface SetupReport {
   authOk: boolean;
   folders: string[];
   recommendations: string[];
+}
+
+export interface PassAuditReport {
+  storeOk: boolean;
+  totalEntries: number;
+  weakPasswords: string[];
+  duplicates: string[];
+  staleEntries: string[];
+  recommendations: string[];
+}
+
+export interface SuiteStatusReport {
+  mail: { available: boolean; connected?: boolean; mailboxes?: number; unread?: number; error?: string };
+  pass: { available: boolean; connected?: boolean; entries?: number; error?: string };
+  calendar: { available: boolean; reason?: string };
+  drive: { available: boolean; reason?: string };
 }

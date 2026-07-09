@@ -14,25 +14,24 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { ImapClient } from "../../src/imap.js";
 import { SmtpClient } from "../../src/smtp.js";
-import type { Config } from "../../src/config.js";
 
 const HOST = process.env.GREENMAIL_HOST ?? "127.0.0.1";
 const IMAP_PORT = Number(process.env.GREENMAIL_IMAP_PORT ?? 3143);
 const SMTP_PORT = Number(process.env.GREENMAIL_SMTP_PORT ?? 3025);
 const USER = "e2e@local";
 
-const bridge: Config["bridge"] = {
+const bridge = {
   user: USER,
   pass: "e2e-secret",
+  passwordResolver: () => Promise.resolve("e2e-secret"),
   host: HOST,
   imapPort: IMAP_PORT,
   smtpPort: SMTP_PORT,
   from: USER,
   tlsInsecure: true,
-  // GreenMail no habla STARTTLS en los puertos plain → modo plain. El default
-  // de producción (starttls, Bridge) queda intacto; aquí solo lo conmutamos.
   smtpSecurity: "plain",
-};
+   
+} as any;
 
 const silentLog = { error() {}, warn() {}, info() {}, debug() {} };
 const imap = new ImapClient(bridge, silentLog as never);

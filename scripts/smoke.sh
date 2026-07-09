@@ -34,9 +34,9 @@ if ! grep -q '"protocolVersion":"2025-06-18"' <<< "$output"; then
 fi
 
 tool_count=$(grep -o '"name":"proton_' <<< "$output" | wc -l)
-if [[ "$tool_count" -ne 14 ]]; then
-  echo "[smoke] expected 14 tools, found $tool_count" >&2
+if [[ "$tool_count" -lt 15 ]]; then
+  echo "[smoke] expected at least 15 tools, found $tool_count" >&2
   exit 1
 fi
 
-echo "[smoke] OK · initialize + 14 tools listed"
+echo "[smoke] OK · initialize + $tool_count tools listed"

@@ -100,6 +100,20 @@ jobs:
           GREENMAIL_SMTP_PORT: "3025"
         run: npm run test:e2e
 
+  e2e-pass:
+    name: E2E (Pass · GPG + pass CLI reales)
+    runs-on: [self-hosted, ts]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: bash scripts/e2e-pass.sh
+
   docker-build:
     name: Docker build smoke
     runs-on: [self-hosted, ts]

@@ -122,12 +122,13 @@ vi.mock("mailparser", () => ({
   },
 }));
 
+import type { ResolvedBridgeConfig } from "../src/config.js";
 import { ImapClient } from "../src/imap.js";
-import type { Config } from "../src/config.js";
 
-const bridgeCfg: Config["bridge"] = {
+const bridgeCfg: ResolvedBridgeConfig = {
   user: "me@proton.me",
   pass: "x",
+  passwordResolver: () => Promise.resolve("x"),
   host: "127.0.0.1",
   imapPort: 1143,
   smtpPort: 1025,

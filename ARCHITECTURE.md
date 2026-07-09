@@ -1,4 +1,4 @@
-# Arquitectura de Proton Mail Agent
+# Arquitectura de Proton Suite Agent
 
 Documento dedicado de arquitectura. El `README.md` da la visión orientada
 a uso; aquí se consolida el modelo interno, los flujos y las fronteras de
@@ -6,12 +6,15 @@ seguridad. Las decisiones de fondo se registran en `docs/adr/`.
 
 ## 1. Propósito y encaje
 
-`Proton Mail Agent` es un agente de correo con un **MCP server embebido**
-para Proton Mail: lectura, búsqueda, envío, mover, etiquetar, borrar,
-configuración guiada, organización autónoma y alertas de contenido.
-Habla IMAP/SMTP contra **Proton Mail Bridge**. Proton no ofrece API pública
-y su correo es E2E; Bridge resuelve ambos puntos exponiendo IMAP/SMTP locales
-tras realizar la criptografía en una máquina que controla el operador.
+`Proton Suite Agent` es un agente multi-producto con un **MCP server embebido**
+para Proton Suite: Mail (Bridge IMAP/SMTP), Pass (pass-cli), Calendar (CalDAV
+vía Bridge, próximamente) y Drive (API REST, próximamente). Ofrece lectura,
+búsqueda, envío, organización, gestión de contraseñas y alertas de contenido
+unificadas para todos los productos configurados.
+Mail habla IMAP/SMTP contra **Proton Mail Bridge**. Pass se integra
+con el estándar Unix `pass` CLI. Proton no ofrece API pública para la mayoría
+de sus productos; Bridge resuelve Mail exponiendo IMAP/SMTP locales tras
+realizar la criptografía en una máquina que controla el operador.
 
 ## 2. Capas
 
@@ -20,12 +23,13 @@ Consumidores MCP            stdio: cliente MCP local (agente IA, CLI)
                             HTTP : cliente MCP remoto / backend propio
         │ JSON-RPC                │ HTTPS + Bearer + Origin allowlist
         ▼                         ▼
-Proton Mail Agent (TypeScript · @modelcontextprotocol/sdk@^1.29)
-   config.ts · auth.ts · http.ts · server.ts · imap.ts · smtp.ts
+Proton Suite Agent (TypeScript · @modelcontextprotocol/sdk@^1.29)
+   config.ts · auth.ts · http.ts · server.ts
+   imap.ts · smtp.ts · pass.ts · calendar.ts · drive.ts
    agent/* · alerts/*
-        │ IMAP 1143 STARTTLS      │ SMTP 1025 STARTTLS
-        ▼                         ▼
-Proton Mail Bridge  ── FRONTERA CRIPTOGRÁFICA E2E ──
+        │ IMAP 1143 STARTTLS      │ SMTP 1025 STARTTLS      │ pass-cli (local)
+        ▼                         ▼                         ▼
+Proton Mail Bridge  ── FRONTERA CRIPTOGRÁFICA E2E ──   ~/.password-store
         │ OpenPGP + HTTPS
         ▼
 Servidores Proton (cifrado E2E)
@@ -33,25 +37,31 @@ Servidores Proton (cifrado E2E)
 
 - **Consumidores MCP**: clientes que hablan JSON-RPC vía `stdio` (local) o
   `streamable HTTP` (remoto, con Bearer + allowlist de origen).
-- **Proton Mail Agent**: este servidor. Doble transporte, validación Zod,
-  pools persistentes a Bridge, agente autónomo y subsistema de alertas.
+- **Proton Suite Agent**: este servidor. Multi-transporte, validación Zod,
+  pools persistentes a Bridge, cliente pass-cli, agente autónomo y subsistema
+  de alertas multi-producto.
 - **Proton Mail Bridge**: corre en host/red controlados por el operador.
   Es la frontera criptográfica: todo lo que queda a su izquierda opera
   sobre correo en claro; nada se filtra a terceros.
+- **pass-cli**: gestor de contraseñas Unix estándar. Los secretos se leen
+  bajo demanda y nunca se exponen en respuestas MCP ni logs.
 - **Servidores Proton**: almacenan el correo cifrado E2E.
 
 ## 3. Módulos (`src/`)
 
 | Módulo | Responsabilidad |
 |---|---|
-| `index.ts` | Arranque: elige stdio o HTTP, signal handlers, guardrails de producción |
-| `config.ts` | Validación de env con Zod + logger a stderr |
+| `index.ts` | Arranque: elige stdio o HTTP, inicializa clientes por producto, signal handlers, guardrails de producción |
+| `config.ts` | Validación de env con Zod (schema por producto) + logger a stderr |
 | `auth.ts` | `compareTokens` timing-safe + `extractBearer` |
 | `http.ts` | `buildHttpApp`: Express con per-session StreamableHTTP, rate-limit, origin allowlist |
 | `imap.ts` | `ImapClient`: pool imapflow + retry/backoff + mailbox locks |
 | `smtp.ts` | `SmtpClient`: pool nodemailer + helpers de threading (reply/forward) |
-| `server.ts` | `McpServer` con registro de las 14 tools (Zod in, markdown/json out) |
-| `agent/*` | Parser de goals, setup, clasificación, organización y ejecución del agente |
+| `pass.ts` | `PassClient`: wrapper sobre `pass` CLI — listar, obtener (sin exponer), generar, health |
+| `calendar.ts` | `CalendarClient`: stub tipado para CalDAV vía Bridge (próximamente) |
+| `drive.ts` | `DriveClient`: stub tipado para API REST de Proton Drive (próximamente) |
+| `server.ts` | `McpServer` con registro condicional de tools por producto (Zod in, markdown/json out) |
+| `agent/*` | Parser de goals, setup, clasificación, organización y ejecución del agente multi-producto |
 | `alerts/*` | Reglas de contenido, detección de amenazas, webhook y fichero de alertas |
 
 ### Claves de diseño

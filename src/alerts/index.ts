@@ -1,19 +1,18 @@
 import { mkdir } from "node:fs/promises";
 import type { Config } from "../config.js";
 import { FileAlertSink } from "./file.js";
-import { WebhookAlertSink } from "./webhook.js";
 import { SEVERITY_RANK, type AlertEvent, type AlertSeverity } from "./types.js";
-import { classifyEmail, detectThreats } from "./rules.js";
+import { WebhookAlertSink } from "./webhook.js";
 
 export type { AlertEvent, AlertSeverity } from "./types.js";
 export { classifyEmail, detectThreats, inferStateLabels } from "./rules.js";
 
-export type Logger = {
+export interface Logger {
   error: (msg: string, extra?: unknown) => void;
   warn: (msg: string, extra?: unknown) => void;
   info: (msg: string, extra?: unknown) => void;
   debug: (msg: string, extra?: unknown) => void;
-};
+}
 
 export class AlertSystem {
   private readonly fileSink: FileAlertSink;
@@ -52,13 +51,13 @@ export class AlertSystem {
     // File and webhook only for configured minimum severity.
     if (SEVERITY_RANK[severity] < this.minRank) return;
 
-    void this.fileSink.emit(event).catch((err) => {
-      this.log.error("failed to write alert to file", { error: (err as Error).message });
+    void this.fileSink.emit(event).catch((err: unknown) => {
+      this.log.error("failed to write alert to file", { error: String(err) });
     });
 
     if (this.webhookSink) {
-      void this.webhookSink.emit(event).catch((err) => {
-        this.log.error("failed to send alert webhook", { error: (err as Error).message });
+      void this.webhookSink.emit(event).catch((err: unknown) => {
+        this.log.error("failed to send alert webhook", { error: String(err) });
       });
     }
   }

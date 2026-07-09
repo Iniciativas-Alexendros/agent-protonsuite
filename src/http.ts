@@ -19,21 +19,21 @@
  *  - **Idle eviction**: sesiones inactivas 30 min se cierran. Evita fugas de
  *    memoria si un cliente abandona la conexión sin limpiar.
  */
-import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { randomUUID } from "node:crypto";
-import { rateLimit, ipKeyGenerator } from "express-rate-limit";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { compareTokens, extractBearer } from "./auth.js";
-import { VERSION } from "./version.js";
 import type { Config } from "./config.js";
+import { VERSION } from "./version.js";
 
-type Logger = {
+interface Logger {
   debug: (m: string, e?: unknown) => void;
   info: (m: string, e?: unknown) => void;
   error: (m: string, e?: unknown) => void;
-};
+}
 
 export interface HttpAppDeps {
   buildServer: () => McpServer;
@@ -70,7 +70,7 @@ export function buildHttpApp(deps: HttpAppDeps): Express {
     standardHeaders: "draft-7",
     legacyHeaders: false,
     keyGenerator: (req) =>
-      extractBearer(req.headers.authorization as string | undefined) ||
+      extractBearer(req.headers.authorization) ||
       ipKeyGenerator(req.ip ?? "") ||
       "anon",
     message: { error: "rate_limit_exceeded" },
@@ -81,7 +81,7 @@ export function buildHttpApp(deps: HttpAppDeps): Express {
   // 401 y aborta. Aquí respondemos 204 con headers CORS si el Origin está
   // allowlisted, y dejamos que las requests no-OPTIONS sigan al auth.
   app.use("/mcp", (req: Request, res: Response, next: NextFunction): void => {
-    const origin = req.headers.origin as string | undefined;
+    const origin = req.headers.origin;
     if (origin && allowedOrigins.has(origin)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Vary", "Origin");
@@ -104,7 +104,7 @@ export function buildHttpApp(deps: HttpAppDeps): Express {
   app.all("/mcp", async (req: Request, res: Response) => {
     const sessionId = (req.headers["mcp-session-id"] as string | undefined) ?? undefined;
     try {
-      let entry = sessionId ? sessions.get(sessionId) : undefined;
+      const entry = sessionId ? sessions.get(sessionId) : undefined;
 
       // Caso 1: request sin sesión válida pero con body `initialize` →
       // creamos transport + server nuevos y los registramos al terminar.
@@ -181,12 +181,12 @@ export function buildHttpApp(deps: HttpAppDeps): Express {
    *  2. Bearer comparado timing-safe (ver `auth.ts`). Fail-closed.
    */
   function authMiddleware(req: Request, res: Response, next: NextFunction): void {
-    const origin = req.headers.origin as string | undefined;
+    const origin = req.headers.origin;
     if (origin && allowedOrigins.size > 0 && !allowedOrigins.has(origin)) {
       res.status(403).json({ error: "origin_not_allowed" });
       return;
     }
-    const token = extractBearer(req.headers.authorization as string | undefined);
+    const token = extractBearer(req.headers.authorization);
     if (!compareTokens(token, expectedToken)) {
       res.status(401).json({ error: "unauthorized" });
       return;

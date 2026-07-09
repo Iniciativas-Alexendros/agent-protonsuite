@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import request from "supertest";
-import { buildHttpApp } from "../src/http.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import request from "supertest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Config } from "../src/config.js";
+import { buildHttpApp } from "../src/http.js";
 
 const silent = {
   debug: vi.fn(),
@@ -12,14 +12,23 @@ const silent = {
 
 function cfg(overrides: Partial<Config["transport"]> = {}): Config {
   return {
-    bridge: {
-      user: "x@y.com",
-      pass: "p",
-      host: "127.0.0.1",
-      imapPort: 1143,
-      smtpPort: 1025,
-      from: "x@y.com",
-      tlsInsecure: true,
+    products: {
+      mail: {
+        enabled: true,
+        bridge: {
+          user: "x@y.com",
+          pass: "p",
+          host: "127.0.0.1",
+          imapPort: 1143,
+          smtpPort: 1025,
+          from: "x@y.com",
+          tlsInsecure: true,
+          smtpSecurity: "starttls",
+        },
+      },
+      pass: { enabled: false, storeDir: "/tmp" },
+      calendar: { enabled: false },
+      drive: { enabled: false },
     },
     transport: {
       kind: "http",

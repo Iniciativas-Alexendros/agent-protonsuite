@@ -1,8 +1,10 @@
 # Changelog
 
-All notable changes to `@alexendros/protonmail-agent` (formerly `@alexendros/protonmail-mcp`) are documented in this file.
+Changelog generado automáticamente por [semantic-release](https://github.com/semantic-release/semantic-release) a partir de los [Conventional Commits](https://www.conventionalcommits.org/).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+El formato sigue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) y [SemVer 2.0.0](https://semver.org/).
+
+## Histórico pre-semantic-release
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.5.0] - 2026-07-04

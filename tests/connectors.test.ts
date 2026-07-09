@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, it, expect } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
@@ -15,14 +15,14 @@ describe("connectors · stdio-npx.json", () => {
     const raw = readText("connectors/stdio-npx.json");
     const parsed = JSON.parse(raw);
     expect(parsed.mcpServers).toBeDefined();
-    expect(parsed.mcpServers.protonmail).toBeDefined();
-    expect(parsed.mcpServers.protonmail.command).toBe("npx");
-    expect(parsed.mcpServers.protonmail.args).toEqual([
+    expect(parsed.mcpServers.protonsuite).toBeDefined();
+    expect(parsed.mcpServers.protonsuite.command).toBe("npx");
+    expect(parsed.mcpServers.protonsuite.args).toEqual([
       "-y",
-      "@alexendros/protonmail-agent",
-      "protonmail-mcp",
+      "@alexendros/protonsuite-agent",
+      "protonsuite-mcp",
     ]);
-    expect(parsed.mcpServers.protonmail.env.MCP_TRANSPORT).toBe("stdio");
+    expect(parsed.mcpServers.protonsuite.env.MCP_TRANSPORT).toBe("stdio");
   });
 });
 

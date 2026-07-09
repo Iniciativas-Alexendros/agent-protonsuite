@@ -21,7 +21,7 @@
 import { ImapFlow, type ImapFlowOptions, type ListResponse, type FetchQueryObject, type SearchObject } from "imapflow";
 import { simpleParser, type ParsedMail, type Attachment } from "mailparser";
 import { addrListToString, addrListToArray, addressesToArray } from "./addresses.js";
-import type { Config } from "./config.js";
+import type { ResolvedBridgeConfig } from "./config.js";
 
 export interface EmailSummary {
   uid: number;
@@ -42,13 +42,13 @@ export interface EmailFull extends EmailSummary {
   replyTo: string[];
   textBody: string | undefined;
   htmlBody: string | undefined;
-  attachments: Array<{
+  attachments: {
     filename: string | undefined;
     contentType: string;
     size: number;
     contentId: string | undefined;
     checksum: string | undefined;
-  }>;
+  }[];
   headers: Record<string, string>;
 }
 
@@ -66,9 +66,10 @@ export class ImapClient {
   private client: ImapFlow | null = null;
   private connecting: Promise<ImapFlow> | null = null;
 
-  constructor(private readonly cfg: Config["bridge"], private readonly log: { debug: (m: string, e?: unknown) => void; info: (m: string, e?: unknown) => void; warn: (m: string, e?: unknown) => void; error: (m: string, e?: unknown) => void; }) {}
+  constructor(private readonly cfg: ResolvedBridgeConfig, private readonly log: { debug: (m: string, e?: unknown) => void; info: (m: string, e?: unknown) => void; warn: (m: string, e?: unknown) => void; error: (m: string, e?: unknown) => void; }) {}
 
-  private buildOpts(): ImapFlowOptions {
+  private async buildOpts(): Promise<ImapFlowOptions> {
+    const resolvedPass = await this.cfg.passwordResolver();
     return {
       host: this.cfg.host,
       port: this.cfg.imapPort,
@@ -81,14 +82,14 @@ export class ImapClient {
       // autofirmado. En producción estricta se puede pinear la CA de
       // Bridge vía `PROTON_BRIDGE_CA_PATH` (roadmap).
       tls: { rejectUnauthorized: !this.cfg.tlsInsecure },
-      auth: { user: this.cfg.user, pass: this.cfg.pass },
+      auth: { user: this.cfg.user, pass: resolvedPass },
       // Delegamos el logger de imapflow a nuestro logger stderr para que
       // LOG_LEVEL=debug capture la conversación IMAP completa.
       logger: {
-        debug: (obj: unknown) => this.log.debug("imapflow", obj),
-        info: (obj: unknown) => this.log.info("imapflow", obj),
-        warn: (obj: unknown) => this.log.warn("imapflow", obj),
-        error: (obj: unknown) => this.log.error("imapflow", obj),
+        debug: (obj: unknown) => { this.log.debug("imapflow", obj); },
+        info: (obj: unknown) => { this.log.info("imapflow", obj); },
+        warn: (obj: unknown) => { this.log.warn("imapflow", obj); },
+        error: (obj: unknown) => { this.log.error("imapflow", obj); },
       },
       // Bridge soporta IDLE. 60s de keepalive = Bridge no nos tira por idle
       // timeout y nosotros no pagamos el coste de reconectar.
@@ -98,7 +99,7 @@ export class ImapClient {
 
   /** Returns a connected, authenticated client. Reuses existing connection when possible. */
   private async connect(): Promise<ImapFlow> {
-    if (this.client && this.client.usable) return this.client;
+    if (this.client?.usable) return this.client;
     if (this.client && !this.client.usable) {
       this.log.debug("IMAP client no longer usable, discarding");
       try { await this.client.logout(); } catch { /* noop */ }
@@ -127,9 +128,9 @@ export class ImapClient {
     let lastErr: unknown;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const c = new ImapFlow(this.buildOpts());
-        c.on("error", (err) => this.log.error("IMAP error event", { message: err.message }));
-        c.on("close", () => this.log.debug("IMAP connection closed"));
+        const c = new ImapFlow(await this.buildOpts());
+        c.on("error", (err) => { this.log.error("IMAP error event", { message: err.message }); });
+        c.on("close", () => { this.log.debug("IMAP connection closed"); });
         this.log.debug("Connecting to Proton Bridge IMAP", { host: this.cfg.host, port: this.cfg.imapPort, attempt });
         await c.connect();
         this.log.info("IMAP connected", { attempt });
@@ -204,7 +205,7 @@ export class ImapClient {
       path: m.path,
       name: m.name,
       delimiter: m.delimiter,
-      flags: Array.from(m.flags ?? []) as string[],
+      flags: Array.from(m.flags ?? []),
       specialUse: m.specialUse,
       subscribed: m.subscribed ?? false,
       listed: m.listed ?? true,
@@ -302,7 +303,7 @@ export class ImapClient {
     try {
       const msg = await c.fetchOne(String(uid), { source: true, flags: true, envelope: true, uid: true, size: true }, { uid: true });
       if (!msg || !msg.source) return null;
-      const parsed = await simpleParser(msg.source as Buffer);
+      const parsed = await simpleParser(msg.source);
       return this.toFull(msg, parsed);
     } finally {
       lock.release();
@@ -315,7 +316,7 @@ export class ImapClient {
     try {
       const msg = await c.fetchOne(String(uid), { source: true }, { uid: true });
       if (!msg || !msg.source) return null;
-      const parsed = await simpleParser(msg.source as Buffer);
+      const parsed = await simpleParser(msg.source);
       const att: Attachment | undefined = parsed.attachments[index];
       if (!att) return null;
       return {
@@ -409,7 +410,7 @@ export class ImapClient {
       to: addrListToArray(env.to),
       subject: env.subject,
       date: env.date instanceof Date ? env.date.toISOString() : env.date,
-      flags: Array.from(msg.flags ?? []) as string[],
+      flags: Array.from(msg.flags ?? []),
       size: msg.size,
     };
   }

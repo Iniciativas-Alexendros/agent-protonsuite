@@ -1,13 +1,13 @@
-# Security policy — ProtonMail Agent
+# Security policy — Proton Suite Agent
 
 ## Supported versions
 
 Only the `main` branch and the latest published artifacts receive security fixes:
 
-- npm package: `@alexendros/protonmail-agent@latest`
+- npm package: `@alexendros/protonsuite-agent@latest`
 - Docker image: `ghcr.io/iniciativas-alexendros/agent-protonmail:latest`
 
-Older versions published under the legacy name `@alexendros/protonmail-mcp` are deprecated and no longer supported.
+Older versions published under the legacy names `@alexendros/protonmail-agent` and `@alexendros/protonmail-mcp` are deprecated and no longer supported.
 
 ## Reporting a vulnerability
 
@@ -39,6 +39,17 @@ Email `security@alexendros.me` (PGP key in the website). Do not open public GitH
 | T11 | **Data retention and audit gaps** (agent decisions are not traceable) | Low | High | All agent actions, classifications and alert triggers are written to structured audit logs; alert dispatcher can mirror to webhook |
 | T12 | **Alert fatigue or missed alerts** (webhook misconfigured or noisy rules) | Medium | Medium | Severity levels (`info`, `warning`, `alert`, `critical`); min-severity threshold configurable; fallback to file and stderr |
 
+### Product-specific threats
+
+| Id | Threat | Likelihood | Impact | Mitigation |
+|----|--------|------------|--------|------------|
+| T13 | **Pass secret exposure in logs or MCP responses** | Medium | Critical — all stored credentials leaked | PassClient never logs values; `proton_pass_get` returns `{found:true}` without the secret; injection via fd/env, not JSON-RPC body |
+| T14 | **Pass vault enumeration via token leak** | Medium | Critical — attacker maps entire credential inventory | `proton_pass_list` returns only entry names, never values; rate limit; require explicit confirmation for full vault listing |
+| T15 | **Pass store injection via malicious entry** | Low | High — attacker plants credential in vault | Validate paths against disallowed characters; never accept raw user input for write without operator confirmation |
+| T16 | **Calendar event injection** (hostile payload in event description) | Medium | High | Sanitize descriptions before processing; no auto-execution based on event content; stub-only until backend available |
+| T17 | **Drive file enumeration** (token leak exposes full file tree) | Medium | High | Rate-limit on Drive tools; never expose absolute paths; stub-only until OAuth integration complete |
+| T18 | **Cross-service correlation leak** (usage patterns across Mail/Pass/Calendar/Drive reveal sensitive metadata) | Low | Medium | Do not include cross-referenced metadata in individual tool responses; only expose aggregation in `proton_suite_status` |
+
 ---
 
 ## Security controls present
@@ -61,6 +72,13 @@ Email `security@alexendros.me` (PGP key in the website). Do not open public GitH
 - **Structured audit log** — every agent decision, classification and alert trigger is written to `logs/audit-YYYY-MM-DD.jsonl`.
 - **Alert dispatcher** — supports `stderr`, file output and webhook notification for content-triggered alerts (`src/alerts/`).
 - **Knowledge base** — classification rules and professional conventions are versioned and auditable, not hidden in prompt context.
+
+### Proton Pass
+
+- **Zero secret exposure** — `proton_pass_get` returns `{found: true, injected: true}` without the secret value. Secrets are injected via environment variable or file descriptor, never in MCP response bodies, logs, or chat context.
+- **Audit-only generation** — `proton_pass_generate` confirms the password was created (path, length, timestamp) but never returns or logs the generated value.
+- **Path validation** — entry paths are validated against a safe character set before any CLI invocation, preventing shell injection via `pass` commands.
+- **Local-only** — all `pass` operations happen on the same machine via `child_process.execFile` (no shell interpolation). No network calls, no external services.
 
 ---
 

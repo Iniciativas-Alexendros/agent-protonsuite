@@ -1,4 +1,4 @@
-# Soporte para Proton Mail Agent
+# Soporte para Proton Suite Agent
 
 Antes de abrir un issue revisa estas vías:
 

@@ -1,13 +1,11 @@
+import { AlertSystem } from "../alerts/index.js";
 import { loadConfig, type Config } from "../config.js";
 import { createLogger } from "../config.js";
-import { AlertSystem } from "../alerts/index.js";
 import { parseGoal, buildGoalContext, describeGoal } from "./goals.js";
-import { runSetup, runImapCheck } from "./setup.js";
 import { buildOrganizationPlan, applyOrganizationPlan } from "./organizer.js";
-import type { AgentGoal } from "./types.js";
-
-export async function runAgent(goalName: AgentGoal | string, env: NodeJS.ProcessEnv = process.env): Promise<void> {
-  const goal = parseGoal(goalName as string);
+import { runSetup, runImapCheck } from "./setup.js";
+export async function runAgent(goalName: string, _env?: NodeJS.ProcessEnv): Promise<void> {
+  const goal = parseGoal(goalName);
   const cfg = loadConfig();
   const log = createLogger(cfg.logLevel);
   const alerts = new AlertSystem(cfg.alerts, log);
@@ -69,6 +67,28 @@ export async function runAgent(goalName: AgentGoal | string, env: NodeJS.Process
           labelProposals: plan.labelProposals.length,
         });
       }
+      break;
+    }
+    case "pass-audit": {
+      if (!cfg.products.pass.enabled) {
+        log.error("Proton Pass is not enabled. Set PROTON_PASS_ENABLED=true.");
+        process.exit(2);
+      }
+      // Dynamic import to avoid loading pass module when not enabled
+      const { PassClient } = await import("../pass.js");
+      const passClient = new PassClient({ storeDir: cfg.products.pass.storeDir }, log);
+      const report = await passClient.audit();
+      log.info("pass-audit report", report);
+      alerts.audit("pass-audit", "agent/executor", report);
+      break;
+    }
+    case "suite-status": {
+      log.info("suite status", {
+        mail: cfg.products.mail.enabled ? "enabled" : "disabled",
+        pass: cfg.products.pass.enabled ? "enabled" : "disabled",
+        calendar: cfg.products.calendar.enabled ? "enabled (stub)" : "disabled",
+        drive: cfg.products.drive.enabled ? "enabled (stub)" : "disabled",
+      });
       break;
     }
   }

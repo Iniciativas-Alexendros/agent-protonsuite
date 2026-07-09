@@ -1,8 +1,9 @@
-import { ImapClient, type EmailSummary } from "../imap.js";
 import { classifyEmail, detectThreats, inferStateLabels, type AlertSystem } from "../alerts/index.js";
-import type { Config } from "../config.js";
-import type { OrganizationPlan, GoalContext } from "./types.js";
 import type { Logger } from "../alerts/index.js";
+import type { Config } from "../config.js";
+import { resolveBridgeConfig } from "../config.js";
+import { ImapClient, type EmailSummary } from "../imap.js";
+import type { OrganizationPlan, GoalContext } from "./types.js";
 
 interface ClassifiedEmail {
   uid: number;
@@ -18,7 +19,8 @@ export async function buildOrganizationPlan(
   log: Logger,
   alerts: AlertSystem,
 ): Promise<OrganizationPlan> {
-  const imap = new ImapClient(cfg.bridge, log);
+  const bridgeCfg = await resolveBridgeConfig(cfg, log);
+  const imap = new ImapClient(bridgeCfg, log);
   const plan: OrganizationPlan = {
     newFolders: [],
     folderProposals: [],
@@ -61,7 +63,7 @@ export async function buildOrganizationPlan(
 
     for (const [category, emails] of byCategory) {
       if (emails.length === 0) continue;
-      const sample = emails[0]!.classification;
+      const sample = emails[0].classification;
       const folder = sample.suggestedFolder;
       if (!existingFolders.has(folder)) {
         plan.newFolders.push(folder);
@@ -135,10 +137,11 @@ export async function applyOrganizationPlan(
   plan: OrganizationPlan,
   log: Logger,
 ): Promise<void> {
-  const imap = new ImapClient(cfg.bridge, log);
+  const bridgeCfg = await resolveBridgeConfig(cfg, log);
+  const imap = new ImapClient(bridgeCfg, log);
   try {
     for (const folder of plan.newFolders) {
-      await imap.createMailbox(folder).catch((err) => {
+      await imap.createMailbox(folder).catch((err: unknown) => {
         // Bridge puede devolver "already subscribed" si la carpeta existe.
         if (String(err).toLowerCase().includes("already subscribed")) return;
         throw err;

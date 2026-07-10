@@ -171,7 +171,7 @@ export async function runAgent(
           process.exit(2)
         }
         log.info('drive-sync pull ok', { files: pullResult.files })
-        // Push only if explicitly requested (not automatic in sync goal)
+        // El agent goal solo hace pull; el push es manual vía la tool proton_drive_sync (direction=push).
         alerts.audit('drive-sync', 'agent/executor', {
           pullOk: true,
           files: pullResult.files,

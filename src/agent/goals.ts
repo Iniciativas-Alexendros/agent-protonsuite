@@ -57,7 +57,7 @@ export function describeGoal(goal: AgentGoal): string {
     'drive-organize':
       'Analiza y reorganiza archivos en el staging por tipo. Dry-run por defecto.',
     'drive-sync':
-      'Sincroniza el staging con ProtonDrive (pull + push opcional).',
+      'Sincroniza el staging con ProtonDrive (pull por defecto; push manual vía proton_drive_sync direction=push).',
   }
   return map[goal]
 }

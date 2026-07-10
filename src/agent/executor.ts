@@ -184,7 +184,7 @@ export async function runAgent(
         mail: cfg.products.mail.enabled ? 'enabled' : 'disabled',
         pass: cfg.products.pass.enabled ? 'enabled' : 'disabled',
         calendar: cfg.products.calendar.enabled ? 'enabled (stub)' : 'disabled',
-        drive: cfg.products.drive.enabled ? 'enabled (stub)' : 'disabled',
+        drive: cfg.products.drive.enabled ? 'enabled (rclone)' : 'disabled',
       })
       break
     }

@@ -183,6 +183,7 @@ function parseBridgeConfig(env: NodeJS.ProcessEnv) {
 }
 
 function parseProductsConfig(env: NodeJS.ProcessEnv) {
+  const driveRcloneRemote = env.DRIVE_RCLONE_REMOTE || undefined
   return {
     mail: {
       enabled: readBool(env.PROTON_MAIL_ENABLED, true),
@@ -197,8 +198,8 @@ function parseProductsConfig(env: NodeJS.ProcessEnv) {
       enabled: readBool(env.PROTON_CALENDAR_ENABLED, false),
     },
     drive: {
-      enabled: readBool(env.PROTON_DRIVE_ENABLED, false),
-      rcloneRemote: env.DRIVE_RCLONE_REMOTE || undefined,
+      enabled: !!driveRcloneRemote,
+      rcloneRemote: driveRcloneRemote,
       stagingDir: env.DRIVE_STAGING_DIR ?? '~/.protonmail/drive/',
       syncMode: (env.DRIVE_SYNC_MODE ?? 'pull') as 'pull' | 'watch',
       rcloneBin: env.DRIVE_RCLONE_BIN ?? 'rclone',

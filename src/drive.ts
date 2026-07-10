@@ -6,7 +6,7 @@
  * resuelve rutas, expone el binario y valida dependencias. Las tools MCP y
  * los agent goals (Tasks 2-5) construyen encima de ella.
  */
-import { execSync, execFile } from 'node:child_process'
+import { execFileSync, execFile } from 'node:child_process'
 import { resolve } from 'node:path'
 
 export interface DriveFile {
@@ -70,7 +70,7 @@ export class DriveClient {
 
   checkDeps(): { ok: boolean; error?: string } {
     try {
-      execSync(`${this.rcloneBin} --version`, {
+      execFileSync(this.rcloneBin, ['--version'], {
         encoding: 'utf-8',
         timeout: 5000,
       })

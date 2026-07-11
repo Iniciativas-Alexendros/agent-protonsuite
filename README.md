@@ -151,19 +151,31 @@ Todas las tools de lectura aceptan `response_format: "markdown" | "json"`. Organ
 
 ### Calendar (stub — próximamente)
 
-Las tools `proton_calendar_*` están registradas y visibles en `tools/list`, pero devuelven `{available: false}` hasta que Proton exponga CalDAV vía Bridge.
+Las tools `proton_calendar_*` están registradas y visibles en `tools/list`,
+pero devuelven `{available: false}` hasta que Proton exponga CalDAV vía Bridge.
 
-### Proton Drive (rclone)
+### Proton Drive (CLI oficial)
 
-Auditoría y sincronización de Proton Drive vía rclone (staging local). Requiere la variable de entorno `DRIVE_RCLONE_REMOTE`. Para la configuración del remote y rclone, véase [`docs/drive-audit.md`](./docs/drive-audit.md).
+Integración con Proton Drive mediante el binario oficial `proton-drive`
+(descargable desde [proton.me/support/drive-cli](https://proton.me/support/drive-cli)).
+El agente actúa como wrapper sobre el CLI — no almacena credenciales de Drive
+ni necesita OAuth propio: el operador autentica el CLI una vez y el token se
+persiste en un volumen de Docker o en el host.
 
-| Tool                         | Tipo  | Descripción                                                                                        |
-| ---------------------------- | ----- | -------------------------------------------------------------------------------------------------- |
-| `proton_drive_audit`         | read  | Escanea el staging y devuelve inventario: total, por tipo/tamaño, duplicados y formatos obsoletos. |
-| `proton_drive_status`        | read  | Estado de sincronización del staging y del remote rclone.                                          |
-| `proton_drive_organize`      | write | Reorganiza el staging por tipo; dry-run por defecto.                                               |
-| `proton_drive_format_report` | read  | Análisis detallado de formatos de fichero en el staging.                                           |
-| `proton_drive_sync`          | write | Sincroniza el staging con ProtonDrive (pull por defecto; push manual).                             |
+Requiere `DRIVE_ENABLED=true` (por defecto). El binario debe estar accesible en
+`PATH` o en `DRIVE_CLI_BIN`. Véase [`docs/drive-audit.md`](./docs/drive-audit.md)
+para configuración completa, persistencia del token y ejemplos de uso.
+
+| Tool                         | Tipo             | Descripción                                              |
+| ---------------------------- | ---------------- | -------------------------------------------------------- |
+| `proton_drive_status`        | read             | Estado del binario CLI + staging local                   |
+| `proton_drive_list_files`    | read             | Lista un path remoto (`filesystem list --json`)          |
+| `proton_drive_download`      | write idempotent | Descarga un path remoto al staging                       |
+| `proton_drive_upload`        | write            | Sube el staging a un path remoto                         |
+| `proton_drive_share`         | write idempotent | Invita a un usuario Proton a un path                     |
+| `proton_drive_audit`         | read             | Inventario + duplicados + formatos obsoletos del staging |
+| `proton_drive_organize`      | write            | Reorganiza el staging por tipo (dry-run por defecto)     |
+| `proton_drive_format_report` | read             | Reporte de extensiones y formatos obsoletos del staging  |
 
 Goals del agente:
 
@@ -171,7 +183,9 @@ Goals del agente:
 | ---------------- | ------------------------------ |
 | `drive-audit`    | `npm run agent:drive-audit`    |
 | `drive-organize` | `npm run agent:drive-organize` |
-| `drive-sync`     | `npm run agent:drive-sync`     |
+| `drive-list`     | `npm run agent:drive-list`     |
+| `drive-download` | `npm run agent:drive-download` |
+| `drive-upload`   | `npm run agent:drive-upload`   |
 
 ---
 

@@ -18,14 +18,12 @@
 import { z } from 'zod'
 
 // ---------------------------------------------------------------------------
-// Drive schema — rclone backend, configurable por env vars.
+// Drive schema — proton-drive CLI backend, configurable por env vars.
 // ---------------------------------------------------------------------------
 export const DriveConfigSchema = z.object({
   enabled: z.boolean().default(false),
-  rcloneRemote: z.string().optional(),
-  stagingDir: z.string().default('~/.protonmail/drive/'),
-  syncMode: z.enum(['pull', 'watch']).default('pull'),
-  rcloneBin: z.string().default('rclone'),
+  cliBin: z.string().default('proton-drive'),
+  stagingDir: z.string().default('~/.proton-drive/staging'),
   obsoleteExtensions: z
     .array(z.string())
     .default(['.doc', '.ppt', '.xls', '.bmp']),
@@ -49,7 +47,7 @@ export const MailBridgeSchema = z
     host: z.string().default('127.0.0.1'),
     imapPort: z.number().int().positive().default(1143),
     smtpPort: z.number().int().positive().default(1025),
-    from: z.string().email('PROTON_MAIL_FROM must be a valid email'),
+    from: z.email('PROTON_MAIL_FROM must be a valid email'),
     tlsInsecure: z.boolean().default(true),
     smtpSecurity: z.enum(['starttls', 'implicit', 'plain']).default('starttls'),
   })
@@ -84,7 +82,7 @@ const ConfigSchema = z.object({
     allowedOrigins: z.array(z.string()).default([]),
   }),
   alerts: z.object({
-    webhookUrl: z.string().url().optional(),
+    webhookUrl: z.url().optional(),
     minSeverity: z
       .enum(['info', 'warning', 'alert', 'critical'])
       .default('warning'),
@@ -131,9 +129,10 @@ export async function resolveBridgeConfig(
       { storeDir: cfg.products.pass.storeDir },
       passLog,
     )
+    const passPath = bridge.passPath
     return {
       ...bridge,
-      passwordResolver: () => passClient.get(bridge.passPath!),
+      passwordResolver: () => passClient.get(passPath),
     }
   }
   return {
@@ -183,7 +182,12 @@ function parseBridgeConfig(env: NodeJS.ProcessEnv) {
 }
 
 function parseProductsConfig(env: NodeJS.ProcessEnv) {
-  const driveRcloneRemote = env.DRIVE_RCLONE_REMOTE || undefined
+  // Drive is considered "enabled" when the CLI binary is reachable.
+  // We don't gate on auth — the CLI handles auth on first `proton-drive auth login`.
+  const obsoleteExt =
+    readCsv(env.DRIVE_OBSOLETE_EXTENSIONS).length > 0
+      ? readCsv(env.DRIVE_OBSOLETE_EXTENSIONS)
+      : ['.doc', '.ppt', '.xls', '.bmp']
   return {
     mail: {
       enabled: readBool(env.PROTON_MAIL_ENABLED, true),
@@ -198,15 +202,10 @@ function parseProductsConfig(env: NodeJS.ProcessEnv) {
       enabled: readBool(env.PROTON_CALENDAR_ENABLED, false),
     },
     drive: {
-      enabled: !!driveRcloneRemote,
-      rcloneRemote: driveRcloneRemote,
-      stagingDir: env.DRIVE_STAGING_DIR ?? '~/.protonmail/drive/',
-      syncMode: (env.DRIVE_SYNC_MODE ?? 'pull') as 'pull' | 'watch',
-      rcloneBin: env.DRIVE_RCLONE_BIN ?? 'rclone',
-      obsoleteExtensions:
-        readCsv(env.DRIVE_OBSOLETE_EXTENSIONS).length > 0
-          ? readCsv(env.DRIVE_OBSOLETE_EXTENSIONS)
-          : ['.doc', '.ppt', '.xls', '.bmp'],
+      enabled: readBool(env.DRIVE_ENABLED, true),
+      cliBin: env.DRIVE_CLI_BIN ?? 'proton-drive',
+      stagingDir: env.DRIVE_STAGING_DIR ?? '~/.proton-drive/staging',
+      obsoleteExtensions: obsoleteExt,
     },
   }
 }

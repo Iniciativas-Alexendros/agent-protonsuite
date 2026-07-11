@@ -29,7 +29,7 @@ describe('DriveAuditor', () => {
   })
 
   it('should scan inventory', async () => {
-    const inv = await auditor.scanInventory(TMP)
+    const inv = auditor.scanInventory(TMP)
     expect(inv.totalFiles).toBe(6)
     expect(inv.totalBytes).toBeGreaterThan(0)
     expect(inv.byExt['.md']).toBe(1)
@@ -39,7 +39,7 @@ describe('DriveAuditor', () => {
   })
 
   it('should detect duplicates by content', async () => {
-    const dups = await auditor.findDuplicates(TMP)
+    const dups = auditor.findDuplicates(TMP)
     expect(dups.length).toBeGreaterThanOrEqual(1)
     const dup = dups.find(
       (d) => d.hash === auditor.hashFile(resolve(TMP, 'duplicate.txt')),
@@ -49,14 +49,14 @@ describe('DriveAuditor', () => {
   })
 
   it('should report obsolete formats', async () => {
-    const fmt = await auditor.formatReport(TMP)
+    const fmt = auditor.formatReport(TMP)
     expect(fmt.obsoleteFiles.length).toBe(1)
     expect(fmt.obsoleteFiles[0].name).toBe('report.doc')
     expect(fmt.obsoleteExtensions).toEqual(['.doc', '.ppt', '.xls', '.bmp'])
   })
 
   it('should build organize plan', async () => {
-    const plan = await auditor.buildOrganizePlan(TMP)
+    const plan = auditor.buildOrganizePlan(TMP)
     expect(plan.suggestions.length).toBeGreaterThanOrEqual(1)
   })
 })

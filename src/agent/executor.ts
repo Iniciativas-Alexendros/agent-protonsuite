@@ -107,9 +107,11 @@ export async function runAgent(
     }
     case 'drive-audit':
     case 'drive-organize':
-    case 'drive-sync': {
-      if (!cfg.products.drive.rcloneRemote) {
-        log.error('Drive is not configured. Set DRIVE_RCLONE_REMOTE.')
+    case 'drive-list':
+    case 'drive-download':
+    case 'drive-upload': {
+      if (!cfg.products.drive.enabled) {
+        log.error('Drive is not configured. Set DRIVE_ENABLED=true.')
         process.exit(2)
       }
       const { DriveClient } = await import('../drive.js')
@@ -119,9 +121,9 @@ export async function runAgent(
       const auditor = new DriveAuditor(driveCfg.obsoleteExtensions, log)
 
       if (goal === 'drive-audit') {
-        const inv = await auditor.scanInventory(driveClient.stagingDir)
-        const dups = await auditor.findDuplicates(driveClient.stagingDir)
-        const fmt = await auditor.formatReport(driveClient.stagingDir)
+        const inv = auditor.scanInventory(driveClient.stagingDir)
+        const dups = auditor.findDuplicates(driveClient.stagingDir)
+        const fmt = auditor.formatReport(driveClient.stagingDir)
         log.info('drive-audit report', {
           totalFiles: inv.totalFiles,
           totalBytes: inv.totalBytes,
@@ -134,7 +136,7 @@ export async function runAgent(
           obsoleteFiles: fmt.obsoleteFiles.length,
         })
       } else if (goal === 'drive-organize') {
-        const plan = await auditor.buildOrganizePlan(driveClient.stagingDir)
+        const plan = auditor.buildOrganizePlan(driveClient.stagingDir)
         if (ctx.dryRun) {
           log.info('drive-organize plan (dry-run)', {
             suggestions: plan.suggestions.length,
@@ -161,20 +163,35 @@ export async function runAgent(
           log.info('drive-organize applied', { moved })
           alerts.audit('drive-organize-applied', 'agent/executor', { moved })
         }
-      } else {
-        const pullResult = await driveClient.syncPull()
-        if (!pullResult.ok) {
-          log.error('drive-sync pull failed', { error: pullResult.error })
-          alerts.alert('drive-sync', 'Sync pull falló', 'agent/executor', {
-            error: pullResult.error,
-          })
+      } else if (goal === 'drive-list') {
+        const r = await driveClient.listFiles('/my-files')
+        if (!r.ok) {
+          log.error('drive-list failed', { error: r.error })
           process.exit(2)
         }
-        log.info('drive-sync pull ok', { files: pullResult.files })
-        // El agent goal solo hace pull; el push es manual vía la tool proton_drive_sync (direction=push).
-        alerts.audit('drive-sync', 'agent/executor', {
-          pullOk: true,
-          files: pullResult.files,
+        log.info('drive-list ok', { entries: r.files.length })
+        alerts.audit('drive-list', 'agent/executor', {
+          entries: r.files.length,
+        })
+      } else if (goal === 'drive-download') {
+        const r = await driveClient.download('/my-files')
+        if (!r.ok) {
+          log.error('drive-download failed', { error: r.error })
+          process.exit(2)
+        }
+        log.info('drive-download ok', { localPath: r.localPath })
+        alerts.audit('drive-download', 'agent/executor', {
+          localPath: r.localPath,
+        })
+      } else {
+        const r = await driveClient.upload()
+        if (!r.ok) {
+          log.error('drive-upload failed', { error: r.error })
+          process.exit(2)
+        }
+        log.info('drive-upload ok', { remotePath: r.remotePath })
+        alerts.audit('drive-upload', 'agent/executor', {
+          remotePath: r.remotePath,
         })
       }
       break
@@ -184,7 +201,9 @@ export async function runAgent(
         mail: cfg.products.mail.enabled ? 'enabled' : 'disabled',
         pass: cfg.products.pass.enabled ? 'enabled' : 'disabled',
         calendar: cfg.products.calendar.enabled ? 'enabled (stub)' : 'disabled',
-        drive: cfg.products.drive.enabled ? 'enabled (rclone)' : 'disabled',
+        drive: cfg.products.drive.enabled
+          ? 'enabled (proton-drive CLI)'
+          : 'disabled',
       })
       break
     }

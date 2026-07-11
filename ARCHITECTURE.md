@@ -49,20 +49,20 @@ Servidores Proton (cifrado E2E)
 
 ## 3. Módulos (`src/`)
 
-| Módulo | Responsabilidad |
-|---|---|
-| `index.ts` | Arranque: elige stdio o HTTP, inicializa clientes por producto, signal handlers, guardrails de producción |
-| `config.ts` | Validación de env con Zod (schema por producto) + logger a stderr |
-| `auth.ts` | `compareTokens` timing-safe + `extractBearer` |
-| `http.ts` | `buildHttpApp`: Express con per-session StreamableHTTP, rate-limit, origin allowlist |
-| `imap.ts` | `ImapClient`: pool imapflow + retry/backoff + mailbox locks |
-| `smtp.ts` | `SmtpClient`: pool nodemailer + helpers de threading (reply/forward) |
-| `pass.ts` | `PassClient`: wrapper sobre `pass` CLI — listar, obtener (sin exponer), generar, health |
-| `calendar.ts` | `CalendarClient`: stub tipado para CalDAV vía Bridge (próximamente) |
-| `drive.ts` | `DriveClient`: stub tipado para API REST de Proton Drive (próximamente) |
-| `server.ts` | `McpServer` con registro condicional de tools por producto (Zod in, markdown/json out) |
-| `agent/*` | Parser de goals, setup, clasificación, organización y ejecución del agente multi-producto |
-| `alerts/*` | Reglas de contenido, detección de amenazas, webhook y fichero de alertas |
+| Módulo        | Responsabilidad                                                                                           |
+| ------------- | --------------------------------------------------------------------------------------------------------- |
+| `index.ts`    | Arranque: elige stdio o HTTP, inicializa clientes por producto, signal handlers, guardrails de producción |
+| `config.ts`   | Validación de env con Zod (schema por producto) + logger a stderr                                         |
+| `auth.ts`     | `compareTokens` timing-safe + `extractBearer`                                                             |
+| `http.ts`     | `buildHttpApp`: Express con per-session StreamableHTTP, rate-limit, origin allowlist                      |
+| `imap.ts`     | `ImapClient`: pool imapflow + retry/backoff + mailbox locks                                               |
+| `smtp.ts`     | `SmtpClient`: pool nodemailer + helpers de threading (reply/forward)                                      |
+| `pass.ts`     | `PassClient`: wrapper sobre `pass` CLI — listar, obtener (sin exponer), generar, health                   |
+| `calendar.ts` | `CalendarClient`: stub tipado para CalDAV vía Bridge (próximamente)                                       |
+| `drive.ts`    | `DriveClient`: wrapper del binario oficial `proton-drive` (CLI de Proton Drive) para `filesystem list     | download | upload`, `sharing invite`y`auth status` |
+| `server.ts`   | `McpServer` con registro condicional de tools por producto (Zod in, markdown/json out)                    |
+| `agent/*`     | Parser de goals, setup, clasificación, organización y ejecución del agente multi-producto                 |
+| `alerts/*`    | Reglas de contenido, detección de amenazas, webhook y fichero de alertas                                  |
 
 ### Claves de diseño
 
@@ -89,22 +89,42 @@ razone sobre el efecto antes de invocar.
 La tool `proton_agent_plan` es de solo lectura y expone el plan de
 organización y alertas del agente sin aplicar cambios.
 
-| Tool | Tipo | Descripción |
-|---|---|---|
-| `proton_list_folders` | read | Lista mailboxes (INBOX, Sent, Trash, labels, custom) |
-| `proton_create_folder` | write | Crea un mailbox nuevo |
-| `proton_mailbox_status` | read | Contadores: total / unseen / recent |
-| `proton_list_emails` | read | Lista paginada de mensajes recientes |
-| `proton_search_emails` | read | Búsqueda con filtros combinables |
-| `proton_get_email` | read | Mensaje completo: headers, cuerpo, metadata de adjuntos |
-| `proton_get_attachment` | read | Adjunto en base64; `max_bytes` 10 MB (cap 50 MB), `truncated` explícito |
-| `proton_send_email` | write | Envía texto/HTML + adjuntos; `from` fijo (no spoofing) |
-| `proton_reply_email` | write | Responde preservando threading (`In-Reply-To` + `References`) |
-| `proton_forward_email` | write | Reenvía opcionalmente con adjuntos originales |
-| `proton_flag_email` | write (idempotente) | read/unread/starred/unstarred/flags custom |
-| `proton_move_email` | write | Mueve entre mailboxes por UID |
-| `proton_delete_email` | **destructiva** | `trash` (reversible) o `permanent` (expunge) |
-| `proton_agent_plan` | read | Plan de organización y alertas del agente (sin aplicar cambios) |
+| Tool                    | Tipo                | Descripción                                                             |
+| ----------------------- | ------------------- | ----------------------------------------------------------------------- |
+| `proton_list_folders`   | read                | Lista mailboxes (INBOX, Sent, Trash, labels, custom)                    |
+| `proton_create_folder`  | write               | Crea un mailbox nuevo                                                   |
+| `proton_mailbox_status` | read                | Contadores: total / unseen / recent                                     |
+| `proton_list_emails`    | read                | Lista paginada de mensajes recientes                                    |
+| `proton_search_emails`  | read                | Búsqueda con filtros combinables                                        |
+| `proton_get_email`      | read                | Mensaje completo: headers, cuerpo, metadata de adjuntos                 |
+| `proton_get_attachment` | read                | Adjunto en base64; `max_bytes` 10 MB (cap 50 MB), `truncated` explícito |
+| `proton_send_email`     | write               | Envía texto/HTML + adjuntos; `from` fijo (no spoofing)                  |
+| `proton_reply_email`    | write               | Responde preservando threading (`In-Reply-To` + `References`)           |
+| `proton_forward_email`  | write               | Reenvía opcionalmente con adjuntos originales                           |
+| `proton_flag_email`     | write (idempotente) | read/unread/starred/unstarred/flags custom                              |
+| `proton_move_email`     | write               | Mueve entre mailboxes por UID                                           |
+| `proton_delete_email`   | **destructiva**     | `trash` (reversible) o `permanent` (expunge)                            |
+| `proton_agent_plan`     | read                | Plan de organización y alertas del agente (sin aplicar cambios)         |
+
+### Tools Drive (CLI oficial `proton-drive`)
+
+Drive habla con el **CLI oficial** `proton-drive`, que actúa de wrapper del SDK
+de Proton Drive. El agente ejecuta el binario (descargado de
+`proton.me/support/drive-cli`) en lugar de hablar directamente con la API. El
+CLI persiste su propio token en `~/.config/proton-drive`, así que el agente
+no necesita credenciales para Drive: basta con que el operador haya hecho
+`proton-drive auth login` una vez antes.
+
+| Tool                         | Tipo             | Descripción                                                        |
+| ---------------------------- | ---------------- | ------------------------------------------------------------------ |
+| `proton_drive_status`        | read             | Estado del binario CLI + staging local (`auth status` + stats)     |
+| `proton_drive_list_files`    | read             | Lista archivos de un path remoto (`filesystem list --json`)        |
+| `proton_drive_download`      | write idempotent | Descarga un path remoto al staging (`filesystem download`)         |
+| `proton_drive_upload`        | write            | Sube el staging a Proton Drive (`filesystem upload`)               |
+| `proton_drive_share`         | write idempotent | Invita a un usuario Proton a un path (`sharing invite --user ...`) |
+| `proton_drive_audit`         | read             | Inventario + duplicados + formatos obsoletos sobre el staging      |
+| `proton_drive_organize`      | write            | Reorganiza el staging por tipo (dry-run por defecto)               |
+| `proton_drive_format_report` | read             | Reporte de extensiones y formatos obsoletos del staging            |
 
 ### Flujo de una llamada
 
@@ -153,17 +173,17 @@ En `NODE_ENV=production` el servidor se niega a arrancar si
 
 Detalle completo y controles en `SECURITY.md`. Resumen:
 
-| Id | Amenaza | Mitigación principal |
-|----|---------|----------------------|
-| T1 | Robo del bearer MCP | Rotación `openssl rand -hex 32` + rate-limit 120/min/token |
-| T2 | DNS rebinding | `MCP_ALLOWED_ORIGINS` exigido en producción |
-| T3 | Abuso de relay SMTP | Rate-limit + límite diario de Bridge + `from` fijo |
-| T4 | Prompt injection vía cuerpo de email | Tratar cuerpos como no confiables; HITL en tools destructivas |
-| T5 | Robo de credenciales IMAP del entorno | Secretos solo en deployment secrets / `.env` 0600; rotación vía Bridge |
-| T6 | Exfiltración vía adjuntos en contexto LLM | Cap `max_bytes` (10 MB, hard 50 MB) + revisión del operador |
-| T7 | Downgrade TLS del canal Bridge local | Bridge en `127.0.0.1` / red interna; `PROTON_BRIDGE_CA_PATH` para pinning |
-| T8 | Acción autónoma no autorizada | Modo dry-run por defecto; `AGENT_DRY_RUN=false` requiere confirmación explícita |
-| T9 | Hallucinación en clasificación | Knowledge base local, reglas explicables y umbral de confianza configurable |
+| Id  | Amenaza                                   | Mitigación principal                                                            |
+| --- | ----------------------------------------- | ------------------------------------------------------------------------------- |
+| T1  | Robo del bearer MCP                       | Rotación `openssl rand -hex 32` + rate-limit 120/min/token                      |
+| T2  | DNS rebinding                             | `MCP_ALLOWED_ORIGINS` exigido en producción                                     |
+| T3  | Abuso de relay SMTP                       | Rate-limit + límite diario de Bridge + `from` fijo                              |
+| T4  | Prompt injection vía cuerpo de email      | Tratar cuerpos como no confiables; HITL en tools destructivas                   |
+| T5  | Robo de credenciales IMAP del entorno     | Secretos solo en deployment secrets / `.env` 0600; rotación vía Bridge          |
+| T6  | Exfiltración vía adjuntos en contexto LLM | Cap `max_bytes` (10 MB, hard 50 MB) + revisión del operador                     |
+| T7  | Downgrade TLS del canal Bridge local      | Bridge en `127.0.0.1` / red interna; `PROTON_BRIDGE_CA_PATH` para pinning       |
+| T8  | Acción autónoma no autorizada             | Modo dry-run por defecto; `AGENT_DRY_RUN=false` requiere confirmación explícita |
+| T9  | Hallucinación en clasificación            | Knowledge base local, reglas explicables y umbral de confianza configurable     |
 
 La E2E de Proton se detiene en la frontera de Bridge: todo aguas abajo (este
 MCP, el agente, cualquier dashboard) opera sobre texto en claro por diseño.

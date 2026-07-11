@@ -13,6 +13,11 @@
  * error" (JSON-RPC -32602). Por eso los casos inválidos se asertan vía
  * `expectValidationError`, no con `.rejects`.
  */
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import {
   describe,
   it,
@@ -22,9 +27,9 @@ import {
   beforeAll,
   afterAll,
 } from 'vitest'
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import type { Config } from '../src/config.js'
+import { DriveClient, type DriveConfig } from '../src/drive.js'
+import { buildServer } from '../src/server.js'
 
 // -----------------------------------------------------------------------------
 // Mock state, mutable per-test
@@ -126,10 +131,6 @@ vi.mock('mailparser', () => ({
   }),
 }))
 
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
-import type { Config } from '../src/config.js'
-
 const cfg: Config = {
   products: {
     mail: {
@@ -147,7 +148,12 @@ const cfg: Config = {
     },
     pass: { enabled: false, storeDir: '/tmp' },
     calendar: { enabled: false },
-    drive: { enabled: false },
+    drive: {
+      enabled: false,
+      cliBin: 'proton-drive',
+      stagingDir: '/tmp/test-drive-default',
+      obsoleteExtensions: [],
+    },
   },
   transport: {
     kind: 'stdio',
@@ -602,16 +608,11 @@ describe('proton_delete_email', () => {
   })
 })
 
-import { DriveClient, type DriveConfig } from '../src/drive.js'
-import { buildServer } from '../src/server.js'
-
 describe('drive tools', () => {
   it('should create DriveClient with config', () => {
     const cfg: DriveConfig = {
-      rcloneRemote: 'proton-drive:',
+      cliBin: 'proton-drive',
       stagingDir: '/tmp/test-drive',
-      syncMode: 'pull',
-      rcloneBin: 'rclone',
       obsoleteExtensions: ['.doc'],
     }
     const dc = new DriveClient(cfg, {
@@ -620,14 +621,12 @@ describe('drive tools', () => {
       error: () => {},
     })
     expect(dc.stagingDir).toBe('/tmp/test-drive')
-    expect(dc.remotePrefix).toBe('proton-drive:')
   })
 
   it('should return status without errors', async () => {
     const cfg: DriveConfig = {
+      cliBin: 'proton-drive',
       stagingDir: '/tmp/test-status',
-      syncMode: 'pull',
-      rcloneBin: 'rclone',
       obsoleteExtensions: [],
     }
     const dc = new DriveClient(cfg, {
@@ -636,8 +635,9 @@ describe('drive tools', () => {
       error: () => {},
     })
     const st = await dc.status()
-    expect(st.configured).toBe(false)
-    expect(st.ok).toBe(false)
+    expect(st.configured).toBe(true)
+    expect(st.cliPath).toBe('proton-drive')
+    expect(typeof st.authenticated).toBe('boolean')
   })
 })
 
@@ -648,23 +648,21 @@ describe('drive tools (registered)', () => {
       ...cfg.products,
       drive: {
         enabled: true,
-        rcloneRemote: 'proton-drive:',
+        cliBin: 'proton-drive',
         stagingDir: '/tmp/test-drive-registered',
-        syncMode: 'pull',
-        rcloneBin: 'rclone',
         obsoleteExtensions: ['.doc', '.ppt', '.xls', '.bmp'],
       },
     },
   }
 
-  it('registers the 5 drive tools', async () => {
+  it('registers the 8 drive tools', async () => {
     const { server } = buildServer(driveCfg, silentLog as never)
     const client = new Client({ name: 'test', version: '1.0.0' })
     const [clientT, serverT] = InMemoryTransport.createLinkedPair()
     await Promise.all([server.connect(serverT), client.connect(clientT)])
     const { tools } = await client.listTools()
     const driveTools = tools.filter((t) => t.name.startsWith('proton_drive_'))
-    expect(driveTools).toHaveLength(5)
+    expect(driveTools).toHaveLength(8)
     await client.close()
   })
 
@@ -680,10 +678,11 @@ describe('drive tools (registered)', () => {
     expect(res.isError).not.toBe(true)
     const sc = res.structuredContent as {
       configured: boolean
-      syncMode: string
+      cliPath: string
+      authenticated: boolean
     }
     expect(sc.configured).toBe(true)
-    expect(sc.syncMode).toBe('pull')
+    expect(sc.cliPath).toBe('proton-drive')
     await client.close()
   })
 
@@ -740,6 +739,7 @@ describe('drive tools (registered)', () => {
     await client.close()
   })
 
-  // NOTE: proton_drive_sync is intentionally skipped — it requires a real
-  // rclone remote (DRIVE_RCLONE_REMOTE) and is exercised by the E2E suite.
+  // NOTE: proton_drive_upload/share/download son herramientas nuevas del CLI
+  // oficial — ver docs/drive-audit.md. Estas herramientas invocan el binario
+  // externo y se prueban e2e contra un Drive real (no mockeable en CI).
 })

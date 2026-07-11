@@ -10,7 +10,9 @@
  * caída, mailbox inexistente, fetchOne nulo). Aquí ejercitamos la clase
  * directamente, no a través del `McpServer`, para cubrir CADA método público.
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import type { ResolvedBridgeConfig } from '../src/config.js'
+import { ImapClient } from '../src/imap.js'
 
 // -----------------------------------------------------------------------------
 // Mock state, mutable per-test
@@ -22,7 +24,7 @@ const imapState = {
   fetchResults: [] as unknown[],
   fetchOneResult: null as unknown,
   searchResult: [] as number[] | unknown,
-  mailboxCreateResult: { path: "X", created: true },
+  mailboxCreateResult: { path: 'X', created: true },
   appendResult: { uid: 1 } as unknown,
   moveResult: true as unknown,
   copyResult: true as unknown,
@@ -33,7 +35,7 @@ const imapState = {
   usable: true,
   connectAttempts: 0,
   connectFailUntil: 0, // connect() lanza mientras attempts <= este valor
-  connectErrorMessage: "ECONNREFUSED", // mensaje que lanza connect() al fallar
+  connectErrorMessage: 'ECONNREFUSED', // mensaje que lanza connect() al fallar
   // Palancas de error por método
   listShouldThrow: false,
   statusShouldThrow: false,
@@ -41,111 +43,107 @@ const imapState = {
   fetchOneShouldThrow: false,
   // Espías de release de lock
   lockReleases: 0,
-};
+}
 
 // Parsed mail devuelto por simpleParser (mutable para casos borde).
-let parsedMailResult: unknown = null;
-const parseError: { value: Error | null } = { value: null };
+let parsedMailResult: unknown = null
+const parseError: { value: Error | null } = { value: null }
 
-vi.mock("imapflow", () => {
+vi.mock('imapflow', () => {
   class ImapFlow {
-    usable = true;
+    usable = true
     constructor() {
       // Reflejar el estado configurado por el test en la instancia.
-      this.usable = imapState.usable;
+      this.usable = imapState.usable
     }
     on() {}
     async connect() {
-      imapState.connectAttempts += 1;
+      imapState.connectAttempts += 1
       if (imapState.connectAttempts <= imapState.connectFailUntil) {
-        throw new Error(imapState.connectErrorMessage);
+        throw new Error(imapState.connectErrorMessage)
       }
     }
     async logout() {}
     async list() {
       if (imapState.listShouldThrow)
-        throw new Error("LIST failed: connection dropped");
-      return imapState.listResult;
+        throw new Error('LIST failed: connection dropped')
+      return imapState.listResult
     }
     async mailboxCreate() {
-      return imapState.mailboxCreateResult;
+      return imapState.mailboxCreateResult
     }
     async status() {
-      if (imapState.statusShouldThrow)
-        throw new Error("Mailbox does not exist");
-      return imapState.statusResult;
+      if (imapState.statusShouldThrow) throw new Error('Mailbox does not exist')
+      return imapState.statusResult
     }
     async getMailboxLock() {
       return {
         release() {
-          imapState.lockReleases += 1;
+          imapState.lockReleases += 1
         },
-      };
+      }
     }
     async *fetch() {
-      for (const m of imapState.fetchResults) yield m;
+      for (const m of imapState.fetchResults) yield m
     }
     async fetchOne() {
-      if (imapState.fetchOneShouldThrow) throw new Error("fetchOne failed");
-      return imapState.fetchOneResult;
+      if (imapState.fetchOneShouldThrow) throw new Error('fetchOne failed')
+      return imapState.fetchOneResult
     }
     async search() {
-      if (imapState.searchShouldThrow) throw new Error("SEARCH failed");
-      return imapState.searchResult;
+      if (imapState.searchShouldThrow) throw new Error('SEARCH failed')
+      return imapState.searchResult
     }
     async messageMove() {
-      return imapState.moveResult;
+      return imapState.moveResult
     }
     async messageCopy() {
-      return imapState.copyResult;
+      return imapState.copyResult
     }
     async messageDelete() {
-      return imapState.deleteResult;
+      return imapState.deleteResult
     }
     async messageFlagsAdd() {
-      return imapState.flagsAddResult;
+      return imapState.flagsAddResult
     }
     async messageFlagsRemove() {
-      return imapState.flagsRemoveResult;
+      return imapState.flagsRemoveResult
     }
     async append() {
-      return imapState.appendResult;
+      return imapState.appendResult
     }
   }
-  return { ImapFlow };
-});
+  return { ImapFlow }
+})
 
-vi.mock("mailparser", () => ({
+vi.mock('mailparser', () => ({
   simpleParser: async () => {
-    if (parseError.value) throw parseError.value;
-    return parsedMailResult;
+    if (parseError.value) throw parseError.value
+    return parsedMailResult
   },
-}));
-
-import type { ResolvedBridgeConfig } from "../src/config.js";
-import { ImapClient } from "../src/imap.js";
+}))
 
 const bridgeCfg: ResolvedBridgeConfig = {
-  user: "me@proton.me",
-  pass: "x",
-  passwordResolver: () => Promise.resolve("x"),
-  host: "127.0.0.1",
+  user: 'me@proton.me',
+  pass: 'x',
+  passwordResolver: () => Promise.resolve('x'),
+  host: '127.0.0.1',
   imapPort: 1143,
   smtpPort: 1025,
-  from: "me@proton.me",
+  from: 'me@proton.me',
   tlsInsecure: true,
-  smtpSecurity: "starttls",
-};
+  smtpSecurity: 'starttls',
+}
 
 const silentLog = {
   error: vi.fn(),
   warn: vi.fn(),
   info: vi.fn(),
   debug: vi.fn(),
-};
+}
 
 function makeClient(): ImapClient {
-  return new ImapClient(bridgeCfg, silentLog as never);
+  return new ImapClient(bridgeCfg, silentLog as never)
 }
 
 // Un mensaje "summary" tal como lo emite el fetch de imapflow.
@@ -153,438 +151,438 @@ function summaryMsg(over: Record<string, unknown> = {}) {
   return {
     uid: 42,
     seq: 1,
-    flags: new Set(["\\Seen"]),
+    flags: new Set(['\\Seen']),
     size: 1234,
     envelope: {
-      messageId: "<m1@x>",
-      from: [{ name: "Alice", address: "alice@example.com" }],
-      to: [{ address: "me@proton.me" }],
-      subject: "Hi there",
-      date: new Date("2026-01-01T10:00:00Z"),
+      messageId: '<m1@x>',
+      from: [{ name: 'Alice', address: 'alice@example.com' }],
+      to: [{ address: 'me@proton.me' }],
+      subject: 'Hi there',
+      date: new Date('2026-01-01T10:00:00Z'),
     },
     ...over,
-  };
+  }
 }
 
 beforeEach(() => {
-  vi.useRealTimers();
-  silentLog.error.mockClear();
-  silentLog.info.mockClear();
-  silentLog.debug.mockClear();
+  vi.useRealTimers()
+  silentLog.error.mockClear()
+  silentLog.info.mockClear()
+  silentLog.debug.mockClear()
 
   imapState.listResult = [
     {
-      path: "INBOX",
-      name: "INBOX",
-      delimiter: "/",
-      flags: new Set(["\\HasNoChildren"]),
-      specialUse: "\\Inbox",
+      path: 'INBOX',
+      name: 'INBOX',
+      delimiter: '/',
+      flags: new Set(['\\HasNoChildren']),
+      specialUse: '\\Inbox',
       subscribed: true,
       listed: true,
     },
     {
-      path: "Trash",
-      name: "Trash",
-      delimiter: "/",
+      path: 'Trash',
+      name: 'Trash',
+      delimiter: '/',
       // flags ausente a propósito → cubre el `?? []`.
       specialUse: undefined,
       // subscribed/listed ausentes → cubre los `?? false` / `?? true`.
     },
-  ];
+  ]
   imapState.statusResult = {
     messages: 10,
     unseen: 3,
     recent: 1,
     uidNext: 100,
     uidValidity: 1,
-  };
-  imapState.fetchResults = [summaryMsg()];
+  }
+  imapState.fetchResults = [summaryMsg()]
   imapState.fetchOneResult = {
     uid: 42,
     seq: 1,
-    source: Buffer.from("raw"),
-    flags: new Set(["\\Seen"]),
+    source: Buffer.from('raw'),
+    flags: new Set(['\\Seen']),
     size: 1234,
     envelope: summaryMsg().envelope,
-  };
-  imapState.searchResult = [42];
-  imapState.mailboxCreateResult = { path: "X", created: true };
-  imapState.appendResult = { uid: 7 };
-  imapState.moveResult = true;
-  imapState.deleteResult = true;
-  imapState.flagsAddResult = true;
-  imapState.flagsRemoveResult = true;
+  }
+  imapState.searchResult = [42]
+  imapState.mailboxCreateResult = { path: 'X', created: true }
+  imapState.appendResult = { uid: 7 }
+  imapState.moveResult = true
+  imapState.deleteResult = true
+  imapState.flagsAddResult = true
+  imapState.flagsRemoveResult = true
 
-  imapState.usable = true;
-  imapState.connectAttempts = 0;
-  imapState.connectFailUntil = 0;
-  imapState.connectErrorMessage = "ECONNREFUSED";
-  imapState.listShouldThrow = false;
-  imapState.statusShouldThrow = false;
-  imapState.searchShouldThrow = false;
-  imapState.fetchOneShouldThrow = false;
-  imapState.lockReleases = 0;
+  imapState.usable = true
+  imapState.connectAttempts = 0
+  imapState.connectFailUntil = 0
+  imapState.connectErrorMessage = 'ECONNREFUSED'
+  imapState.listShouldThrow = false
+  imapState.statusShouldThrow = false
+  imapState.searchShouldThrow = false
+  imapState.fetchOneShouldThrow = false
+  imapState.lockReleases = 0
 
   parsedMailResult = {
     headers: new Map<string, unknown>([
-      ["subject", "Hi there"],
-      ["x-custom", { value: "obj-header" }],
+      ['subject', 'Hi there'],
+      ['x-custom', { value: 'obj-header' }],
     ]),
-    cc: { value: [{ name: "Carol", address: "carol@example.com" }] },
+    cc: { value: [{ name: 'Carol', address: 'carol@example.com' }] },
     bcc: undefined,
-    replyTo: { value: [{ address: "reply@example.com" }] },
-    text: "Hello body",
-    html: "<p>Hello body</p>",
+    replyTo: { value: [{ address: 'reply@example.com' }] },
+    text: 'Hello body',
+    html: '<p>Hello body</p>',
     attachments: [
       {
-        filename: "a.txt",
-        contentType: "text/plain",
+        filename: 'a.txt',
+        contentType: 'text/plain',
         size: 5,
-        content: Buffer.from("hello"),
-        contentId: "<cid1>",
-        checksum: "abc123",
+        content: Buffer.from('hello'),
+        contentId: '<cid1>',
+        checksum: 'abc123',
       },
     ],
-  };
-  parseError.value = null;
-});
+  }
+  parseError.value = null
+})
 
 // -----------------------------------------------------------------------------
 // connect() (vía métodos públicos) + retry/backoff
 // -----------------------------------------------------------------------------
-describe("ImapClient · connect/retry", () => {
-  it("connects once and reuses the client across calls (usable)", async () => {
-    const c = makeClient();
-    await c.listMailboxes();
-    await c.listMailboxes();
+describe('ImapClient · connect/retry', () => {
+  it('connects once and reuses the client across calls (usable)', async () => {
+    const c = makeClient()
+    await c.listMailboxes()
+    await c.listMailboxes()
     // Una sola conexión real porque el cliente sigue usable.
-    expect(imapState.connectAttempts).toBe(1);
-  });
+    expect(imapState.connectAttempts).toBe(1)
+  })
 
-  it("retries with backoff and succeeds on the 2nd attempt", async () => {
-    vi.useFakeTimers();
-    imapState.connectFailUntil = 1; // primer intento lanza, segundo OK
-    const c = makeClient();
-    const p = c.listMailboxes();
+  it('retries with backoff and succeeds on the 2nd attempt', async () => {
+    vi.useFakeTimers()
+    imapState.connectFailUntil = 1 // primer intento lanza, segundo OK
+    const c = makeClient()
+    const p = c.listMailboxes()
     // Avanza el backoff (500ms tras el 1er fallo).
-    await vi.advanceTimersByTimeAsync(600);
-    const res = await p;
-    expect(imapState.connectAttempts).toBe(2);
-    expect(res).toHaveLength(2);
-  });
+    await vi.advanceTimersByTimeAsync(600)
+    const res = await p
+    expect(imapState.connectAttempts).toBe(2)
+    expect(res).toHaveLength(2)
+  })
 
-  it("throws after exhausting all 3 attempts", async () => {
-    vi.useFakeTimers();
-    imapState.connectFailUntil = 99; // siempre falla
-    const c = makeClient();
-    const p = c.listMailboxes();
-    const assertion = expect(p).rejects.toThrow(/ECONNREFUSED/);
-    await vi.advanceTimersByTimeAsync(5000); // cubre 500 + 1000 ms de backoff
-    await assertion;
-    expect(imapState.connectAttempts).toBe(3);
-  });
-});
+  it('throws after exhausting all 3 attempts', async () => {
+    vi.useFakeTimers()
+    imapState.connectFailUntil = 99 // siempre falla
+    const c = makeClient()
+    const p = c.listMailboxes()
+    const assertion = expect(p).rejects.toThrow(/ECONNREFUSED/)
+    await vi.advanceTimersByTimeAsync(5000) // cubre 500 + 1000 ms de backoff
+    await assertion
+    expect(imapState.connectAttempts).toBe(3)
+  })
+})
 
 // -----------------------------------------------------------------------------
 // describeConnError: mensajes de conexión diferenciados y accionables
 // -----------------------------------------------------------------------------
-describe("ImapClient · differentiated connection errors", () => {
+describe('ImapClient · differentiated connection errors', () => {
   async function failWith(message: string): Promise<Error> {
-    vi.useFakeTimers();
-    imapState.connectFailUntil = 99;
-    imapState.connectErrorMessage = message;
-    const c = makeClient();
-    const p = c.listMailboxes();
-    const caught = p.catch((e: Error) => e);
-    await vi.advanceTimersByTimeAsync(5000);
-    return caught;
+    vi.useFakeTimers()
+    imapState.connectFailUntil = 99
+    imapState.connectErrorMessage = message
+    const c = makeClient()
+    const p = c.listMailboxes()
+    const caught = p.catch((e: Error) => e)
+    await vi.advanceTimersByTimeAsync(5000)
+    return caught
   }
 
   it("maps ECONNREFUSED to a 'Bridge not running' hint (and stays grep-able)", async () => {
-    const err = await failWith("ECONNREFUSED");
-    expect(err.message).toMatch(/ECONNREFUSED/);
-    expect(err.message).toMatch(/no escucha IMAP en 127\.0\.0\.1:1143/);
-    expect(err.message).toMatch(/Bridge/);
-    expect(err.cause).toBeInstanceOf(Error);
-  });
+    const err = await failWith('ECONNREFUSED')
+    expect(err.message).toMatch(/ECONNREFUSED/)
+    expect(err.message).toMatch(/no escucha IMAP en 127\.0\.0\.1:1143/)
+    expect(err.message).toMatch(/Bridge/)
+    expect(err.cause).toBeInstanceOf(Error)
+  })
 
-  it("maps an auth failure to an app-password hint", async () => {
-    const err = await failWith("AUTHENTICATIONFAILED invalid credentials");
-    expect(err.message).toMatch(/credenciales/i);
-    expect(err.message).toMatch(/app-password/i);
-  });
+  it('maps an auth failure to an app-password hint', async () => {
+    const err = await failWith('AUTHENTICATIONFAILED invalid credentials')
+    expect(err.message).toMatch(/credenciales/i)
+    expect(err.message).toMatch(/app-password/i)
+  })
 
   it("maps 'no such user' to a PROTON_BRIDGE_USER hint", async () => {
-    const err = await failWith("no such user");
-    expect(err.message).toMatch(/no reconoce el usuario/);
-    expect(err.message).toMatch(/PROTON_BRIDGE_USER/);
-  });
+    const err = await failWith('no such user')
+    expect(err.message).toMatch(/no reconoce el usuario/)
+    expect(err.message).toMatch(/PROTON_BRIDGE_USER/)
+  })
 
-  it("maps a timeout to a host/port/firewall hint", async () => {
-    const err = await failWith("ETIMEDOUT connection timeout");
-    expect(err.message).toMatch(/timeout/i);
-    expect(err.message).toMatch(/firewall/i);
-  });
-});
+  it('maps a timeout to a host/port/firewall hint', async () => {
+    const err = await failWith('ETIMEDOUT connection timeout')
+    expect(err.message).toMatch(/timeout/i)
+    expect(err.message).toMatch(/firewall/i)
+  })
+})
 
 // -----------------------------------------------------------------------------
 // close()
 // -----------------------------------------------------------------------------
-describe("ImapClient · close", () => {
-  it("logs out and clears the client (idempotent)", async () => {
-    const c = makeClient();
-    await c.listMailboxes(); // crea conexión
-    await c.close();
+describe('ImapClient · close', () => {
+  it('logs out and clears the client (idempotent)', async () => {
+    const c = makeClient()
+    await c.listMailboxes() // crea conexión
+    await c.close()
     // Segunda llamada sin cliente: no lanza.
-    await expect(c.close()).resolves.toBeUndefined();
-  });
+    await expect(c.close()).resolves.toBeUndefined()
+  })
 
-  it("swallows logout errors", async () => {
-    const c = makeClient();
-    await c.listMailboxes();
+  it('swallows logout errors', async () => {
+    const c = makeClient()
+    await c.listMailboxes()
     // Forzamos que el logout interno falle no es trivial sin acceso al
     // cliente; basta con verificar que close() es seguro tras uso normal.
-    await expect(c.close()).resolves.toBeUndefined();
-  });
-});
+    await expect(c.close()).resolves.toBeUndefined()
+  })
+})
 
 // -----------------------------------------------------------------------------
 // listMailboxes()
 // -----------------------------------------------------------------------------
-describe("ImapClient · listMailboxes", () => {
-  it("maps ListResponse with defaults for missing fields", async () => {
-    const c = makeClient();
-    const res = await c.listMailboxes();
-    expect(res).toHaveLength(2);
+describe('ImapClient · listMailboxes', () => {
+  it('maps ListResponse with defaults for missing fields', async () => {
+    const c = makeClient()
+    const res = await c.listMailboxes()
+    expect(res).toHaveLength(2)
     expect(res[0]).toMatchObject({
-      path: "INBOX",
-      name: "INBOX",
-      flags: ["\\HasNoChildren"],
-      specialUse: "\\Inbox",
+      path: 'INBOX',
+      name: 'INBOX',
+      flags: ['\\HasNoChildren'],
+      specialUse: '\\Inbox',
       subscribed: true,
       listed: true,
-    });
+    })
     // Defaults aplicados al segundo (campos ausentes).
     expect(res[1]).toMatchObject({
-      path: "Trash",
+      path: 'Trash',
       flags: [],
       subscribed: false,
       listed: true,
       specialUse: undefined,
-    });
-  });
+    })
+  })
 
-  it("propagates errors when list() throws", async () => {
-    imapState.listShouldThrow = true;
-    const c = makeClient();
-    await expect(c.listMailboxes()).rejects.toThrow(/LIST failed/);
-  });
-});
+  it('propagates errors when list() throws', async () => {
+    imapState.listShouldThrow = true
+    const c = makeClient()
+    await expect(c.listMailboxes()).rejects.toThrow(/LIST failed/)
+  })
+})
 
 // -----------------------------------------------------------------------------
 // createMailbox()
 // -----------------------------------------------------------------------------
-describe("ImapClient · createMailbox", () => {
-  it("returns path and created flag", async () => {
-    imapState.mailboxCreateResult = { path: "Projects/X", created: true };
-    const c = makeClient();
-    expect(await c.createMailbox("Projects/X")).toEqual({
-      path: "Projects/X",
+describe('ImapClient · createMailbox', () => {
+  it('returns path and created flag', async () => {
+    imapState.mailboxCreateResult = { path: 'Projects/X', created: true }
+    const c = makeClient()
+    expect(await c.createMailbox('Projects/X')).toEqual({
+      path: 'Projects/X',
       created: true,
-    });
-  });
+    })
+  })
 
-  it("reports created=false when mailbox already exists", async () => {
-    imapState.mailboxCreateResult = { path: "Existing", created: false };
-    const c = makeClient();
-    expect(await c.createMailbox("Existing")).toEqual({
-      path: "Existing",
+  it('reports created=false when mailbox already exists', async () => {
+    imapState.mailboxCreateResult = { path: 'Existing', created: false }
+    const c = makeClient()
+    expect(await c.createMailbox('Existing')).toEqual({
+      path: 'Existing',
       created: false,
-    });
-  });
-});
+    })
+  })
+})
 
 // -----------------------------------------------------------------------------
 // mailboxStatus()
 // -----------------------------------------------------------------------------
-describe("ImapClient · mailboxStatus", () => {
-  it("returns normalized counts and coerces BigInt-ish uid fields to Number", async () => {
+describe('ImapClient · mailboxStatus', () => {
+  it('returns normalized counts and coerces BigInt-ish uid fields to Number', async () => {
     imapState.statusResult = {
       messages: 10,
       unseen: 3,
       recent: 1,
       uidNext: 100,
       uidValidity: 1,
-    };
-    const c = makeClient();
-    expect(await c.mailboxStatus("INBOX")).toEqual({
+    }
+    const c = makeClient()
+    expect(await c.mailboxStatus('INBOX')).toEqual({
       messages: 10,
       unseen: 3,
       recent: 1,
       uidNext: 100,
       uidValidity: 1,
-    });
-  });
+    })
+  })
 
-  it("applies defaults and undefined for missing uid fields", async () => {
-    imapState.statusResult = {}; // todo ausente
-    const c = makeClient();
-    expect(await c.mailboxStatus("INBOX")).toEqual({
+  it('applies defaults and undefined for missing uid fields', async () => {
+    imapState.statusResult = {} // todo ausente
+    const c = makeClient()
+    expect(await c.mailboxStatus('INBOX')).toEqual({
       messages: 0,
       unseen: 0,
       recent: 0,
       uidNext: undefined,
       uidValidity: undefined,
-    });
-  });
+    })
+  })
 
-  it("propagates errors for a non-existent mailbox", async () => {
-    imapState.statusShouldThrow = true;
-    const c = makeClient();
-    await expect(c.mailboxStatus("Nope")).rejects.toThrow(/does not exist/);
-  });
-});
+  it('propagates errors for a non-existent mailbox', async () => {
+    imapState.statusShouldThrow = true
+    const c = makeClient()
+    await expect(c.mailboxStatus('Nope')).rejects.toThrow(/does not exist/)
+  })
+})
 
 // -----------------------------------------------------------------------------
 // listEmails()
 // -----------------------------------------------------------------------------
-describe("ImapClient · listEmails", () => {
-  it("returns summaries newest-first with total", async () => {
+describe('ImapClient · listEmails', () => {
+  it('returns summaries newest-first with total', async () => {
     imapState.fetchResults = [
       summaryMsg({ uid: 40, seq: 1 }),
       summaryMsg({ uid: 42, seq: 3 }),
       summaryMsg({ uid: 41, seq: 2 }),
-    ];
-    const c = makeClient();
-    const res = await c.listEmails("INBOX", 25, 0);
-    expect(res.total).toBe(10);
+    ]
+    const c = makeClient()
+    const res = await c.listEmails('INBOX', 25, 0)
+    expect(res.total).toBe(10)
     // Orden descendente por seq.
-    expect(res.items.map((i) => i.seq)).toEqual([3, 2, 1]);
-    expect(res.items[0]!.from).toBe("Alice <alice@example.com>");
-    expect(imapState.lockReleases).toBe(1); // lock liberado
-  });
+    expect(res.items.map((i) => i.seq)).toEqual([3, 2, 1])
+    expect(res.items[0]!.from).toBe('Alice <alice@example.com>')
+    expect(imapState.lockReleases).toBe(1) // lock liberado
+  })
 
-  it("returns empty for an empty mailbox (total=0)", async () => {
-    imapState.statusResult = { messages: 0 };
-    const c = makeClient();
-    expect(await c.listEmails("INBOX", 25, 0)).toEqual({ items: [], total: 0 });
-    expect(imapState.lockReleases).toBe(1);
-  });
+  it('returns empty for an empty mailbox (total=0)', async () => {
+    imapState.statusResult = { messages: 0 }
+    const c = makeClient()
+    expect(await c.listEmails('INBOX', 25, 0)).toEqual({ items: [], total: 0 })
+    expect(imapState.lockReleases).toBe(1)
+  })
 
-  it("returns empty items when offset is past the end (end<1)", async () => {
-    imapState.statusResult = { messages: 5 };
-    imapState.fetchResults = []; // no debería iterar
-    const c = makeClient();
-    const res = await c.listEmails("INBOX", 25, 10); // end = 5-10 = -5
-    expect(res).toEqual({ items: [], total: 5 });
-  });
+  it('returns empty items when offset is past the end (end<1)', async () => {
+    imapState.statusResult = { messages: 5 }
+    imapState.fetchResults = [] // no debería iterar
+    const c = makeClient()
+    const res = await c.listEmails('INBOX', 25, 10) // end = 5-10 = -5
+    expect(res).toEqual({ items: [], total: 5 })
+  })
 
-  it("releases the lock even when status throws", async () => {
-    imapState.statusShouldThrow = true;
-    const c = makeClient();
-    await expect(c.listEmails("INBOX", 25, 0)).rejects.toThrow();
-    expect(imapState.lockReleases).toBe(1);
-  });
-});
+  it('releases the lock even when status throws', async () => {
+    imapState.statusShouldThrow = true
+    const c = makeClient()
+    await expect(c.listEmails('INBOX', 25, 0)).rejects.toThrow()
+    expect(imapState.lockReleases).toBe(1)
+  })
+})
 
 // -----------------------------------------------------------------------------
 // searchEmails()
 // -----------------------------------------------------------------------------
-describe("ImapClient · searchEmails", () => {
-  it("returns matched count and newest-uid-first items", async () => {
-    imapState.searchResult = [40, 42, 41];
+describe('ImapClient · searchEmails', () => {
+  it('returns matched count and newest-uid-first items', async () => {
+    imapState.searchResult = [40, 42, 41]
     imapState.fetchResults = [
       summaryMsg({ uid: 40, seq: 1 }),
       summaryMsg({ uid: 42, seq: 3 }),
       summaryMsg({ uid: 41, seq: 2 }),
-    ];
-    const c = makeClient();
-    const res = await c.searchEmails("INBOX", { seen: true }, 25);
-    expect(res.matched).toBe(3);
-    expect(res.items.map((i) => i.uid)).toEqual([42, 41, 40]);
-  });
+    ]
+    const c = makeClient()
+    const res = await c.searchEmails('INBOX', { seen: true }, 25)
+    expect(res.matched).toBe(3)
+    expect(res.items.map((i) => i.uid)).toEqual([42, 41, 40])
+  })
 
-  it("returns empty when nothing matches", async () => {
-    imapState.searchResult = [];
-    const c = makeClient();
-    expect(await c.searchEmails("INBOX", { seen: true }, 25)).toEqual({
+  it('returns empty when nothing matches', async () => {
+    imapState.searchResult = []
+    const c = makeClient()
+    expect(await c.searchEmails('INBOX', { seen: true }, 25)).toEqual({
       items: [],
       matched: 0,
-    });
-  });
+    })
+  })
 
-  it("treats a non-array search result as zero matches", async () => {
-    imapState.searchResult = false; // imapflow puede devolver false
-    const c = makeClient();
-    expect(await c.searchEmails("INBOX", { all: true }, 25)).toEqual({
+  it('treats a non-array search result as zero matches', async () => {
+    imapState.searchResult = false // imapflow puede devolver false
+    const c = makeClient()
+    expect(await c.searchEmails('INBOX', { all: true }, 25)).toEqual({
       items: [],
       matched: 0,
-    });
-  });
+    })
+  })
 
-  it("respects the limit (slices to newest N)", async () => {
-    imapState.searchResult = [10, 20, 30, 40];
+  it('respects the limit (slices to newest N)', async () => {
+    imapState.searchResult = [10, 20, 30, 40]
     imapState.fetchResults = [
       summaryMsg({ uid: 40, seq: 4 }),
       summaryMsg({ uid: 30, seq: 3 }),
-    ];
-    const c = makeClient();
-    const res = await c.searchEmails("INBOX", { all: true }, 2);
-    expect(res.matched).toBe(4);
-    expect(res.items.map((i) => i.uid)).toEqual([40, 30]);
-  });
+    ]
+    const c = makeClient()
+    const res = await c.searchEmails('INBOX', { all: true }, 2)
+    expect(res.matched).toBe(4)
+    expect(res.items.map((i) => i.uid)).toEqual([40, 30])
+  })
 
-  it("releases the lock when search throws", async () => {
-    imapState.searchShouldThrow = true;
-    const c = makeClient();
-    await expect(c.searchEmails("INBOX", { all: true }, 25)).rejects.toThrow(
+  it('releases the lock when search throws', async () => {
+    imapState.searchShouldThrow = true
+    const c = makeClient()
+    await expect(c.searchEmails('INBOX', { all: true }, 25)).rejects.toThrow(
       /SEARCH failed/,
-    );
-    expect(imapState.lockReleases).toBe(1);
-  });
-});
+    )
+    expect(imapState.lockReleases).toBe(1)
+  })
+})
 
 // -----------------------------------------------------------------------------
 // getEmail()
 // -----------------------------------------------------------------------------
-describe("ImapClient · getEmail", () => {
-  it("parses the full message (headers, cc, replyTo, attachments)", async () => {
-    const c = makeClient();
-    const res = await c.getEmail("INBOX", 42);
-    expect(res).not.toBeNull();
-    expect(res!.uid).toBe(42);
-    expect(res!.textBody).toBe("Hello body");
-    expect(res!.htmlBody).toBe("<p>Hello body</p>");
-    expect(res!.cc).toEqual(["Carol <carol@example.com>"]);
-    expect(res!.replyTo).toEqual(["reply@example.com"]);
-    expect(res!.bcc).toEqual([]);
+describe('ImapClient · getEmail', () => {
+  it('parses the full message (headers, cc, replyTo, attachments)', async () => {
+    const c = makeClient()
+    const res = await c.getEmail('INBOX', 42)
+    expect(res).not.toBeNull()
+    expect(res!.uid).toBe(42)
+    expect(res!.textBody).toBe('Hello body')
+    expect(res!.htmlBody).toBe('<p>Hello body</p>')
+    expect(res!.cc).toEqual(['Carol <carol@example.com>'])
+    expect(res!.replyTo).toEqual(['reply@example.com'])
+    expect(res!.bcc).toEqual([])
     // Header de objeto serializado a JSON.
-    expect(res!.headers["x-custom"]).toBe(
-      JSON.stringify({ value: "obj-header" }),
-    );
-    expect(res!.headers.subject).toBe("Hi there");
+    expect(res!.headers['x-custom']).toBe(
+      JSON.stringify({ value: 'obj-header' }),
+    )
+    expect(res!.headers.subject).toBe('Hi there')
     expect(res!.attachments[0]).toEqual({
-      filename: "a.txt",
-      contentType: "text/plain",
+      filename: 'a.txt',
+      contentType: 'text/plain',
       size: 5,
-      contentId: "<cid1>",
-      checksum: "abc123",
-    });
-  });
+      contentId: '<cid1>',
+      checksum: 'abc123',
+    })
+  })
 
-  it("returns null when fetchOne yields no message", async () => {
-    imapState.fetchOneResult = null;
-    const c = makeClient();
-    expect(await c.getEmail("INBOX", 99)).toBeNull();
-  });
+  it('returns null when fetchOne yields no message', async () => {
+    imapState.fetchOneResult = null
+    const c = makeClient()
+    expect(await c.getEmail('INBOX', 99)).toBeNull()
+  })
 
-  it("returns null when the message has no source", async () => {
-    imapState.fetchOneResult = { uid: 42, seq: 1, envelope: {} };
-    const c = makeClient();
-    expect(await c.getEmail("INBOX", 42)).toBeNull();
-  });
+  it('returns null when the message has no source', async () => {
+    imapState.fetchOneResult = { uid: 42, seq: 1, envelope: {} }
+    const c = makeClient()
+    expect(await c.getEmail('INBOX', 42)).toBeNull()
+  })
 
-  it("coerces non-string html to undefined and falls back text to undefined", async () => {
+  it('coerces non-string html to undefined and falls back text to undefined', async () => {
     parsedMailResult = {
       headers: new Map<string, unknown>(),
       cc: undefined,
@@ -593,187 +591,187 @@ describe("ImapClient · getEmail", () => {
       text: undefined,
       html: false, // imapflow/mailparser: false cuando no hay HTML
       attachments: [],
-    };
-    const c = makeClient();
-    const res = await c.getEmail("INBOX", 42);
-    expect(res!.htmlBody).toBeUndefined();
-    expect(res!.textBody).toBeUndefined();
-    expect(res!.attachments).toEqual([]);
-  });
+    }
+    const c = makeClient()
+    const res = await c.getEmail('INBOX', 42)
+    expect(res!.htmlBody).toBeUndefined()
+    expect(res!.textBody).toBeUndefined()
+    expect(res!.attachments).toEqual([])
+  })
 
-  it("releases the lock when the parser throws", async () => {
-    parseError.value = new Error("MIME parse error");
-    const c = makeClient();
-    await expect(c.getEmail("INBOX", 42)).rejects.toThrow(/MIME parse error/);
-    expect(imapState.lockReleases).toBe(1);
-  });
-});
+  it('releases the lock when the parser throws', async () => {
+    parseError.value = new Error('MIME parse error')
+    const c = makeClient()
+    await expect(c.getEmail('INBOX', 42)).rejects.toThrow(/MIME parse error/)
+    expect(imapState.lockReleases).toBe(1)
+  })
+})
 
 // -----------------------------------------------------------------------------
 // getAttachment()
 // -----------------------------------------------------------------------------
-describe("ImapClient · getAttachment", () => {
-  it("returns base64 content for a valid index", async () => {
-    const c = makeClient();
-    const res = await c.getAttachment("INBOX", 42, 0);
-    expect(res).not.toBeNull();
-    expect(res!.filename).toBe("a.txt");
-    expect(res!.contentType).toBe("text/plain");
-    expect(Buffer.from(res!.base64, "base64").toString()).toBe("hello");
-  });
+describe('ImapClient · getAttachment', () => {
+  it('returns base64 content for a valid index', async () => {
+    const c = makeClient()
+    const res = await c.getAttachment('INBOX', 42, 0)
+    expect(res).not.toBeNull()
+    expect(res!.filename).toBe('a.txt')
+    expect(res!.contentType).toBe('text/plain')
+    expect(Buffer.from(res!.base64, 'base64').toString()).toBe('hello')
+  })
 
-  it("returns null when the message is missing", async () => {
-    imapState.fetchOneResult = null;
-    const c = makeClient();
-    expect(await c.getAttachment("INBOX", 99, 0)).toBeNull();
-  });
+  it('returns null when the message is missing', async () => {
+    imapState.fetchOneResult = null
+    const c = makeClient()
+    expect(await c.getAttachment('INBOX', 99, 0)).toBeNull()
+  })
 
-  it("returns null when source is absent", async () => {
-    imapState.fetchOneResult = { uid: 42 };
-    const c = makeClient();
-    expect(await c.getAttachment("INBOX", 42, 0)).toBeNull();
-  });
+  it('returns null when source is absent', async () => {
+    imapState.fetchOneResult = { uid: 42 }
+    const c = makeClient()
+    expect(await c.getAttachment('INBOX', 42, 0)).toBeNull()
+  })
 
-  it("returns null for an out-of-range attachment index", async () => {
-    const c = makeClient();
-    expect(await c.getAttachment("INBOX", 42, 5)).toBeNull();
-  });
-});
+  it('returns null for an out-of-range attachment index', async () => {
+    const c = makeClient()
+    expect(await c.getAttachment('INBOX', 42, 5)).toBeNull()
+  })
+})
 
 // -----------------------------------------------------------------------------
 // setFlags()
 // -----------------------------------------------------------------------------
-describe("ImapClient · setFlags", () => {
-  it("adds and removes flags, returning combined success", async () => {
-    const c = makeClient();
-    expect(await c.setFlags("INBOX", 42, ["\\Seen"], ["\\Flagged"])).toBe(true);
-  });
+describe('ImapClient · setFlags', () => {
+  it('adds and removes flags, returning combined success', async () => {
+    const c = makeClient()
+    expect(await c.setFlags('INBOX', 42, ['\\Seen'], ['\\Flagged'])).toBe(true)
+  })
 
-  it("returns false when an add operation fails", async () => {
-    imapState.flagsAddResult = false;
-    const c = makeClient();
-    expect(await c.setFlags("INBOX", 42, ["\\Seen"], [])).toBe(false);
-  });
+  it('returns false when an add operation fails', async () => {
+    imapState.flagsAddResult = false
+    const c = makeClient()
+    expect(await c.setFlags('INBOX', 42, ['\\Seen'], [])).toBe(false)
+  })
 
-  it("returns false when a remove operation fails", async () => {
-    imapState.flagsRemoveResult = false;
-    const c = makeClient();
-    expect(await c.setFlags("INBOX", 42, [], ["\\Seen"])).toBe(false);
-  });
+  it('returns false when a remove operation fails', async () => {
+    imapState.flagsRemoveResult = false
+    const c = makeClient()
+    expect(await c.setFlags('INBOX', 42, [], ['\\Seen'])).toBe(false)
+  })
 
-  it("is a no-op (true) when both add and remove are empty", async () => {
-    const c = makeClient();
-    expect(await c.setFlags("INBOX", 42, [], [])).toBe(true);
-    expect(imapState.lockReleases).toBe(1);
-  });
-});
+  it('is a no-op (true) when both add and remove are empty', async () => {
+    const c = makeClient()
+    expect(await c.setFlags('INBOX', 42, [], [])).toBe(true)
+    expect(imapState.lockReleases).toBe(1)
+  })
+})
 
 // -----------------------------------------------------------------------------
 // moveEmail()
 // -----------------------------------------------------------------------------
-describe("ImapClient · moveEmail", () => {
-  it("returns true on a successful move", async () => {
-    imapState.moveResult = { uidMap: new Map() };
-    const c = makeClient();
-    expect(await c.moveEmail("INBOX", 42, "Trash")).toBe(true);
-  });
+describe('ImapClient · moveEmail', () => {
+  it('returns true on a successful move', async () => {
+    imapState.moveResult = { uidMap: new Map() }
+    const c = makeClient()
+    expect(await c.moveEmail('INBOX', 42, 'Trash')).toBe(true)
+  })
 
-  it("returns false when the move yields a falsy result", async () => {
-    imapState.moveResult = false;
-    const c = makeClient();
-    expect(await c.moveEmail("INBOX", 42, "Trash")).toBe(false);
-  });
-});
+  it('returns false when the move yields a falsy result', async () => {
+    imapState.moveResult = false
+    const c = makeClient()
+    expect(await c.moveEmail('INBOX', 42, 'Trash')).toBe(false)
+  })
+})
 
 // -----------------------------------------------------------------------------
 // copyEmail()
 // -----------------------------------------------------------------------------
-describe("ImapClient · copyEmail", () => {
-  it("returns true on a successful copy", async () => {
-    imapState.copyResult = { uidMap: new Map() };
-    const c = makeClient();
-    expect(await c.copyEmail("INBOX", 42, "Archive")).toBe(true);
-  });
+describe('ImapClient · copyEmail', () => {
+  it('returns true on a successful copy', async () => {
+    imapState.copyResult = { uidMap: new Map() }
+    const c = makeClient()
+    expect(await c.copyEmail('INBOX', 42, 'Archive')).toBe(true)
+  })
 
-  it("returns false when the copy yields a falsy result", async () => {
-    imapState.copyResult = false;
-    const c = makeClient();
-    expect(await c.copyEmail("INBOX", 42, "Archive")).toBe(false);
-  });
-});
+  it('returns false when the copy yields a falsy result', async () => {
+    imapState.copyResult = false
+    const c = makeClient()
+    expect(await c.copyEmail('INBOX', 42, 'Archive')).toBe(false)
+  })
+})
 
 // -----------------------------------------------------------------------------
 // deleteEmail()
 // -----------------------------------------------------------------------------
-describe("ImapClient · deleteEmail", () => {
-  it("returns true on a successful delete", async () => {
-    const c = makeClient();
-    expect(await c.deleteEmail("INBOX", 42)).toBe(true);
-  });
+describe('ImapClient · deleteEmail', () => {
+  it('returns true on a successful delete', async () => {
+    const c = makeClient()
+    expect(await c.deleteEmail('INBOX', 42)).toBe(true)
+  })
 
-  it("returns false when delete yields falsy", async () => {
-    imapState.deleteResult = false;
-    const c = makeClient();
-    expect(await c.deleteEmail("INBOX", 42)).toBe(false);
-  });
-});
+  it('returns false when delete yields falsy', async () => {
+    imapState.deleteResult = false
+    const c = makeClient()
+    expect(await c.deleteEmail('INBOX', 42)).toBe(false)
+  })
+})
 
 // -----------------------------------------------------------------------------
 // appendMessage()
 // -----------------------------------------------------------------------------
-describe("ImapClient · appendMessage", () => {
-  it("returns the new uid on success", async () => {
-    imapState.appendResult = { uid: 7 };
-    const c = makeClient();
+describe('ImapClient · appendMessage', () => {
+  it('returns the new uid on success', async () => {
+    imapState.appendResult = { uid: 7 }
+    const c = makeClient()
     expect(
-      await c.appendMessage("Drafts", Buffer.from("raw"), ["\\Draft"]),
+      await c.appendMessage('Drafts', Buffer.from('raw'), ['\\Draft']),
     ).toEqual({
       uid: 7,
-    });
-  });
+    })
+  })
 
-  it("returns undefined uid when append returns falsy", async () => {
-    imapState.appendResult = null;
-    const c = makeClient();
-    expect(await c.appendMessage("Drafts", Buffer.from("raw"))).toEqual({
+  it('returns undefined uid when append returns falsy', async () => {
+    imapState.appendResult = null
+    const c = makeClient()
+    expect(await c.appendMessage('Drafts', Buffer.from('raw'))).toEqual({
       uid: undefined,
-    });
-  });
+    })
+  })
 
-  it("returns undefined uid when append omits a numeric uid", async () => {
-    imapState.appendResult = { uid: undefined };
-    const c = makeClient();
-    expect(await c.appendMessage("Drafts", Buffer.from("raw"))).toEqual({
+  it('returns undefined uid when append omits a numeric uid', async () => {
+    imapState.appendResult = { uid: undefined }
+    const c = makeClient()
+    expect(await c.appendMessage('Drafts', Buffer.from('raw'))).toEqual({
       uid: undefined,
-    });
-  });
-});
+    })
+  })
+})
 
 // -----------------------------------------------------------------------------
 // Parseo de envelopes (vía toSummary, ejercitado por listEmails)
 // -----------------------------------------------------------------------------
-describe("ImapClient · envelope/address parsing edge cases", () => {
-  it("builds email from mailbox@host when address is absent", async () => {
+describe('ImapClient · envelope/address parsing edge cases', () => {
+  it('builds email from mailbox@host when address is absent', async () => {
     imapState.fetchResults = [
       summaryMsg({
         envelope: {
-          messageId: "<m2@x>",
-          from: [{ name: "Bob", mailbox: "bob", host: "example.com" }],
-          to: [{ mailbox: "x", host: "y.com" }],
-          subject: "S",
-          date: "2026-02-02T00:00:00Z", // string date (no Date instance)
+          messageId: '<m2@x>',
+          from: [{ name: 'Bob', mailbox: 'bob', host: 'example.com' }],
+          to: [{ mailbox: 'x', host: 'y.com' }],
+          subject: 'S',
+          date: '2026-02-02T00:00:00Z', // string date (no Date instance)
         },
       }),
-    ];
-    const c = makeClient();
-    const res = await c.listEmails("INBOX", 25, 0);
-    expect(res.items[0]!.from).toBe("Bob <bob@example.com>");
-    expect(res.items[0]!.to).toEqual(["x@y.com"]);
+    ]
+    const c = makeClient()
+    const res = await c.listEmails('INBOX', 25, 0)
+    expect(res.items[0]!.from).toBe('Bob <bob@example.com>')
+    expect(res.items[0]!.to).toEqual(['x@y.com'])
     // date string pasa tal cual (no es Date).
-    expect(res.items[0]!.date).toBe("2026-02-02T00:00:00Z");
-  });
+    expect(res.items[0]!.date).toBe('2026-02-02T00:00:00Z')
+  })
 
-  it("yields undefined from / empty to for empty or unusable address lists", async () => {
+  it('yields undefined from / empty to for empty or unusable address lists', async () => {
     imapState.fetchResults = [
       summaryMsg({
         flags: undefined, // cubre `?? []` en toSummary
@@ -785,22 +783,22 @@ describe("ImapClient · envelope/address parsing edge cases", () => {
           date: undefined,
         },
       }),
-    ];
-    const c = makeClient();
-    const res = await c.listEmails("INBOX", 25, 0);
-    const item = res.items[0]!;
-    expect(item.from).toBeUndefined();
-    expect(item.to).toEqual([]);
-    expect(item.flags).toEqual([]);
-    expect(item.date).toBeUndefined();
-  });
+    ]
+    const c = makeClient()
+    const res = await c.listEmails('INBOX', 25, 0)
+    const item = res.items[0]!
+    expect(item.from).toBeUndefined()
+    expect(item.to).toEqual([])
+    expect(item.flags).toEqual([])
+    expect(item.date).toBeUndefined()
+  })
 
-  it("handles a missing envelope entirely (envelope ?? {})", async () => {
-    imapState.fetchResults = [{ uid: 5, seq: 1, flags: new Set(), size: 0 }];
-    const c = makeClient();
-    const res = await c.listEmails("INBOX", 25, 0);
-    expect(res.items[0]!.uid).toBe(5);
-    expect(res.items[0]!.from).toBeUndefined();
-    expect(res.items[0]!.to).toEqual([]);
-  });
-});
+  it('handles a missing envelope entirely (envelope ?? {})', async () => {
+    imapState.fetchResults = [{ uid: 5, seq: 1, flags: new Set(), size: 0 }]
+    const c = makeClient()
+    const res = await c.listEmails('INBOX', 25, 0)
+    expect(res.items[0]!.uid).toBe(5)
+    expect(res.items[0]!.from).toBeUndefined()
+    expect(res.items[0]!.to).toEqual([])
+  })
+})

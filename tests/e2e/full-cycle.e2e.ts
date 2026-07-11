@@ -67,7 +67,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await imap.close().catch(() => {});
-  await smtp.close().catch(() => {});
+  smtp.close();
 });
 
 describe("E2E · ciclo completo contra GreenMail", () => {

@@ -18,58 +18,78 @@
  *    para extraer text/html/attachments. Más lento que fetch parcial, pero
  *    evita decodificar MIME a mano.
  */
-import { ImapFlow, type ImapFlowOptions, type ListResponse, type FetchQueryObject, type SearchObject } from "imapflow";
-import { simpleParser, type ParsedMail, type Attachment } from "mailparser";
-import { addrListToString, addrListToArray, addressesToArray } from "./addresses.js";
-import type { ResolvedBridgeConfig } from "./config.js";
+import {
+  ImapFlow,
+  type ImapFlowOptions,
+  type ListResponse,
+  type FetchQueryObject,
+  type SearchObject,
+  type FetchMessageObject,
+  type MessageEnvelopeObject,
+} from 'imapflow'
+import { simpleParser, type ParsedMail } from 'mailparser'
+import {
+  addrListToString,
+  addrListToArray,
+  addressesToArray,
+} from './addresses.js'
+import type { ResolvedBridgeConfig } from './config.js'
 
 export interface EmailSummary {
-  uid: number;
-  seq: number;
-  messageId: string | undefined;
-  from: string | undefined;
-  to: string[];
-  subject: string | undefined;
-  date: string | undefined;
-  flags: string[];
-  size: number | undefined;
-  snippet?: string;
+  uid: number
+  seq: number
+  messageId: string | undefined
+  from: string | undefined
+  to: string[]
+  subject: string | undefined
+  date: string | undefined
+  flags: string[]
+  size: number | undefined
+  snippet?: string
 }
 
 export interface EmailFull extends EmailSummary {
-  cc: string[];
-  bcc: string[];
-  replyTo: string[];
-  textBody: string | undefined;
-  htmlBody: string | undefined;
+  cc: string[]
+  bcc: string[]
+  replyTo: string[]
+  textBody: string | undefined
+  htmlBody: string | undefined
   attachments: {
-    filename: string | undefined;
-    contentType: string;
-    size: number;
-    contentId: string | undefined;
-    checksum: string | undefined;
-  }[];
-  headers: Record<string, string>;
+    filename: string | undefined
+    contentType: string
+    size: number
+    contentId: string | undefined
+    checksum: string | undefined
+  }[]
+  headers: Record<string, string>
 }
 
 export interface MailboxInfo {
-  path: string;
-  name: string;
-  delimiter: string;
-  flags: string[];
-  specialUse: string | undefined;
-  subscribed: boolean;
-  listed: boolean;
+  path: string
+  name: string
+  delimiter: string
+  flags: string[]
+  specialUse: string | undefined
+  subscribed: boolean
+  listed: boolean
 }
 
 export class ImapClient {
-  private client: ImapFlow | null = null;
-  private connecting: Promise<ImapFlow> | null = null;
+  private client: ImapFlow | null = null
+  private connecting: Promise<ImapFlow> | null = null
 
-  constructor(private readonly cfg: ResolvedBridgeConfig, private readonly log: { debug: (m: string, e?: unknown) => void; info: (m: string, e?: unknown) => void; warn: (m: string, e?: unknown) => void; error: (m: string, e?: unknown) => void; }) {}
+  constructor(
+    private readonly cfg: ResolvedBridgeConfig,
+    private readonly log: {
+      debug: (m: string, e?: unknown) => void
+      info: (m: string, e?: unknown) => void
+      warn: (m: string, e?: unknown) => void
+      error: (m: string, e?: unknown) => void
+    },
+  ) {}
 
   private async buildOpts(): Promise<ImapFlowOptions> {
-    const resolvedPass = await this.cfg.passwordResolver();
+    const resolvedPass = await this.cfg.passwordResolver()
     return {
       host: this.cfg.host,
       port: this.cfg.imapPort,
@@ -86,32 +106,44 @@ export class ImapClient {
       // Delegamos el logger de imapflow a nuestro logger stderr para que
       // LOG_LEVEL=debug capture la conversación IMAP completa.
       logger: {
-        debug: (obj: unknown) => { this.log.debug("imapflow", obj); },
-        info: (obj: unknown) => { this.log.info("imapflow", obj); },
-        warn: (obj: unknown) => { this.log.warn("imapflow", obj); },
-        error: (obj: unknown) => { this.log.error("imapflow", obj); },
+        debug: (obj: unknown) => {
+          this.log.debug('imapflow', obj)
+        },
+        info: (obj: unknown) => {
+          this.log.info('imapflow', obj)
+        },
+        warn: (obj: unknown) => {
+          this.log.warn('imapflow', obj)
+        },
+        error: (obj: unknown) => {
+          this.log.error('imapflow', obj)
+        },
       },
       // Bridge soporta IDLE. 60s de keepalive = Bridge no nos tira por idle
       // timeout y nosotros no pagamos el coste de reconectar.
       maxIdleTime: 60_000,
-    };
+    }
   }
 
   /** Returns a connected, authenticated client. Reuses existing connection when possible. */
   private async connect(): Promise<ImapFlow> {
-    if (this.client?.usable) return this.client;
+    if (this.client?.usable) return this.client
     if (this.client && !this.client.usable) {
-      this.log.debug("IMAP client no longer usable, discarding");
-      try { await this.client.logout(); } catch { /* noop */ }
-      this.client = null;
+      this.log.debug('IMAP client no longer usable, discarding')
+      try {
+        await this.client.logout()
+      } catch {
+        /* noop */
+      }
+      this.client = null
     }
-    if (this.connecting) return this.connecting;
+    if (this.connecting) return this.connecting
 
-    this.connecting = this.connectWithRetry();
+    this.connecting = this.connectWithRetry()
     try {
-      return await this.connecting;
+      return await this.connecting
     } finally {
-      this.connecting = null;
+      this.connecting = null
     }
   }
 
@@ -124,27 +156,38 @@ export class ImapClient {
    * devuelve error al modelo, que lo interpreta como "tool no disponible".
    */
   private async connectWithRetry(): Promise<ImapFlow> {
-    const maxAttempts = 3;
-    let lastErr: unknown;
+    const maxAttempts = 3
+    let lastErr: unknown
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const c = new ImapFlow(await this.buildOpts());
-        c.on("error", (err) => { this.log.error("IMAP error event", { message: err.message }); });
-        c.on("close", () => { this.log.debug("IMAP connection closed"); });
-        this.log.debug("Connecting to Proton Bridge IMAP", { host: this.cfg.host, port: this.cfg.imapPort, attempt });
-        await c.connect();
-        this.log.info("IMAP connected", { attempt });
-        this.client = c;
-        return c;
+        const c = new ImapFlow(await this.buildOpts())
+        c.on('error', (err) => {
+          this.log.error('IMAP error event', { message: err.message })
+        })
+        c.on('close', () => {
+          this.log.debug('IMAP connection closed')
+        })
+        this.log.debug('Connecting to Proton Bridge IMAP', {
+          host: this.cfg.host,
+          port: this.cfg.imapPort,
+          attempt,
+        })
+        await c.connect()
+        this.log.info('IMAP connected', { attempt })
+        this.client = c
+        return c
       } catch (err) {
-        lastErr = err;
-        this.log.error("IMAP connect failed", { attempt, message: (err as Error).message });
+        lastErr = err
+        this.log.error('IMAP connect failed', {
+          attempt,
+          message: (err as Error).message,
+        })
         if (attempt < maxAttempts) {
-          await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
+          await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)))
         }
       }
     }
-    throw this.describeConnError(lastErr);
+    throw this.describeConnError(lastErr)
   }
 
   /**
@@ -157,40 +200,50 @@ export class ImapClient {
    * mensaje para que sea grepeable y diagnosticable de un vistazo.
    */
   private describeConnError(err: unknown): Error {
-    const e = err as { code?: string; message?: string; authenticationFailed?: boolean } | undefined;
-    const code = e?.code ?? "";
-    const msg = e?.message ?? "";
-    const where = `${this.cfg.host}:${this.cfg.imapPort}`;
-    const blob = `${code} ${msg}`.toLowerCase();
+    const e = err as
+      | { code?: string; message?: string; authenticationFailed?: boolean }
+      | undefined
+    const code = e?.code ?? ''
+    const msg = e?.message ?? ''
+    const where = `${this.cfg.host}:${this.cfg.imapPort}`
+    const blob = `${code} ${msg}`.toLowerCase()
 
-    let friendly: string;
-    if (code === "ECONNREFUSED" || blob.includes("econnrefused")) {
-      friendly = `Proton Bridge no escucha IMAP en ${where} (ECONNREFUSED). ¿Está el Bridge corriendo? Lánzalo con 'protonmail-bridge-core --cli' y verifica con 'ss -ltn | grep ${this.cfg.imapPort}'.`;
-    } else if (blob.includes("no such user")) {
-      friendly = `Proton Bridge no reconoce el usuario '${this.cfg.user}' en ${where}. Revisa PROTON_BRIDGE_USER: en la app oficial debe coincidir con la cuenta configurada en Bridge (normalmente tu dirección principal o username de Proton).`;
+    let friendly: string
+    if (code === 'ECONNREFUSED' || blob.includes('econnrefused')) {
+      friendly = `Proton Bridge no escucha IMAP en ${where} (ECONNREFUSED). ¿Está el Bridge corriendo? Lánzalo con 'protonmail-bridge-core --cli' y verifica con 'ss -ltn | grep ${this.cfg.imapPort}'.`
+    } else if (blob.includes('no such user')) {
+      friendly = `Proton Bridge no reconoce el usuario '${this.cfg.user}' en ${where}. Revisa PROTON_BRIDGE_USER: en la app oficial debe coincidir con la cuenta configurada en Bridge (normalmente tu dirección principal o username de Proton).`
     } else if (
       e?.authenticationFailed ||
-      blob.includes("authenticationfailed") ||
-      blob.includes("invalid credentials") ||
-      blob.includes("auth")
+      blob.includes('authenticationfailed') ||
+      blob.includes('invalid credentials') ||
+      blob.includes('auth')
     ) {
-      friendly = `Proton Bridge rechazó las credenciales en ${where} (auth). Usa el app-password/mailbox password que genera Bridge para este equipo, NO la contraseña de tu cuenta Proton.`;
-    } else if (code === "ETIMEDOUT" || blob.includes("timeout") || blob.includes("etimedout")) {
-      friendly = `Sin respuesta de Proton Bridge en ${where} (timeout). ¿Host/puerto correctos o firewall bloqueando?`;
+      friendly = `Proton Bridge rechazó las credenciales en ${where} (auth). Usa el app-password/mailbox password que genera Bridge para este equipo, NO la contraseña de tu cuenta Proton.`
+    } else if (
+      code === 'ETIMEDOUT' ||
+      blob.includes('timeout') ||
+      blob.includes('etimedout')
+    ) {
+      friendly = `Sin respuesta de Proton Bridge en ${where} (timeout). ¿Host/puerto correctos o firewall bloqueando?`
     } else {
-      friendly = `Fallo conectando a Proton Bridge IMAP en ${where}: ${msg || "error desconocido"}.`;
+      friendly = `Fallo conectando a Proton Bridge IMAP en ${where}: ${msg || 'error desconocido'}.`
     }
-    return new Error(friendly, { cause: err instanceof Error ? err : undefined });
+    return new Error(friendly, {
+      cause: err instanceof Error ? err : undefined,
+    })
   }
 
   async close(): Promise<void> {
     if (this.client) {
       try {
-        await this.client.logout();
+        await this.client.logout()
       } catch (err) {
-        this.log.debug("IMAP logout error (ignored)", { message: (err as Error).message });
+        this.log.debug('IMAP logout error (ignored)', {
+          message: (err as Error).message,
+        })
       }
-      this.client = null;
+      this.client = null
     }
   }
 
@@ -199,35 +252,53 @@ export class ImapClient {
   // ---------------------------------------------------------------------------
 
   async listMailboxes(): Promise<MailboxInfo[]> {
-    const c = await this.connect();
-    const raw: ListResponse[] = await c.list();
+    const c = await this.connect()
+    const raw: ListResponse[] = await c.list()
     return raw.map((m) => ({
       path: m.path,
       name: m.name,
       delimiter: m.delimiter,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       flags: Array.from(m.flags ?? []),
       specialUse: m.specialUse,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       subscribed: m.subscribed ?? false,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       listed: m.listed ?? true,
-    }));
+    }))
   }
 
-  async createMailbox(path: string): Promise<{ path: string; created: boolean }> {
-    const c = await this.connect();
-    const res = await c.mailboxCreate(path);
-    return { path: res.path, created: res.created };
+  async createMailbox(
+    path: string,
+  ): Promise<{ path: string; created: boolean }> {
+    const c = await this.connect()
+    const res = await c.mailboxCreate(path)
+    return { path: res.path, created: res.created }
   }
 
-  async mailboxStatus(path: string): Promise<{ messages: number; unseen: number; recent: number; uidNext?: number; uidValidity?: number }> {
-    const c = await this.connect();
-    const s = await c.status(path, { messages: true, unseen: true, recent: true, uidNext: true, uidValidity: true });
+  async mailboxStatus(path: string): Promise<{
+    messages: number
+    unseen: number
+    recent: number
+    uidNext?: number
+    uidValidity?: number
+  }> {
+    const c = await this.connect()
+    const s = await c.status(path, {
+      messages: true,
+      unseen: true,
+      recent: true,
+      uidNext: true,
+      uidValidity: true,
+    })
     return {
       messages: s.messages ?? 0,
       unseen: s.unseen ?? 0,
       recent: s.recent ?? 0,
-      uidNext: s.uidNext === undefined ? undefined : Number(s.uidNext),
-      uidValidity: s.uidValidity === undefined ? undefined : Number(s.uidValidity),
-    };
+      uidNext: s.uidNext,
+      uidValidity:
+        s.uidValidity === undefined ? undefined : Number(s.uidValidity),
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -243,28 +314,36 @@ export class ImapClient {
    * el orden de seq se corresponde con el orden de llegada — válido en
    * Bridge/Proton, pero si migramos a otro IMAP habría que usar SORT.
    */
-  async listEmails(mailbox: string, limit: number, offset: number): Promise<{ items: EmailSummary[]; total: number }> {
-    const c = await this.connect();
-    const lock = await c.getMailboxLock(mailbox);
+  async listEmails(
+    mailbox: string,
+    limit: number,
+    offset: number,
+  ): Promise<{ items: EmailSummary[]; total: number }> {
+    const c = await this.connect()
+    const lock = await c.getMailboxLock(mailbox)
     try {
-      const status = await c.status(mailbox, { messages: true });
-      const total = status.messages ?? 0;
-      if (total === 0) return { items: [], total: 0 };
+      const status = await c.status(mailbox, { messages: true })
+      const total = status.messages ?? 0
+      if (total === 0) return { items: [], total: 0 }
 
       // Ventana desde el final: si total=1000 y offset=0, end=1000, start=976
       // (25 últimos mensajes). offset=25 → end=975, start=951.
-      const end = total - offset;
-      const start = Math.max(1, end - limit + 1);
-      if (end < 1) return { items: [], total };
+      const end = total - offset
+      const start = Math.max(1, end - limit + 1)
+      if (end < 1) return { items: [], total }
 
-      const items: EmailSummary[] = [];
-      for await (const msg of c.fetch(`${start}:${end}`, this.summaryFetchQuery(), { uid: false })) {
-        items.push(this.toSummary(msg));
+      const items: EmailSummary[] = []
+      for await (const msg of c.fetch(
+        `${start}:${end}`,
+        this.summaryFetchQuery(),
+        { uid: false },
+      )) {
+        items.push(this.toSummary(msg))
       }
-      items.sort((a, b) => b.seq - a.seq);
-      return { items, total };
+      items.sort((a, b) => b.seq - a.seq)
+      return { items, total }
     } finally {
-      lock.release();
+      lock.release()
     }
   }
 
@@ -273,23 +352,25 @@ export class ImapClient {
     criteria: SearchObject,
     limit: number,
   ): Promise<{ items: EmailSummary[]; matched: number }> {
-    const c = await this.connect();
-    const lock = await c.getMailboxLock(mailbox);
+    const c = await this.connect()
+    const lock = await c.getMailboxLock(mailbox)
     try {
-      const searchResult = await c.search(criteria, { uid: true });
-      const uids: number[] = Array.isArray(searchResult) ? searchResult : [];
-      const matched = uids.length;
-      if (matched === 0) return { items: [], matched };
+      const searchResult = await c.search(criteria, { uid: true })
+      const uids: number[] = Array.isArray(searchResult) ? searchResult : []
+      const matched = uids.length
+      if (matched === 0) return { items: [], matched }
       // Newest UIDs first
-      const sorted = [...uids].sort((a, b) => b - a).slice(0, limit);
-      const items: EmailSummary[] = [];
-      for await (const msg of c.fetch(sorted, this.summaryFetchQuery(), { uid: true })) {
-        items.push(this.toSummary(msg));
+      const sorted = [...uids].sort((a, b) => b - a).slice(0, limit)
+      const items: EmailSummary[] = []
+      for await (const msg of c.fetch(sorted, this.summaryFetchQuery(), {
+        uid: true,
+      })) {
+        items.push(this.toSummary(msg))
       }
-      items.sort((a, b) => b.uid - a.uid);
-      return { items, matched };
+      items.sort((a, b) => b.uid - a.uid)
+      return { items, matched }
     } finally {
-      lock.release();
+      lock.release()
     }
   }
 
@@ -298,34 +379,47 @@ export class ImapClient {
   // ---------------------------------------------------------------------------
 
   async getEmail(mailbox: string, uid: number): Promise<EmailFull | null> {
-    const c = await this.connect();
-    const lock = await c.getMailboxLock(mailbox);
+    const c = await this.connect()
+    const lock = await c.getMailboxLock(mailbox)
     try {
-      const msg = await c.fetchOne(String(uid), { source: true, flags: true, envelope: true, uid: true, size: true }, { uid: true });
-      if (!msg || !msg.source) return null;
-      const parsed = await simpleParser(msg.source);
-      return this.toFull(msg, parsed);
+      const msg = await c.fetchOne(
+        String(uid),
+        { source: true, flags: true, envelope: true, uid: true, size: true },
+        { uid: true },
+      )
+      if (!msg || !msg.source) return null
+      const parsed = await simpleParser(msg.source)
+      return this.toFull(msg, parsed)
     } finally {
-      lock.release();
+      lock.release()
     }
   }
 
-  async getAttachment(mailbox: string, uid: number, index: number): Promise<{ filename: string | undefined; contentType: string; base64: string } | null> {
-    const c = await this.connect();
-    const lock = await c.getMailboxLock(mailbox);
+  async getAttachment(
+    mailbox: string,
+    uid: number,
+    index: number,
+  ): Promise<{
+    filename: string | undefined
+    contentType: string
+    base64: string
+  } | null> {
+    const c = await this.connect()
+    const lock = await c.getMailboxLock(mailbox)
     try {
-      const msg = await c.fetchOne(String(uid), { source: true }, { uid: true });
-      if (!msg || !msg.source) return null;
-      const parsed = await simpleParser(msg.source);
-      const att: Attachment | undefined = parsed.attachments[index];
-      if (!att) return null;
+      const msg = await c.fetchOne(String(uid), { source: true }, { uid: true })
+      if (!msg || !msg.source) return null
+      const parsed = await simpleParser(msg.source)
+      const att = parsed.attachments[index]
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (!att) return null
       return {
         filename: att.filename,
         contentType: att.contentType,
-        base64: att.content.toString("base64"),
-      };
+        base64: att.content.toString('base64'),
+      }
     } finally {
-      lock.release();
+      lock.release()
     }
   }
 
@@ -333,57 +427,77 @@ export class ImapClient {
   // Modifications
   // ---------------------------------------------------------------------------
 
-  async setFlags(mailbox: string, uid: number, add: string[], remove: string[]): Promise<boolean> {
-    const c = await this.connect();
-    const lock = await c.getMailboxLock(mailbox);
+  async setFlags(
+    mailbox: string,
+    uid: number,
+    add: string[],
+    remove: string[],
+  ): Promise<boolean> {
+    const c = await this.connect()
+    const lock = await c.getMailboxLock(mailbox)
     try {
-      let ok = true;
-      if (add.length > 0) ok = (await c.messageFlagsAdd(String(uid), add, { uid: true })) && ok;
-      if (remove.length > 0) ok = (await c.messageFlagsRemove(String(uid), remove, { uid: true })) && ok;
-      return ok;
+      let ok = true
+      if (add.length > 0)
+        ok = (await c.messageFlagsAdd(String(uid), add, { uid: true })) && ok
+      if (remove.length > 0)
+        ok =
+          (await c.messageFlagsRemove(String(uid), remove, { uid: true })) && ok
+      return ok
     } finally {
-      lock.release();
+      lock.release()
     }
   }
 
-  async moveEmail(fromMailbox: string, uid: number, toMailbox: string): Promise<boolean> {
-    const c = await this.connect();
-    const lock = await c.getMailboxLock(fromMailbox);
+  async moveEmail(
+    fromMailbox: string,
+    uid: number,
+    toMailbox: string,
+  ): Promise<boolean> {
+    const c = await this.connect()
+    const lock = await c.getMailboxLock(fromMailbox)
     try {
-      const res = await c.messageMove(String(uid), toMailbox, { uid: true });
-      return !!res;
+      const res = await c.messageMove(String(uid), toMailbox, { uid: true })
+      return !!res
     } finally {
-      lock.release();
+      lock.release()
     }
   }
 
-  async copyEmail(fromMailbox: string, uid: number, toMailbox: string): Promise<boolean> {
-    const c = await this.connect();
-    const lock = await c.getMailboxLock(fromMailbox);
+  async copyEmail(
+    fromMailbox: string,
+    uid: number,
+    toMailbox: string,
+  ): Promise<boolean> {
+    const c = await this.connect()
+    const lock = await c.getMailboxLock(fromMailbox)
     try {
-      const res = await c.messageCopy(String(uid), toMailbox, { uid: true });
-      return !!res;
+      const res = await c.messageCopy(String(uid), toMailbox, { uid: true })
+      return !!res
     } finally {
-      lock.release();
+      lock.release()
     }
   }
 
   async deleteEmail(mailbox: string, uid: number): Promise<boolean> {
-    const c = await this.connect();
-    const lock = await c.getMailboxLock(mailbox);
+    const c = await this.connect()
+    const lock = await c.getMailboxLock(mailbox)
     try {
-      const res = await c.messageDelete(String(uid), { uid: true });
-      return !!res;
+      const res = await c.messageDelete(String(uid), { uid: true })
+      return res
     } finally {
-      lock.release();
+      lock.release()
     }
   }
 
-  async appendMessage(mailbox: string, raw: Buffer, flags: string[] = []): Promise<{ uid: number | undefined }> {
-    const c = await this.connect();
-    const res = await c.append(mailbox, raw, flags);
-    if (!res) return { uid: undefined };
-    return { uid: typeof res.uid === "number" ? res.uid : undefined };
+  async appendMessage(
+    mailbox: string,
+    raw: Buffer,
+    flags: string[] = [],
+  ): Promise<{ uid: number | undefined }> {
+    const c = await this.connect()
+    const res = await c.append(mailbox, raw, flags)
+    if (!res) return { uid: undefined }
+    return { uid: typeof res.uid === 'number' ? res.uid : undefined }
   }
 
   // ---------------------------------------------------------------------------
@@ -397,14 +511,14 @@ export class ImapClient {
       envelope: true,
       size: true,
       bodyStructure: false,
-    };
+    }
   }
 
-  private toSummary(msg: any): EmailSummary {
-    const env = msg.envelope ?? {};
+  private toSummary(msg: FetchMessageObject): EmailSummary {
+    const env: Partial<MessageEnvelopeObject> = msg.envelope ?? {}
     return {
-      uid: Number(msg.uid),
-      seq: Number(msg.seq),
+      uid: msg.uid,
+      seq: msg.seq,
       messageId: env.messageId,
       from: addrListToString(env.from),
       to: addrListToArray(env.to),
@@ -412,14 +526,14 @@ export class ImapClient {
       date: env.date instanceof Date ? env.date.toISOString() : env.date,
       flags: Array.from(msg.flags ?? []),
       size: msg.size,
-    };
+    }
   }
 
-  private toFull(msg: any, parsed: ParsedMail): EmailFull {
-    const base = this.toSummary(msg);
-    const headers: Record<string, string> = {};
+  private toFull(msg: FetchMessageObject, parsed: ParsedMail): EmailFull {
+    const base = this.toSummary(msg)
+    const headers: Record<string, string> = {}
     for (const [k, v] of parsed.headers.entries()) {
-      headers[k] = typeof v === "string" ? v : JSON.stringify(v);
+      headers[k] = typeof v === 'string' ? v : JSON.stringify(v)
     }
     return {
       ...base,
@@ -427,7 +541,7 @@ export class ImapClient {
       bcc: addressesToArray(parsed.bcc),
       replyTo: addressesToArray(parsed.replyTo),
       textBody: parsed.text ?? undefined,
-      htmlBody: typeof parsed.html === "string" ? parsed.html : undefined,
+      htmlBody: typeof parsed.html === 'string' ? parsed.html : undefined,
       attachments: parsed.attachments.map((a) => ({
         filename: a.filename,
         contentType: a.contentType,
@@ -436,6 +550,6 @@ export class ImapClient {
         checksum: a.checksum,
       })),
       headers,
-    };
+    }
   }
 }

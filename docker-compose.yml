@@ -34,19 +34,26 @@ services:
     volumes:
       - bridge-data:/root
     expose:
-      - "1143"
-      - "1025"
+      - '1143'
+      - '1025'
     networks:
       - proton-net
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/1143' || exit 1"]
+      test: ['CMD-SHELL', "bash -c 'exec 3<>/dev/tcp/127.0.0.1/1143' || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 30s
 
   agent:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # URL del CLI oficial. Si tu red requiere mirror, sobreescribe aquí.
+        # El CLI se descarga en build-time; si falla, el contenedor sigue
+        # arrancando y puedes instalarlo manualmente.
+        # DRIVE_CLI_URL=https://proton.me/download/drive/cli/linux/proton-drive
     restart: unless-stopped
     depends_on:
       proton-bridge:
@@ -56,6 +63,9 @@ services:
       # desde el host. Descomenta si usas PROTON_BRIDGE_PASS_PATH.
       # - pass-data:/home/node/.password-store:ro
       # - gnupg-data:/home/node/.gnupg:ro
+      # Persiste el token del CLI oficial (se genera con `proton-drive auth login`
+      # una sola vez — ver docs/drive-audit.md).
+      - drive-auth-data:/home/node/.config/proton-drive
     environment:
       PROTON_BRIDGE_HOST: proton-bridge
       # 143/25 son los puertos externos del entrypoint de shenxn/protonmail-bridge
@@ -66,7 +76,7 @@ services:
       PROTON_BRIDGE_PASS: ${PROTON_BRIDGE_PASS}
       PROTON_BRIDGE_PASS_PATH: ${PROTON_BRIDGE_PASS_PATH:-}
       PROTON_MAIL_FROM: ${PROTON_MAIL_FROM}
-      PROTON_BRIDGE_TLS_INSECURE: "true"
+      PROTON_BRIDGE_TLS_INSECURE: 'true'
       NODE_ENV: production
       MCP_TRANSPORT: http
       MCP_HTTP_HOST: 0.0.0.0
@@ -75,14 +85,20 @@ services:
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       PROTON_PASS_ENABLED: ${PROTON_PASS_ENABLED:-false}
+      # Drive (CLI oficial)
+      DRIVE_ENABLED: ${DRIVE_ENABLED:-true}
+      DRIVE_CLI_BIN: ${DRIVE_CLI_BIN:-/usr/local/bin/proton-drive}
+      DRIVE_STAGING_DIR: ${DRIVE_STAGING_DIR:-/home/node/.proton-drive/staging}
+      DRIVE_OBSOLETE_EXTENSIONS: ${DRIVE_OBSOLETE_EXTENSIONS:-.doc,.ppt,.xls,.bmp}
     expose:
-      - "8787"
+      - '8787'
     networks:
       - proton-net
       - proxy-network
 
 volumes:
   bridge-data:
+  drive-auth-data:
   # Volúmenes opcionales para Pass
   # pass-data:
   # gnupg-data:

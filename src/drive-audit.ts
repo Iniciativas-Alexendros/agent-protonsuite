@@ -56,7 +56,7 @@ export class DriveAuditor {
     return createHash('sha256').update(content).digest('hex')
   }
 
-  async scanInventory(stagingDir: string): Promise<InventoryReport> {
+  scanInventory(stagingDir: string): InventoryReport {
     const files: InventoryReport['files'] = []
     let totalBytes = 0
 
@@ -96,7 +96,7 @@ export class DriveAuditor {
     return { totalFiles: files.length, totalBytes, byExt, byDir, files }
   }
 
-  async findDuplicates(stagingDir: string): Promise<DuplicateEntry[]> {
+  findDuplicates(stagingDir: string): DuplicateEntry[] {
     const hashMap = new Map<string, DuplicateEntry>()
     const walk = (dir: string) => {
       for (const entry of readdirSync(dir)) {
@@ -106,12 +106,12 @@ export class DriveAuditor {
           if (s.isDirectory()) walk(full)
           else if (s.size > 0) {
             const hash = this.hashFile(full)
-            if (!hashMap.has(hash)) {
-              hashMap.set(hash, { hash, size: s.size, files: [] })
+            let dup = hashMap.get(hash)
+            if (!dup) {
+              dup = { hash, size: s.size, files: [] }
+              hashMap.set(hash, dup)
             }
-            hashMap
-              .get(hash)!
-              .files.push({ path: relative(stagingDir, full), name: entry })
+            dup.files.push({ path: relative(stagingDir, full), name: entry })
           }
         } catch (err) {
           this.log.error(`drive-audit: skip ${full}`, {
@@ -125,8 +125,8 @@ export class DriveAuditor {
     return Array.from(hashMap.values()).filter((e) => e.files.length > 1)
   }
 
-  async formatReport(stagingDir: string): Promise<FormatReport> {
-    const inv = await this.scanInventory(stagingDir)
+  formatReport(stagingDir: string): FormatReport {
+    const inv = this.scanInventory(stagingDir)
     const obsoleteFiles = inv.files.filter((f) =>
       this.obsoleteExtensions.includes(f.ext),
     )
@@ -149,8 +149,8 @@ export class DriveAuditor {
     }
   }
 
-  async buildOrganizePlan(stagingDir: string): Promise<OrganizePlan> {
-    const inv = await this.scanInventory(stagingDir)
+  buildOrganizePlan(stagingDir: string): OrganizePlan {
+    const inv = this.scanInventory(stagingDir)
     const suggestions: OrganizeSuggestion[] = []
 
     const extDirs: Record<string, string> = {

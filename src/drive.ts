@@ -1,31 +1,70 @@
 /**
- * Proton Drive client base — wraps rclone.
+ * Proton Drive client — wraps the official Proton Drive CLI.
  *
- * Las operaciones de Drive se delegan a rclone (remote configurado por el
- * usuario), que es quien habla con la API de Proton Drive. Esta clase base
- * resuelve rutas, expone el binario y valida dependencias. Las tools MCP y
- * los agent goals (Tasks 2-5) construyen encima de ella.
+ * Las operaciones de Drive se delegan al binario `proton-drive`
+ * (descargado de proton.me/support/drive-cli). Esta clase base ejecuta
+ * comandos sobre el CLI, parsea la salida JSON y normaliza errores.
+ * Las tools MCP y los agent goals construyen encima de ella.
+ *
+ * La autenticación es responsabilidad del usuario: debe ejecutar
+ * `proton-drive auth login` una vez antes de usar las herramientas.
+ * El CLI persiste el token localmente (típicamente en ~/.config).
  */
-import { execFileSync, execFile } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-export interface DriveFile {
-  id: string
-  name: string
-  mimeType: string
-  size: number
-  modifiedTime: string
-  parentId?: string
-  path: string
+export interface DriveConfig {
+  cliBin: string
+  stagingDir: string
+  obsoleteExtensions: string[]
 }
 
-export interface DriveConfig {
-  rcloneRemote?: string
-  stagingDir: string
-  syncMode: 'pull' | 'watch'
-  rcloneBin: string
-  obsoleteExtensions: string[]
+export interface DriveListEntry {
+  name?: string
+  path?: string
+  size?: number
+  type?: string
+  modified?: string
+}
+
+export interface DriveListResult {
+  ok: boolean
+  files: DriveListEntry[]
+  raw: string
+  error?: string
+}
+
+export interface DownloadResult {
+  ok: boolean
+  remotePath: string
+  localPath: string
+  error?: string
+}
+
+export interface UploadResult {
+  ok: boolean
+  localPath: string
+  remotePath: string
+  error?: string
+}
+
+export interface ShareResult {
+  ok: boolean
+  remotePath: string
+  userEmail: string
+  error?: string
+}
+
+export interface DriveStatus {
+  ok: boolean
+  configured: boolean
+  authenticated?: boolean
+  stagingExists: boolean
+  stagingFiles?: number
+  stagingBytes?: number
+  cliPath: string
+  error?: string
 }
 
 export class DriveClient {
@@ -42,25 +81,19 @@ export class DriveClient {
     return resolve(this.opts.stagingDir.replace(/^~/, process.env.HOME ?? ''))
   }
 
-  get rcloneBin(): string {
-    return this.opts.rcloneBin
-  }
-
-  get remotePrefix(): string {
-    return this.opts.rcloneRemote ?? ''
-  }
-
-  async execRclone(
-    args: string[],
-  ): Promise<{ stdout: string; stderr: string }> {
+  execCli(args: string[]): Promise<{ stdout: string; stderr: string }> {
     return new Promise((resolvePromise, reject) => {
       execFile(
-        this.rcloneBin,
+        this.opts.cliBin,
         args,
         { maxBuffer: 50 * 1024 * 1024 },
         (err, stdout, stderr) => {
           if (err) {
-            reject(new Error(`rclone error: ${err.message}\nstderr: ${stderr}`))
+            reject(
+              new Error(
+                `proton-drive error: ${err.message}\nstderr: ${stderr}`,
+              ),
+            )
             return
           }
           resolvePromise({ stdout, stderr })
@@ -69,99 +102,98 @@ export class DriveClient {
     })
   }
 
-  checkDeps(): { ok: boolean; error?: string } {
+  checkDeps(): { ok: boolean; version?: string; error?: string } {
     try {
-      execFileSync(this.rcloneBin, ['--version'], {
+      const version = execFileSync(this.opts.cliBin, ['--version'], {
         encoding: 'utf-8',
         timeout: 5000,
+      }).trim()
+      return { ok: true, version }
+    } catch (err) {
+      return {
+        ok: false,
+        error: `proton-drive not found: ${(err as Error).message}`,
+      }
+    }
+  }
+
+  async listFiles(remotePath: string): Promise<DriveListResult> {
+    try {
+      this.log.info('drive listFiles', { remotePath })
+      const { stdout } = await this.execCli([
+        'filesystem',
+        'list',
+        remotePath,
+        '--json',
+      ])
+      const parsed: unknown = JSON.parse(stdout)
+      const files = this.normalizeListOutput(parsed)
+      return { ok: true, files, raw: stdout }
+    } catch (err) {
+      const msg = (err as Error).message
+      this.log.error('drive listFiles failed', { error: msg, remotePath })
+      return { ok: false, files: [], raw: '', error: msg }
+    }
+  }
+
+  async download(
+    remotePath: string,
+    localPath?: string,
+  ): Promise<DownloadResult> {
+    try {
+      const staging = localPath ?? this.stagingDir
+      if (!existsSync(staging)) mkdirSync(staging, { recursive: true })
+      this.log.info('drive download', { remotePath, localPath: staging })
+      await this.execCli(['filesystem', 'download', remotePath, staging])
+      return { ok: true, remotePath, localPath: staging }
+    } catch (err) {
+      const msg = (err as Error).message
+      this.log.error('drive download failed', { error: msg, remotePath })
+      return {
+        ok: false,
+        remotePath,
+        localPath: localPath ?? this.stagingDir,
+        error: msg,
+      }
+    }
+  }
+
+  async upload(localPath?: string, remotePath?: string): Promise<UploadResult> {
+    try {
+      const staging = localPath ?? this.stagingDir
+      const target = remotePath ?? '/my-files'
+      this.log.info('drive upload', { localPath: staging, remotePath: target })
+      await this.execCli(['filesystem', 'upload', staging, target])
+      return { ok: true, localPath: staging, remotePath: target }
+    } catch (err) {
+      const msg = (err as Error).message
+      this.log.error('drive upload failed', { error: msg, remotePath })
+      return {
+        ok: false,
+        localPath: localPath ?? this.stagingDir,
+        remotePath: remotePath ?? '/my-files',
+        error: msg,
+      }
+    }
+  }
+
+  async share(remotePath: string, userEmail: string): Promise<ShareResult> {
+    try {
+      this.log.info('drive share', { remotePath, userEmail })
+      await this.execCli(['sharing', 'invite', '--user', userEmail, remotePath])
+      return { ok: true, remotePath, userEmail }
+    } catch (err) {
+      const msg = (err as Error).message
+      this.log.error('drive share failed', {
+        error: msg,
+        remotePath,
+        userEmail,
       })
-      if (!this.opts.rcloneRemote)
-        return { ok: false, error: 'DRIVE_RCLONE_REMOTE not set' }
-      return { ok: true }
-    } catch (err) {
-      return { ok: false, error: `rclone not found: ${(err as Error).message}` }
+      return { ok: false, remotePath, userEmail, error: msg }
     }
   }
 
-  async syncPull(): Promise<{
-    ok: boolean
-    files: number
-    bytes: number
-    error?: string
-  }> {
-    if (!this.opts.rcloneRemote)
-      return {
-        ok: false,
-        files: 0,
-        bytes: 0,
-        error: 'DRIVE_RCLONE_REMOTE not set',
-      }
-    const staging = this.stagingDir
-    if (!existsSync(staging)) mkdirSync(staging, { recursive: true })
-    try {
-      this.log.info('drive syncPull', { remote: this.remotePrefix, staging })
-      const { stdout, stderr } = await this.execRclone([
-        'sync',
-        `${this.remotePrefix}/`,
-        staging,
-        '--progress',
-        '--stats-one-line',
-      ])
-      const out = stdout + stderr
-      const files = /Transferred:\s+(\d+)/.exec(out)?.[1] ?? '0'
-      return { ok: true, files: parseInt(files, 10), bytes: 0 }
-    } catch (err) {
-      const msg = (err as Error).message
-      this.log.error('drive syncPull failed', { error: msg })
-      return { ok: false, files: 0, bytes: 0, error: msg }
-    }
-  }
-
-  async syncPush(): Promise<{
-    ok: boolean
-    files: number
-    bytes: number
-    error?: string
-  }> {
-    if (!this.opts.rcloneRemote)
-      return {
-        ok: false,
-        files: 0,
-        bytes: 0,
-        error: 'DRIVE_RCLONE_REMOTE not set',
-      }
-    const staging = this.stagingDir
-    try {
-      this.log.info('drive syncPush', { remote: this.remotePrefix, staging })
-      const { stdout, stderr } = await this.execRclone([
-        'sync',
-        staging,
-        `${this.remotePrefix}/`,
-        '--ignore-existing',
-        '--progress',
-        '--stats-one-line',
-      ])
-      const out = stdout + stderr
-      const files = /Transferred:\s+(\d+)/.exec(out)?.[1] ?? '0'
-      return { ok: true, files: parseInt(files, 10), bytes: 0 }
-    } catch (err) {
-      const msg = (err as Error).message
-      this.log.error('drive syncPush failed', { error: msg })
-      return { ok: false, files: 0, bytes: 0, error: msg }
-    }
-  }
-
-  async status(): Promise<{
-    ok: boolean
-    configured: boolean
-    remoteReachable?: boolean
-    lastSync?: string
-    stagingExists: boolean
-    stagingFiles?: number
-    stagingBytes?: number
-    syncMode: string
-    error?: string
-  }> {
+  async status(): Promise<DriveStatus> {
     const staging = this.stagingDir
     const stagingExists = existsSync(staging)
     let stagingFiles: number | undefined
@@ -187,56 +219,41 @@ export class DriveClient {
       stagingFiles = totals.files
       stagingBytes = totals.bytes
     }
-    let remoteReachable: boolean | undefined
-    if (this.opts.rcloneRemote) {
-      try {
-        await this.execRclone([
-          'lsf',
-          `${this.remotePrefix}/`,
-          '--max-depth',
-          '0',
-        ])
-        remoteReachable = true
-      } catch {
-        remoteReachable = false
-      }
+    let authenticated: boolean | undefined
+    try {
+      await this.execCli(['auth', 'status'])
+      authenticated = true
+    } catch {
+      authenticated = false
     }
     return {
-      ok: !!this.opts.rcloneRemote && stagingExists,
-      configured: !!this.opts.rcloneRemote,
-      remoteReachable,
+      ok: authenticated && stagingExists,
+      configured: true,
+      authenticated,
       stagingExists,
       stagingFiles,
       stagingBytes,
-      syncMode: this.opts.syncMode,
+      cliPath: this.opts.cliBin,
     }
   }
 
-  async mount(mountPoint?: string): Promise<{ ok: boolean; error?: string }> {
-    const target = mountPoint ?? resolve('/tmp/proton-drive-mount')
-    try {
-      this.log.info('drive mount', { remote: this.remotePrefix, target })
-      await this.execRclone([
-        'mount',
-        `${this.remotePrefix}/`,
-        target,
-        '--daemon',
-        '--vfs-cache-mode',
-        'full',
-      ])
-      return { ok: true }
-    } catch (err) {
-      return { ok: false, error: (err as Error).message }
+  private normalizeListOutput(parsed: unknown): DriveListEntry[] {
+    if (Array.isArray(parsed)) {
+      return parsed.filter(
+        (e): e is DriveListEntry => e !== null && typeof e === 'object',
+      )
     }
-  }
-
-  async unmount(mountPoint?: string): Promise<{ ok: boolean; error?: string }> {
-    const target = mountPoint ?? resolve('/tmp/proton-drive-mount')
-    try {
-      await this.execRclone(['unmount', target])
-      return { ok: true }
-    } catch (err) {
-      return { ok: false, error: (err as Error).message }
+    if (parsed && typeof parsed === 'object') {
+      const obj = parsed as Record<string, unknown>
+      for (const key of ['files', 'entries', 'items'] as const) {
+        const arr = obj[key]
+        if (Array.isArray(arr)) {
+          return arr.filter(
+            (e): e is DriveListEntry => e !== null && typeof e === 'object',
+          )
+        }
+      }
     }
+    return []
   }
 }

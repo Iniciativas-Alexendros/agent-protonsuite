@@ -29,7 +29,7 @@ import {
   buildGoalContext,
 } from './agent/index.js'
 import { AlertSystem } from './alerts/index.js'
-import type { Config } from './config.js'
+import { type createLogger, type Config } from './config.js'
 import { DriveAuditor } from './drive-audit.js'
 import { DriveClient } from './drive.js'
 import { ImapClient } from './imap.js'
@@ -37,7 +37,7 @@ import { PassClient } from './pass.js'
 import { SmtpClient, buildForwardOptions, buildReplyOptions } from './smtp.js'
 import { VERSION } from './version.js'
 
-type Logger = ReturnType<typeof import('./config.js').createLogger>
+type Logger = ReturnType<typeof createLogger>
 
 // -----------------------------------------------------------------------------
 // Output schemas (structuredContent) — compatible MCP SDK >=1.x
@@ -136,7 +136,8 @@ export function buildServer(
       { storeDir: cfg.products.pass.storeDir },
       log,
     )
-    passwordResolver = () => passClient.get(bridgeCfg.passPath!)
+    const passPath = bridgeCfg.passPath
+    passwordResolver = () => passClient.get(passPath)
   } else {
     passwordResolver = () => Promise.resolve(bridgeCfg.pass)
   }
@@ -149,7 +150,7 @@ export function buildServer(
     { name: 'protonsuite-agent', version: VERSION },
     {
       instructions:
-        'Proton Suite agent with multiple products. Mail: via Proton Mail Bridge (IMAP/SMTP) — call proton_list_folders first, use UIDs. Pass: via pass-cli — never returns secret values, only confirms found/generated. Drive: via rclone — staging directory synced with ProtonDrive. Calendar stub. Before any write operation, review the plan in read-only mode.',
+        'Proton Suite agent with multiple products. Mail: via Proton Mail Bridge (IMAP/SMTP) — call proton_list_folders first, use UIDs. Pass: via pass-cli — never returns secret values, only confirms found/generated. Drive: via proton-drive CLI — staging directory is a local workspace, not a rclone mirror. Calendar stub. Before any write operation, review the plan in read-only mode.',
     },
   )
 
@@ -207,7 +208,7 @@ export function buildServer(
   registerSuiteTool()
 
   let driveClient: DriveClient | undefined
-  if (cfg.products.drive.rcloneRemote) {
+  if (cfg.products.drive.enabled) {
     driveClient = new DriveClient(cfg.products.drive, log)
   }
 
@@ -618,16 +619,13 @@ export function buildServer(
         description:
           "Sends an email via Proton Bridge SMTP. 'from' is fixed to the configured address. Provide either text, html, or both. Attachments are base64-encoded bytes.",
         inputSchema: {
-          to: z
-            .array(z.string().email())
-            .min(1)
-            .describe('Recipient addresses'),
+          to: z.array(z.email()).min(1).describe('Recipient addresses'),
           subject: z.string().min(1),
           text: z.string().optional(),
           html: z.string().optional(),
-          cc: z.array(z.string().email()).optional(),
-          bcc: z.array(z.string().email()).optional(),
-          reply_to: z.string().email().optional(),
+          cc: z.array(z.email()).optional(),
+          bcc: z.array(z.email()).optional(),
+          reply_to: z.email().optional(),
           attachments: z
             .array(
               z.object({
@@ -759,7 +757,7 @@ export function buildServer(
         inputSchema: {
           mailbox: z.string().default('INBOX'),
           uid: z.number().int().positive(),
-          to: z.array(z.string().email()).min(1),
+          to: z.array(z.email()).min(1),
           text: z.string().optional(),
           html: z.string().optional(),
           include_attachments: z.boolean().default(true),
@@ -1212,7 +1210,7 @@ export function buildServer(
           description: `[STUB] ${t}`,
           annotations: { readOnlyHint: true, openWorldHint: true },
         },
-        async () => ({ content: [{ type: 'text', text: unavailable }] }),
+        () => ({ content: [{ type: 'text', text: unavailable }] }),
       )
     }
   }
@@ -1221,8 +1219,8 @@ export function buildServer(
   // Drive stubs
   // ---------------------------------------------------------------------------
   function registerDriveTools() {
-    if (!cfg.products.drive.rcloneRemote) return
-    const driveCfg = cfg.products.drive as import('./drive.js').DriveConfig
+    if (!cfg.products.drive.enabled) return
+    const driveCfg = cfg.products.drive
     const driveClient = new DriveClient(driveCfg, log)
     const auditor = new DriveAuditor(driveCfg.obsoleteExtensions, log)
 
@@ -1264,14 +1262,14 @@ export function buildServer(
           openWorldHint: true,
         },
       },
-      async ({ response_format, staging_dir }) => {
+      ({ response_format, staging_dir }) => {
         const staging = staging_dir
           ? resolve(staging_dir)
           : driveClient.stagingDir
         try {
-          const inv = await auditor.scanInventory(staging)
-          const dups = await auditor.findDuplicates(staging)
-          const fmt = await auditor.formatReport(staging)
+          const inv = auditor.scanInventory(staging)
+          const dups = auditor.findDuplicates(staging)
+          const fmt = auditor.formatReport(staging)
           const structured = {
             totalFiles: inv.totalFiles,
             totalBytes: inv.totalBytes,
@@ -1330,7 +1328,7 @@ export function buildServer(
       {
         title: 'Proton Drive sync status',
         description:
-          'Returns the current sync status of the Drive staging directory and rclone remote.',
+          'Returns the current state of the proton-drive CLI binary and the local staging directory.',
         inputSchema: {
           response_format: z.enum(['markdown', 'json']).default('markdown'),
         },
@@ -1346,14 +1344,13 @@ export function buildServer(
           if (response_format === 'json') {
             return {
               content: [{ type: 'text', text: JSON.stringify(st, null, 2) }],
-              structuredContent: st,
+              structuredContent: st as unknown as Record<string, unknown>,
             }
           }
           const lines = [
             '# Proton Drive Status',
-            `- **Configured:** ${st.configured ? 'yes' : 'no'}`,
-            `- **Remote reachable:** ${st.remoteReachable === undefined ? 'n/a' : st.remoteReachable ? 'yes' : 'no'}`,
-            `- **Sync mode:** ${st.syncMode}`,
+            `- **CLI binary:** \`${st.cliPath}\``,
+            `- **Authenticated:** ${st.authenticated === undefined ? 'n/a' : st.authenticated ? 'yes' : 'no'}`,
             `- **Staging exists:** ${st.stagingExists ? 'yes' : 'no'}`,
             st.stagingFiles !== undefined
               ? `- **Staging files:** ${st.stagingFiles}`
@@ -1365,7 +1362,7 @@ export function buildServer(
           ].filter((x) => x !== null)
           return {
             content: [{ type: 'text', text: lines.join('\n') }],
-            structuredContent: st,
+            structuredContent: st as unknown as Record<string, unknown>,
           }
         } catch (err) {
           return {
@@ -1396,12 +1393,12 @@ export function buildServer(
           openWorldHint: true,
         },
       },
-      async ({ dry_run, staging_dir }) => {
+      ({ dry_run, staging_dir }) => {
         const staging = staging_dir
           ? resolve(staging_dir)
           : driveClient.stagingDir
         try {
-          const plan = await auditor.buildOrganizePlan(staging)
+          const plan = auditor.buildOrganizePlan(staging)
           if (dry_run) {
             const lines = [
               '# Organize plan (dry-run)',
@@ -1463,12 +1460,12 @@ export function buildServer(
           openWorldHint: true,
         },
       },
-      async ({ staging_dir, response_format }) => {
+      ({ staging_dir, response_format }) => {
         const staging = staging_dir
           ? resolve(staging_dir)
           : driveClient.stagingDir
         try {
-          const fmt = await auditor.formatReport(staging)
+          const fmt = auditor.formatReport(staging)
           if (response_format === 'json') {
             return {
               content: [{ type: 'text', text: JSON.stringify(fmt, null, 2) }],
@@ -1505,43 +1502,206 @@ export function buildServer(
     )
 
     register(
-      'proton_drive_sync',
+      'proton_drive_list_files',
       {
-        title: 'Sync Proton Drive staging',
+        title: 'List files on Proton Drive',
         description:
-          'Triggers rclone sync (pull + push). Idempotent — safe to call repeatedly.',
+          'Lists the contents of a remote Proton Drive path using the proton-drive CLI. Read-only.',
         inputSchema: {
-          direction: z
-            .enum(['pull', 'push', 'both'])
-            .default('pull')
-            .describe('Sync direction'),
+          remote_path: z
+            .string()
+            .default('/my-files')
+            .describe('Remote path on Proton Drive, e.g. /my-files/Documents.'),
+          response_format: z.enum(['markdown', 'json']).default('markdown'),
         },
         annotations: {
-          readOnlyHint: false,
+          readOnlyHint: true,
           idempotentHint: true,
           openWorldHint: true,
         },
       },
-      async ({ direction }) => {
+      async ({ remote_path, response_format }) => {
         try {
-          if (direction === 'pull' || direction === 'both') {
-            const r = await driveClient.syncPull()
-            if (!r.ok)
-              return {
-                isError: true,
-                content: [{ type: 'text', text: `Pull failed: ${r.error}` }],
-              }
+          const r = await driveClient.listFiles(remote_path)
+          if (!r.ok)
+            return {
+              isError: true,
+              content: [{ type: 'text', text: `List failed: ${r.error}` }],
+            }
+          if (response_format === 'json') {
+            return {
+              content: [
+                { type: 'text', text: JSON.stringify(r.files, null, 2) },
+              ],
+              structuredContent: {
+                remotePath: remote_path,
+                count: r.files.length,
+                files: r.files,
+              },
+            }
           }
-          if (direction === 'push' || direction === 'both') {
-            const r = await driveClient.syncPush()
-            if (!r.ok)
-              return {
-                isError: true,
-                content: [{ type: 'text', text: `Push failed: ${r.error}` }],
-              }
-          }
+          const lines = [
+            `# Proton Drive \`${remote_path}\``,
+            '',
+            `- **Entries:** ${r.files.length}`,
+            '',
+            ...r.files.map(
+              (f) =>
+                `- \`${f.path ?? f.name ?? '(unknown)'}\`${f.size !== undefined ? ` (${f.size} bytes)` : ''}`,
+            ),
+          ]
           return {
-            content: [{ type: 'text', text: `Sync ${direction} completed.` }],
+            content: [{ type: 'text', text: lines.join('\n') }],
+            structuredContent: {
+              remotePath: remote_path,
+              count: r.files.length,
+              files: r.files,
+            },
+          }
+        } catch (err) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: String(err) }],
+          }
+        }
+      },
+    )
+
+    register(
+      'proton_drive_download',
+      {
+        title: 'Download from Proton Drive to staging',
+        description:
+          'Downloads a remote Proton Drive path into the local staging directory using the proton-drive CLI. Idempotent.',
+        inputSchema: {
+          remote_path: z
+            .string()
+            .default('/my-files')
+            .describe('Remote path on Proton Drive to download.'),
+          local_path: z
+            .string()
+            .optional()
+            .describe(
+              'Override staging directory locally. Defaults to configured stagingDir.',
+            ),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: true,
+        },
+      },
+      async ({ remote_path, local_path }) => {
+        try {
+          const r = await driveClient.download(remote_path, local_path)
+          if (!r.ok)
+            return {
+              isError: true,
+              content: [{ type: 'text', text: `Download failed: ${r.error}` }],
+            }
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Downloaded \`${r.remotePath}\` → \`${r.localPath}\``,
+              },
+            ],
+            structuredContent: { ...r },
+          }
+        } catch (err) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: String(err) }],
+          }
+        }
+      },
+    )
+
+    register(
+      'proton_drive_upload',
+      {
+        title: 'Upload staging to Proton Drive',
+        description:
+          'Uploads the local staging directory to a remote Proton Drive path using the proton-drive CLI.',
+        inputSchema: {
+          local_path: z
+            .string()
+            .optional()
+            .describe('Override staging directory locally.'),
+          remote_path: z
+            .string()
+            .default('/my-files')
+            .describe('Remote destination path on Proton Drive.'),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
+      },
+      async ({ local_path, remote_path }) => {
+        try {
+          const r = await driveClient.upload(local_path, remote_path)
+          if (!r.ok)
+            return {
+              isError: true,
+              content: [{ type: 'text', text: `Upload failed: ${r.error}` }],
+            }
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Uploaded \`${r.localPath}\` → \`${r.remotePath}\``,
+              },
+            ],
+            structuredContent: { ...r },
+          }
+        } catch (err) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: String(err) }],
+          }
+        }
+      },
+    )
+
+    register(
+      'proton_drive_share',
+      {
+        title: 'Share a Proton Drive path',
+        description:
+          'Invites a Proton user to collaborate on a remote path using the proton-drive CLI.',
+        inputSchema: {
+          remote_path: z
+            .string()
+            .describe('Remote Proton Drive path to share.'),
+          user_email: z.email().describe('Email of the user to invite.'),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: true,
+        },
+      },
+      async ({ remote_path, user_email }) => {
+        try {
+          const r = await driveClient.share(remote_path, user_email)
+          if (!r.ok)
+            return {
+              isError: true,
+              content: [{ type: 'text', text: `Share failed: ${r.error}` }],
+            }
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Invited \`${r.userEmail}\` to \`${r.remotePath}\`.`,
+              },
+            ],
+            structuredContent: { ...r },
           }
         } catch (err) {
           return {
@@ -1588,12 +1748,12 @@ export function buildServer(
             let unread: number | undefined
             if (diag.auth?.ok && diag.folders?.accessible) {
               connected = true
-              mailboxes = diag.folders?.count
+              mailboxes = diag.folders.count
               try {
                 const folders = await imap.listMailboxes()
                 const status = await imap.mailboxStatus('INBOX')
                 mailboxes = folders.length
-                unread = status?.unseen ?? 0
+                unread = status.unseen
               } catch {
                 /* fallback to diagnostics count */
               }
@@ -1655,23 +1815,22 @@ export function buildServer(
                         reason: 'CalDAV not yet exposed by Bridge',
                       }
                     : { available: false },
-                  drive: cfg.products.drive.rcloneRemote
+                  drive: cfg.products.drive.enabled
                     ? (() => {
                         try {
-                          new DriveClient(cfg.products.drive, log)
+                          const dc = new DriveClient(cfg.products.drive, log)
+                          const deps = dc.checkDeps()
                           return {
-                            available: true,
-                            rcloneRemote: cfg.products.drive.rcloneRemote,
-                            syncMode: cfg.products.drive.syncMode,
+                            available: deps.ok,
+                            cliPath: cfg.products.drive.cliBin,
+                            stagingDir: cfg.products.drive.stagingDir,
+                            ...(deps.error ? { error: deps.error } : {}),
                           }
                         } catch (err) {
                           return { available: false, error: String(err) }
                         }
                       })()
-                    : {
-                        available: false,
-                        reason: 'DRIVE_RCLONE_REMOTE not set',
-                      },
+                    : { available: false, reason: 'DRIVE_ENABLED=false' },
                 },
                 null,
                 2,

@@ -9,7 +9,9 @@ export type AgentGoal =
   | 'suite-status'
   | 'drive-audit'
   | 'drive-organize'
-  | 'drive-sync'
+  | 'drive-list'
+  | 'drive-download'
+  | 'drive-upload'
 
 export interface GoalContext {
   goal: AgentGoal

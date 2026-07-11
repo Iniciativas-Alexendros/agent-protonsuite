@@ -23,7 +23,9 @@ describe('agent goals', () => {
   it('parses drive goals', () => {
     expect(parseGoal('drive-audit')).toBe('drive-audit')
     expect(parseGoal('drive-organize')).toBe('drive-organize')
-    expect(parseGoal('drive-sync')).toBe('drive-sync')
+    expect(parseGoal('drive-list')).toBe('drive-list')
+    expect(parseGoal('drive-download')).toBe('drive-download')
+    expect(parseGoal('drive-upload')).toBe('drive-upload')
   })
 
   it('rejects unknown goals', () => {
@@ -50,12 +52,12 @@ describe('agent goals', () => {
     expect(ctx).toEqual(expected)
   })
 
-  it('drive-audit goal exits 2 when DRIVE_RCLONE_REMOTE is unset', async () => {
+  it('drive-audit goal exits 2 when DRIVE_ENABLED is false', async () => {
     const exitSpy = vi
       .spyOn(process, 'exit')
       .mockImplementation((() => undefined) as never)
-    const prevRemote = process.env.DRIVE_RCLONE_REMOTE
-    delete process.env.DRIVE_RCLONE_REMOTE
+    const prevEnabled = process.env.DRIVE_ENABLED
+    process.env.DRIVE_ENABLED = 'false'
     // Provide minimal valid mail config so loadConfig() passes and the
     // drive gate (not config validation) is the path exercised.
     const validEmail = 'test' + '@' + 'example.com'
@@ -72,8 +74,8 @@ describe('agent goals', () => {
     }
     expect(exitSpy).toHaveBeenCalledWith(2)
     exitSpy.mockRestore()
-    if (prevRemote === undefined) delete process.env.DRIVE_RCLONE_REMOTE
-    else process.env.DRIVE_RCLONE_REMOTE = prevRemote
+    if (prevEnabled === undefined) delete process.env.DRIVE_ENABLED
+    else process.env.DRIVE_ENABLED = prevEnabled
     if (prevUser === undefined) delete process.env.PROTON_BRIDGE_USER
     else process.env.PROTON_BRIDGE_USER = prevUser
     if (prevPass === undefined) delete process.env.PROTON_BRIDGE_PASS

@@ -11,7 +11,9 @@ const ALLOWED_GOALS: AgentGoal[] = [
   'suite-status',
   'drive-audit',
   'drive-organize',
-  'drive-sync',
+  'drive-list',
+  'drive-download',
+  'drive-upload',
 ]
 
 export function parseGoal(value: string | undefined): AgentGoal {
@@ -56,8 +58,12 @@ export function describeGoal(goal: AgentGoal): string {
       'Escanea el staging de ProtonDrive: inventario, duplicados, formatos obsoletos. Read-only.',
     'drive-organize':
       'Analiza y reorganiza archivos en el staging por tipo. Dry-run por defecto.',
-    'drive-sync':
-      'Sincroniza el staging con ProtonDrive (pull por defecto; push manual vía proton_drive_sync direction=push).',
+    'drive-list':
+      'Lista archivos en Proton Drive (CLI oficial proton-drive filesystem list).',
+    'drive-download':
+      'Descarga archivos de Proton Drive al staging (CLI oficial proton-drive filesystem download).',
+    'drive-upload':
+      'Sube el staging a Proton Drive (CLI oficial proton-drive filesystem upload).',
   }
   return map[goal]
 }

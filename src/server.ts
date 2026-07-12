@@ -29,6 +29,7 @@ import {
   buildGoalContext,
 } from './agent/index.js'
 import { AlertSystem } from './alerts/index.js'
+import { BridgeClient } from './bridge/bridge-client.js'
 import { type createLogger, type Config } from './config.js'
 import { DriveAuditor } from './drive-audit.js'
 import { DriveClient } from './drive.js'
@@ -211,6 +212,11 @@ export function buildServer(
   registerDriveTools()
   registerSuiteTool()
   registerEcosystemTools()
+
+  if (cfg.products.mail.enabled) {
+    const bridgeClient = new BridgeClient('protonmail-bridge-core', log)
+    registerBridgeTools(register, bridgeClient, log)
+  }
 
   let driveClient: DriveClient | undefined
   if (cfg.products.drive.enabled) {
@@ -1960,7 +1966,10 @@ export function buildServer(
       async ({ from, to }) => {
         const r = await driveClient.moveFiles(from, to)
         if (!r.ok)
-          return { isError: true, content: [{ type: 'text', text: r.error ?? '' }] }
+          return {
+            isError: true,
+            content: [{ type: 'text', text: r.error ?? '' }],
+          }
         return {
           content: [{ type: 'text', text: `Moved ${from} \u2192 ${to}` }],
         }
@@ -1985,7 +1994,10 @@ export function buildServer(
       async ({ from, to }) => {
         const r = await driveClient.copyFiles(from, to)
         if (!r.ok)
-          return { isError: true, content: [{ type: 'text', text: r.error ?? '' }] }
+          return {
+            isError: true,
+            content: [{ type: 'text', text: r.error ?? '' }],
+          }
         return {
           content: [{ type: 'text', text: `Copied ${from} \u2192 ${to}` }],
         }
@@ -2009,7 +2021,10 @@ export function buildServer(
       async ({ remote_path }) => {
         const r = await driveClient.mkdir(remote_path)
         if (!r.ok)
-          return { isError: true, content: [{ type: 'text', text: r.error ?? '' }] }
+          return {
+            isError: true,
+            content: [{ type: 'text', text: r.error ?? '' }],
+          }
         return {
           content: [{ type: 'text', text: `Created folder: ${remote_path}` }],
         }
@@ -2035,7 +2050,10 @@ export function buildServer(
       async ({ remote_path }) => {
         const r = await driveClient.removeFiles(remote_path)
         if (!r.ok)
-          return { isError: true, content: [{ type: 'text', text: r.error ?? '' }] }
+          return {
+            isError: true,
+            content: [{ type: 'text', text: r.error ?? '' }],
+          }
         return { content: [{ type: 'text', text: `Removed: ${remote_path}` }] }
       },
     )
@@ -2279,4 +2297,218 @@ function buildSearchCriteria(args: {
     }
   }
   return criteria
+}
+
+// ---------------------------------------------------------------------------
+// Bridge tools — 6 MCP tools for Proton Mail Bridge management
+// ---------------------------------------------------------------------------
+
+type RegisterFn = typeof McpServer.prototype.registerTool
+
+export function registerBridgeTools(
+  register: RegisterFn,
+  bridge: BridgeClient,
+  _log: ReturnType<typeof createLogger>,
+) {
+  register(
+    'proton_bridge_health',
+    {
+      title: 'Bridge health check',
+      description:
+        'Checks if Proton Mail Bridge is running, ports are listening, and IMAP auth works.',
+      inputSchema: {
+        response_format: z.enum(['markdown', 'json']).default('markdown'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ response_format }) => {
+      const h = await bridge.health()
+      if (response_format === 'json') {
+        return {
+          content: [{ type: 'text', text: JSON.stringify(h, null, 2) }],
+          structuredContent: h,
+        }
+      }
+      const lines = [
+        '# Proton Bridge Health',
+        '',
+        `- OK: ${h.ok}`,
+        `- Process running: ${h.processRunning}`,
+        `- IMAP listening: ${h.imapListening}`,
+        `- SMTP listening: ${h.smtpListening}`,
+        `- Auth OK: ${h.authOk}`,
+      ]
+      if (h.error) lines.push(`- Error: ${h.error}`)
+      return { content: [{ type: 'text', text: lines.join('\n') }] }
+    },
+  )
+
+  register(
+    'proton_bridge_status',
+    {
+      title: 'Bridge full status',
+      description:
+        'Returns combined info + health of the Bridge process in a single call.',
+      inputSchema: {
+        response_format: z.enum(['markdown', 'json']).default('markdown'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ response_format }) => {
+      const st = await bridge.status()
+      if (response_format === 'json') {
+        return {
+          content: [{ type: 'text', text: JSON.stringify(st, null, 2) }],
+          structuredContent: st,
+        }
+      }
+      const lines = [
+        '# Proton Bridge Status',
+        '',
+        `- User: ${st.user ?? '(none)'}`,
+        `- Version: ${st.version ?? 'unknown'}`,
+        `- Process running: ${st.processRunning}`,
+        `- IMAP listening: ${st.imapListening}`,
+        `- SMTP listening: ${st.smtpListening}`,
+        `- Auth OK: ${st.authOk}`,
+      ]
+      return { content: [{ type: 'text', text: lines.join('\n') }] }
+    },
+  )
+
+  register(
+    'proton_bridge_info',
+    {
+      title: 'Bridge info',
+      description:
+        'Returns Bridge version, user, and connection ports from the CLI.',
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async () => {
+      const info = await bridge.info()
+      return {
+        content: [
+          {
+            type: 'text',
+            text: [
+              '# Proton Bridge Info',
+              '',
+              `- User: ${info.user ?? '(none)'}`,
+              `- Version: ${info.version ?? 'unknown'}`,
+              `- IMAP port: ${info.imapPort ?? 'N/A'}`,
+              `- SMTP port: ${info.smtpPort ?? 'N/A'}`,
+            ].join('\n'),
+          },
+        ],
+        structuredContent: info,
+      }
+    },
+  )
+
+  register(
+    'proton_bridge_login',
+    {
+      title: 'Login to Bridge',
+      description:
+        'Performs interactive login against Proton Mail Bridge. Provide user and password; include TOTP if 2FA is required.',
+      inputSchema: {
+        user: z.string().email(),
+        password: z.string(),
+        totp: z.string().optional(),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ user, password, totp }) => {
+      const result = await bridge.login(user, password, totp)
+      return {
+        content: [
+          {
+            type: 'text',
+            text: result.ok
+              ? `Login successful: ${result.message}`
+              : `Login failed: ${result.message}${result.needs2FA ? ' (2FA required)' : ''}`,
+          },
+        ],
+        structuredContent: result,
+      }
+    },
+  )
+
+  register(
+    'proton_bridge_logout',
+    {
+      title: 'Logout from Bridge',
+      description: 'Logs out the current session from Proton Mail Bridge.',
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: true,
+      },
+    },
+    async () => {
+      const result = await bridge.logout()
+      return {
+        content: [
+          {
+            type: 'text',
+            text: result.ok ? 'Logged out' : 'Logout failed',
+          },
+        ],
+        structuredContent: result,
+      }
+    },
+  )
+
+  register(
+    'proton_bridge_accounts',
+    {
+      title: 'List Bridge accounts',
+      description:
+        'Lists all Proton accounts currently configured in Bridge with their connection state.',
+      inputSchema: {
+        response_format: z.enum(['markdown', 'json']).default('markdown'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ response_format }) => {
+      const accounts = await bridge.listAccounts()
+      if (response_format === 'json') {
+        return {
+          content: [{ type: 'text', text: JSON.stringify(accounts, null, 2) }],
+          structuredContent: { accounts },
+        }
+      }
+      const lines = ['# Proton Bridge Accounts', '']
+      if (accounts.length === 0) {
+        lines.push('No accounts configured.')
+      } else {
+        for (const a of accounts) {
+          lines.push(`- ${a.user}: ${a.state}`)
+        }
+      }
+      return { content: [{ type: 'text', text: lines.join('\n') }] }
+    },
+  )
 }

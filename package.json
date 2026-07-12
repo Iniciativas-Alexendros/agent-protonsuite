@@ -60,6 +60,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e:local": "bash scripts/e2e-greenmail.sh",
     "smoke": "bash scripts/smoke.sh",
     "agent:setup": "node dist/agent-cli.js setup",

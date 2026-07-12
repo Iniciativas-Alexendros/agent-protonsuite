@@ -266,10 +266,10 @@ beforeEach(() => {
 
 // -----------------------------------------------------------------------------
 describe('buildServer · tool registration', () => {
-  it('exposes exactly 19 proton_* tools', async () => {
+  it('exposes exactly 25 proton_* tools', async () => {
     const client = await makeClient()
     const { tools } = await client.listTools()
-    expect(tools.filter((t) => t.name.startsWith('proton_'))).toHaveLength(19)
+    expect(tools.filter((t) => t.name.startsWith('proton_'))).toHaveLength(25)
   })
 })
 

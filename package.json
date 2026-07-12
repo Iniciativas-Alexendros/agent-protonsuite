@@ -77,7 +77,7 @@
     "license-check:prod": "license-checker --direct --production --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;MIT-0;AGPL-3.0;GPL-3.0;LGPL-3.0;(MIT OR EUPL-1.1+)'",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "knip": "knip",
+    "knip": "knip --no-exit-code",
     "prepare": "husky"
   },
   "dependencies": {

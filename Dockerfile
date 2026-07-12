@@ -12,7 +12,7 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json* ./
-RUN npm install --omit=dev --no-audit --no-fund
+RUN npm install --omit=dev --ignore-scripts --no-audit --no-fund
 COPY --from=builder /app/dist ./dist
 
 # Optional: Proton Drive CLI (descargado de proton.me/support/drive-cli).

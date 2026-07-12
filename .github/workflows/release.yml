@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     tags:
-      - "v*.*.*"
+      - 'v*.*.*'
   workflow_dispatch:
 
 permissions:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   # ────────────────────────────────────────────────────────────────────
-  # semantic-release — análisis de commits → bump, changelog, tag, npm publish
+  # semantic-release — análisis de commits → bump, changelog, tag, GitHub release
   # Solo se ejecuta en push a main (no en tags ni PR).
   # ────────────────────────────────────────────────────────────────────
   semantic-release:
@@ -37,7 +37,6 @@ jobs:
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ────────────────────────────────────────────────────────────────────
   # Gate semver previo · solo aplica a tags. En push a main pasa-through.
@@ -143,7 +142,7 @@ jobs:
         if: always()
         uses: Iniciativas-Alexendros/plantillas/.github/actions/job-summary@main
         with:
-          title: "Release · ${{ github.ref_name }}"
+          title: 'Release · ${{ github.ref_name }}'
           status: ${{ job.status }}
           items: |
             trigger=info=${{ github.event_name }} · ${{ github.ref }}

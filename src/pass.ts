@@ -151,9 +151,9 @@ export class PassClient {
     const password = randomBytes(Math.ceil(length * 0.75))
       .toString('base64')
       .slice(0, length)
-    await execPass(['insert', '--multiline', path], {
+    await execPass(['insert', '-f', path], {
       env: { ...process.env, PASSWORD_STORE_DIR: this.storeDir },
-      input: password,
+      input: `${password}\n`,
     })
     return { path, length }
   }

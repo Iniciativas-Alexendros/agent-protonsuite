@@ -7,6 +7,8 @@ import { PassClient } from "../../src/pass.js";
 
 const GNUPGHOME = mkdtempSync(join(tmpdir(), "pass-e2e-gnupg-"));
 const STORE_DIR = mkdtempSync(join(tmpdir(), "pass-e2e-store-"));
+process.env.GNUPGHOME = GNUPGHOME;
+process.env.PASSWORD_STORE_DIR = STORE_DIR;
 const GPG_ID = "pass-e2e@test.local";
 
 const silentLog = { error() {}, warn() {}, info() {}, debug() {} };

@@ -31,7 +31,7 @@ async function execPass(
     let stderr = ''
     child.stdout?.on('data', (d) => (stdout += d))
     child.stderr?.on('data', (d) => (stderr += d))
-    child.on('close', (code) => {
+    child.on('exit', (code) => {
       if (code === 0) {
         resolve(stdout)
         return
@@ -151,7 +151,7 @@ export class PassClient {
     const password = randomBytes(Math.ceil(length * 0.75))
       .toString('base64')
       .slice(0, length)
-    await execPass(['insert', '-f', path], {
+    await execPass(['insert', '--multiline', '-f', path], {
       env: { ...process.env, PASSWORD_STORE_DIR: this.storeDir },
       input: `${password}\n`,
     })

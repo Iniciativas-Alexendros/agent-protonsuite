@@ -17,6 +17,7 @@
  */
 import { execFile } from 'node:child_process'
 import { randomBytes, createHash } from 'node:crypto'
+import { readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { resolve as resolvePath } from 'node:path'
 
@@ -89,17 +90,15 @@ export class PassClient {
 
   /** Lista entradas del store (solo nombres, NUNCA valores). */
   async list(filter?: string): Promise<string[]> {
-    const args = ['ls']
-    if (filter) args.push(filter)
-    const stdout = await this.exec(args, {
-      env: { ...process.env, PASSWORD_STORE_DIR: this.storeDir },
-    })
-    this.log.debug('pass list ok', { count: stdout.trim().split('\n').length })
-    return stdout
-      .trim()
-      .split('\n')
-      .map((line) => line.replace(/\.gpg$/, '').trim())
-      .filter(Boolean)
+    const entries = await readdir(this.storeDir, { recursive: true })
+    const paths = entries
+      .filter((f) => f.endsWith('.gpg'))
+      .map((f) => f.replace(/\.gpg$/, ''))
+    this.log.debug('pass list ok', { count: paths.length })
+    if (filter) {
+      return paths.filter((p) => p.includes(filter))
+    }
+    return paths
   }
 
   /**
@@ -312,7 +311,7 @@ export class PassClient {
 
   /** Valida que un path de entrada no contenga caracteres peligrosos. */
   private validatePath(path: string): void {
-    if (!SAFE_PATH_RE.test(path)) {
+    if (path.includes('..') || !SAFE_PATH_RE.test(path)) {
       throw new PassError(`Invalid entry path: ${path}`, 'INVALID_PATH')
     }
   }

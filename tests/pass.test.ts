@@ -1,4 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, it, expect, afterEach } from "vitest";
 import { PassClient } from "../src/pass.js";
 import type { PassLogger } from "../src/pass.js";
 
@@ -16,14 +19,35 @@ function mockExecPass(responses: Map<string, string>) {
   };
 }
 
+/**
+ * Crea un directorio temporal con ficheros .gpg para simular el password-store.
+ * list() lee del filesystem directamente (no usa pass CLI), así que los tests
+ * necesitan directorios reales.
+ */
+function createStore(entries: Record<string, string>) {
+  const dir = mkdtempSync(join(tmpdir(), "pass-test-"));
+  for (const path of Object.keys(entries)) {
+    const fullPath = join(dir, path + ".gpg");
+    mkdirSync(join(fullPath, ".."), { recursive: true });
+    writeFileSync(fullPath, "");
+  }
+  return dir;
+}
+
 describe("PassClient audit heuristic", () => {
+  let storeDir: string;
+
+  afterEach(() => {
+    if (storeDir) rmSync(storeDir, { recursive: true, force: true });
+  });
+
   it("marks password with length < 12 as weak regardless of charset diversity", async () => {
+    storeDir = createStore({ "test/weak": "" });
     const responses = new Map([
-      ["ls", "test/weak"],
       ["show test/weak", "aB3dEfGh"], // 8 chars, upper+lower+digit → typeCount=3
     ]);
     const client = new PassClient(
-      { storeDir: "/tmp/mock-store" },
+      { storeDir },
       silentLog,
       mockExecPass(responses),
     );
@@ -32,12 +56,12 @@ describe("PassClient audit heuristic", () => {
   });
 
   it("marks password with low charset diversity as weak even if length >= 12", async () => {
+    storeDir = createStore({ "test/lowdiv": "" });
     const responses = new Map([
-      ["ls", "test/lowdiv"],
       ["show test/lowdiv", "abcabcabcabc"], // 12 chars, solo lower → typeCount=1
     ]);
     const client = new PassClient(
-      { storeDir: "/tmp/mock-store" },
+      { storeDir },
       silentLog,
       mockExecPass(responses),
     );
@@ -46,12 +70,12 @@ describe("PassClient audit heuristic", () => {
   });
 
   it("does NOT mark password with length >= 12 AND typeCount >= 2 as weak", async () => {
+    storeDir = createStore({ "test/strong": "" });
     const responses = new Map([
-      ["ls", "test/strong"],
       ["show test/strong", "aB3dEfGhIjKl"], // 12 chars, upper+lower+digit → typeCount=3
     ]);
     const client = new PassClient(
-      { storeDir: "/tmp/mock-store" },
+      { storeDir },
       silentLog,
       mockExecPass(responses),
     );
@@ -60,13 +84,13 @@ describe("PassClient audit heuristic", () => {
   });
 
   it("detects duplicate passwords", async () => {
+    storeDir = createStore({ "test/one": "", "test/two": "" });
     const responses = new Map([
-      ["ls", "test/one\ntest/two"],
       ["show test/one", "SamePassword123!"],
       ["show test/two", "SamePassword123!"],
     ]);
     const client = new PassClient(
-      { storeDir: "/tmp/mock-store" },
+      { storeDir },
       silentLog,
       mockExecPass(responses),
     );
@@ -77,12 +101,12 @@ describe("PassClient audit heuristic", () => {
   });
 
   it("skips entries that fail to decrypt", async () => {
+    storeDir = createStore({ "test/good": "", "test/broken": "" });
     const responses = new Map([
-      ["ls", "test/good\ntest/broken"],
       ["show test/good", "StrongP4ssword!"],
     ]);
     const client = new PassClient(
-      { storeDir: "/tmp/mock-store" },
+      { storeDir },
       silentLog,
       mockExecPass(responses),
     );

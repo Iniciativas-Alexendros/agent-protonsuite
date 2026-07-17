@@ -17,8 +17,9 @@
  */
 import { execFile } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
+import { readdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { resolve as resolvePath } from 'node:path'
+import { resolve as resolvePath, relative, sep } from 'node:path'
 
 async function execPass(
   args: string[],
@@ -46,6 +47,23 @@ async function execPass(
 }
 
 const SAFE_PATH_RE = /^[a-zA-Z0-9._/-]+$/
+
+function listPassEntries(storeDir: string): string[] {
+  const entries: string[] = []
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const full = resolvePath(dir, name)
+      const st = statSync(full)
+      if (st.isDirectory()) {
+        walk(full)
+      } else if (name.endsWith('.gpg')) {
+        entries.push(relative(storeDir, full).replace(/\.gpg$/, '').split(sep).join('/'))
+      }
+    }
+  }
+  walk(storeDir)
+  return entries.sort()
+}
 
 export interface PassLogger {
   debug: (m: string, e?: unknown) => void
@@ -85,18 +103,13 @@ export class PassClient {
   // ---------------------------------------------------------------------------
 
   /** Lista entradas del store (solo nombres, NUNCA valores). */
-  async list(filter?: string): Promise<string[]> {
-    const args = ['ls']
-    if (filter) args.push(filter)
-    const stdout = await execPass(args, {
-      env: { ...process.env, PASSWORD_STORE_DIR: this.storeDir },
-    })
-    this.log.debug('pass list ok', { count: stdout.trim().split('\n').length })
-    return stdout
-      .trim()
-      .split('\n')
-      .map((line) => line.replace(/\.gpg$/, '').trim())
-      .filter(Boolean)
+  list(filter?: string): Promise<string[]> {
+    const entries = listPassEntries(this.storeDir)
+    const result = filter
+      ? entries.filter((e) => e.includes(filter))
+      : entries
+    this.log.debug('pass list ok', { count: result.length })
+    return Promise.resolve(result)
   }
 
   /**
@@ -306,7 +319,7 @@ export class PassClient {
 
   /** Valida que un path de entrada no contenga caracteres peligrosos. */
   private validatePath(path: string): void {
-    if (!SAFE_PATH_RE.test(path)) {
+    if (!SAFE_PATH_RE.test(path) || path.includes('..')) {
       throw new PassError(`Invalid entry path: ${path}`, 'INVALID_PATH')
     }
   }

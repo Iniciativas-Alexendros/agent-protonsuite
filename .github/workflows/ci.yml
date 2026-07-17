@@ -30,7 +30,6 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ matrix.node }}
-          cache: npm
 
       - name: Install
         run: npm ci --no-audit --no-fund
@@ -60,7 +59,6 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
-          cache: npm
       - run: npm ci --no-audit --no-fund
       - name: Critical vulnerabilities only
         run: npm audit --audit-level=critical
@@ -84,7 +82,6 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
-          cache: npm
       - run: npm ci --no-audit --no-fund
       - name: Wait for GreenMail IMAP (127.0.0.1:3143)
         run: |
@@ -118,7 +115,6 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
-          cache: npm
       - run: npm ci --no-audit --no-fund
       - name: Install pass + gnupg (E2E)
         run: |

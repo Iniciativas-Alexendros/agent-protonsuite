@@ -1,0 +1,242 @@
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { z } from 'zod'
+import type { createLogger, Config } from '../config.js'
+import { PassClient } from '../pass.js'
+
+type Logger = ReturnType<typeof createLogger>
+
+export function registerPassTools(
+  server: McpServer,
+  deps: { cfg: Config; log: Logger },
+) {
+  const { cfg, log } = deps
+  if (!cfg.products.pass.enabled) return
+  const passClient = new PassClient({ storeDir: cfg.products.pass.storeDir }, log)
+
+  server.registerTool(
+    'proton_pass_list',
+    {
+      title: 'List Proton Pass entries',
+      description:
+        'Lists entries in the Proton Pass password store. Returns entry names/paths only — NEVER secret values.',
+      inputSchema: {
+        filter: z.string().optional(),
+        response_format: z.enum(['markdown', 'json']).default('json'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ filter, response_format }) => {
+      try {
+        const entries = await passClient.list(filter)
+        if (response_format === 'json') {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ entries, count: entries.length }),
+              },
+            ],
+          }
+        }
+        return {
+          content: [
+            {
+              type: 'text',
+              text:
+                entries.length === 0
+                  ? 'No entries found.'
+                  : `**${entries.length} entries:**\n${entries.map((e) => `- ${e}`).join('\n')}`,
+            },
+          ],
+        }
+      } catch (err) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: String(err) }],
+        }
+      }
+    },
+  )
+
+  server.registerTool(
+    'proton_pass_get',
+    {
+      title: 'Resolve a secret from Proton Pass',
+      description:
+        'Resolves a secret from Proton Pass. Returns {found:true} without the secret value.',
+      inputSchema: {
+        path: z.string().describe('Entry path in the password store'),
+      },
+      annotations: { openWorldHint: true },
+    },
+    async ({ path }) => {
+      try {
+        await passClient.get(path)
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ found: true, path, injected: true }),
+            },
+          ],
+        }
+      } catch (err) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                found: false,
+                path,
+                error: String(err),
+              }),
+            },
+          ],
+        }
+      }
+    },
+  )
+
+  server.registerTool(
+    'proton_pass_generate',
+    {
+      title: 'Generate a secure password',
+      description:
+        'Generates a strong random password and saves it to the Proton Pass store.',
+      inputSchema: {
+        path: z.string(),
+        length: z.number().int().min(12).max(128).default(24),
+      },
+      annotations: { destructiveHint: true, openWorldHint: true },
+    },
+    async ({ path, length }) => {
+      try {
+        const result = await passClient.generate(path, length)
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ generated: true, ...result }),
+            },
+          ],
+        }
+      } catch (err) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: String(err) }],
+        }
+      }
+    },
+  )
+
+  server.registerTool(
+    'proton_pass_health',
+    {
+      title: 'Check Proton Pass store health',
+      description: 'Verifies the Proton Pass password store is accessible.',
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async () => {
+      const r = await passClient.health()
+      return { content: [{ type: 'text', text: JSON.stringify(r) }] }
+    },
+  )
+
+  server.registerTool(
+    'proton_pass_insert',
+    {
+      title: 'Insert a secret into Proton Pass store',
+      description:
+        'Stores a new entry. Never logs nor returns the secret value.',
+      inputSchema: {
+        path: z.string().describe('Entry path, e.g. proton/bridge/api-key'),
+        secret: z.string().describe('The secret value to store.'),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ path, secret }) => {
+      await passClient.insert(path, secret)
+      return { content: [{ type: 'text', text: `Inserted entry: ${path}` }] }
+    },
+  )
+
+  server.registerTool(
+    'proton_pass_remove',
+    {
+      title: 'Remove a secret from Proton Pass store',
+      description: 'Permanently removes an entry from the local pass-store.',
+      inputSchema: { path: z.string().describe('Entry path to remove') },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ path }) => {
+      await passClient.remove(path)
+      return { content: [{ type: 'text', text: `Removed entry: ${path}` }] }
+    },
+  )
+
+  server.registerTool(
+    'proton_pass_move',
+    {
+      title: 'Move/rename a secret in Proton Pass store',
+      description: 'Moves or renames an entry in the local pass-store.',
+      inputSchema: {
+        from: z.string().describe('Current entry path'),
+        to: z.string().describe('New entry path'),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ from, to }) => {
+      await passClient.move(from, to)
+      return {
+        content: [{ type: 'text', text: `Moved ${from} \u2192 ${to}` }],
+      }
+    },
+  )
+
+  server.registerTool(
+    'proton_pass_copy',
+    {
+      title: 'Copy a secret in Proton Pass store',
+      description: 'Copies an entry in the local pass-store.',
+      inputSchema: {
+        src: z.string().describe('Source entry path'),
+        dst: z.string().describe('Destination entry path'),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ src, dst }) => {
+      await passClient.copy(src, dst)
+      return {
+        content: [{ type: 'text', text: `Copied ${src} \u2192 ${dst}` }],
+      }
+    },
+  )
+}

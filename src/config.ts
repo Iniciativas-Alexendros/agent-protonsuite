@@ -1,6 +1,10 @@
 /**
  * Configuración y logger — Proton Suite Agent.
  *
+ * **Fachada delgada** que compone los esquemas de producto (extraídos a
+ * src/config/*.ts) en un único ConfigSchema y exporta loadConfig /
+ * createLogger / resolveBridgeConfig.
+ *
  * Filosofía:
  *  - Validación única al arranque con Zod. Si falta algo, el proceso muere
  *    con un error descriptible en vez de explotar en runtime a mitad de una
@@ -14,64 +18,36 @@
  *  - Schema multi-producto: cada producto (mail, pass, calendar, drive) tiene
  *    su bloque de configuración con `enabled` como gate. Los productos no
  *    configurados no se inicializan y sus tools no se registran.
+ *
+ * **Re-exports from sub-modules:**
+ *  - DriveConfigSchema, DriveConfig, parseDriveConfig
+ *  - MailBridgeSchema, BridgeConfig, ResolvedBridgeConfig, parseBridgeConfig
+ *  - PassConfigSchema, PassConfig, parsePassConfig
+ *  - CalendarConfigSchema, CalendarConfig, parseCalendarConfig
  */
 import { z } from 'zod'
 
-// ---------------------------------------------------------------------------
-// Drive schema — proton-drive CLI backend, configurable por env vars.
-// ---------------------------------------------------------------------------
-export const DriveConfigSchema = z.object({
-  enabled: z.boolean().default(false),
-  cliBin: z.string().default('proton-drive'),
-  stagingDir: z.string().default('~/.proton-drive/staging'),
-  obsoleteExtensions: z
-    .array(z.string())
-    .default(['.doc', '.ppt', '.xls', '.bmp']),
-})
-
-export type DriveConfig = z.infer<typeof DriveConfigSchema>
+// Sub-módulos de producto
+import { MailBridgeSchema, parseBridgeConfig } from './config/bridge.js'
+import type { BridgeConfig, ResolvedBridgeConfig } from './config/bridge.js'
+import { CalendarConfigSchema, parseCalendarConfig } from './config/calendar.js'
+import type { CalendarConfig } from './config/calendar.js'
+import { DriveConfigSchema, parseDriveConfig } from './config/drive.js'
+import type { DriveConfig } from './config/drive.js'
+import { PassConfigSchema, parsePassConfig } from './config/pass.js'
+import type { PassConfig } from './config/pass.js'
 
 // ---------------------------------------------------------------------------
-// Mail Bridge schema — compartido entre ConfigSchema y el runtime para
-// extenderlo con el passwordResolver (inyectado por buildServer, no por env).
+// ConfigSchema — composición de todos los productos + infraestructura.
 // ---------------------------------------------------------------------------
-export const MailBridgeSchema = z
-  .object({
-    user: z
-      .string()
-      .min(1, 'PROTON_BRIDGE_USER is required when mail is enabled'),
-    pass: z.string().default(''),
-    // Path en el password store de Pass desde el que resolver la contraseña
-    // JIT. Si se define y PROTON_PASS_ENABLED=true, `pass` puede estar vacío.
-    passPath: z.string().optional(),
-    host: z.string().default('127.0.0.1'),
-    imapPort: z.number().int().positive().default(1143),
-    smtpPort: z.number().int().positive().default(1025),
-    from: z.email('PROTON_MAIL_FROM must be a valid email'),
-    tlsInsecure: z.boolean().default(true),
-    smtpSecurity: z.enum(['starttls', 'implicit', 'plain']).default('starttls'),
-  })
-  .refine((data) => data.pass.length > 0 || !!data.passPath, {
-    message:
-      'PROTON_BRIDGE_PASS or PROTON_BRIDGE_PASS_PATH is required when mail is enabled',
-  })
-
 const ConfigSchema = z.object({
   products: z.object({
     mail: z.object({
       enabled: z.boolean().default(true),
       bridge: MailBridgeSchema,
     }),
-    pass: z.object({
-      enabled: z.boolean().default(false),
-      storeDir: z.string().default('~/.password-store'),
-      // Path en el store del que resolver la contraseña de Bridge si
-      // PROTON_BRIDGE_PASS no está configurada directamente.
-      bridgePath: z.string().optional(),
-    }),
-    calendar: z.object({
-      enabled: z.boolean().default(false),
-    }),
+    pass: PassConfigSchema,
+    calendar: CalendarConfigSchema,
     drive: DriveConfigSchema,
   }),
   transport: z.object({
@@ -115,11 +91,33 @@ const ConfigSchema = z.object({
 })
 
 export type Config = z.infer<typeof ConfigSchema>
-export type BridgeConfig = z.infer<typeof MailBridgeSchema>
-export type ResolvedBridgeConfig = BridgeConfig & {
-  passwordResolver: () => Promise<string>
+
+// ---------------------------------------------------------------------------
+// Re-exports de tipos y schemas desde submódulos
+// ---------------------------------------------------------------------------
+export {
+  MailBridgeSchema,
+  DriveConfigSchema,
+  PassConfigSchema,
+  CalendarConfigSchema,
+  parseBridgeConfig,
+  parseDriveConfig,
+  parsePassConfig,
+  parseCalendarConfig,
+}
+export type {
+  BridgeConfig,
+  ResolvedBridgeConfig,
+  DriveConfig,
+  PassConfig,
+  CalendarConfig,
 }
 
+// ---------------------------------------------------------------------------
+// resolveBridgeConfig — resuelve BridgeConfig con password JIT.
+// Permanece aquí porque depende del tipo Config, que se define en este
+// mismo módulo (evita dependencia circular con config/bridge.ts).
+// ---------------------------------------------------------------------------
 /**
  * Resuelve el BridgeConfig a un ResolvedBridgeConfig con JIT password.
  * Si Pass está habilitado y hay passPath, usa PassClient. Si no, fallback a env var.
@@ -183,47 +181,15 @@ function readCsv(value: string | undefined): string[] {
 // Parsers por bloque
 // ---------------------------------------------------------------------------
 
-function parseBridgeConfig(env: NodeJS.ProcessEnv) {
-  return {
-    user: (env.PROTON_BRIDGE_USER ?? '').trim(),
-    pass: (env.PROTON_BRIDGE_PASS ?? '').trim(),
-    passPath: env.PROTON_BRIDGE_PASS_PATH || undefined,
-    host: env.PROTON_BRIDGE_HOST ?? '127.0.0.1',
-    imapPort: readInt(env.PROTON_BRIDGE_IMAP_PORT, 1143),
-    smtpPort: readInt(env.PROTON_BRIDGE_SMTP_PORT, 1025),
-    from: (env.PROTON_MAIL_FROM ?? env.PROTON_BRIDGE_USER ?? '').trim(),
-    tlsInsecure: readBool(env.PROTON_BRIDGE_TLS_INSECURE, true),
-    smtpSecurity: (env.PROTON_BRIDGE_SMTP_SECURITY ?? 'starttls') as
-      'starttls' | 'implicit' | 'plain',
-  }
-}
-
 function parseProductsConfig(env: NodeJS.ProcessEnv) {
-  // Drive is considered "enabled" when the CLI binary is reachable.
-  // We don't gate on auth — the CLI handles auth on first `proton-drive auth login`.
-  const obsoleteExt =
-    readCsv(env.DRIVE_OBSOLETE_EXTENSIONS).length > 0
-      ? readCsv(env.DRIVE_OBSOLETE_EXTENSIONS)
-      : ['.doc', '.ppt', '.xls', '.bmp']
   return {
     mail: {
       enabled: readBool(env.PROTON_MAIL_ENABLED, true),
       bridge: parseBridgeConfig(env),
     },
-    pass: {
-      enabled: readBool(env.PROTON_PASS_ENABLED, false),
-      storeDir: env.PROTON_PASS_STORE_DIR ?? '~/.password-store',
-      bridgePath: env.PROTON_PASS_BRIDGE_PATH || undefined,
-    },
-    calendar: {
-      enabled: readBool(env.PROTON_CALENDAR_ENABLED, false),
-    },
-    drive: {
-      enabled: readBool(env.DRIVE_ENABLED, true),
-      cliBin: env.DRIVE_CLI_BIN ?? 'proton-drive',
-      stagingDir: env.DRIVE_STAGING_DIR ?? '~/.proton-drive/staging',
-      obsoleteExtensions: obsoleteExt,
-    },
+    pass: parsePassConfig(env),
+    calendar: parseCalendarConfig(env),
+    drive: parseDriveConfig(env),
   }
 }
 

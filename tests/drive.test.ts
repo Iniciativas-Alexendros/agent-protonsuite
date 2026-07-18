@@ -1,262 +1,246 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+/**
+ * Tests para src/drive.ts (60.17% → objetivo ~95%).
+ *
+ * DriveClient.execCli usa callback API de execFile:
+ *   execFile(bin, args, opts, (err, stdout, stderr) => {...})
+ * El mock llama al callback con setNextResult / setNextError.
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DriveClient } from '../src/drive.js'
 
-// Mock del módulo `node:child_process` para sustituir execFile/execFileSync por
-// stubs controlables que devuelven respuestas pre-armadas según subcomando.
+const hoisted = vi.hoisted(() => {
+  const silentLog = { debug: vi.fn(), info: vi.fn(), error: vi.fn() }
+  let nextStdout: string | undefined
+  let nextError: Error | undefined
+
+  const mockExecFile = vi.fn((_bin: string, _args: string[], _opts: unknown, cb: (err: Error | null, stdout: string, stderr: string) => void) => {
+    if (nextError) {
+      const e = nextError
+      nextError = undefined
+      setImmediate(() => { cb(e, '', ''); })
+    } else {
+      const out = nextStdout ?? ''
+      nextStdout = undefined
+      setImmediate(() => { cb(null, out, ''); })
+    }
+    return { stdout: { on: vi.fn() }, stderr: { on: vi.fn() }, stdin: { write: vi.fn(), end: vi.fn() }, on: vi.fn() }
+  })
+
+  const mockExecFileSync = vi.fn()
+  const mockExistsSync = vi.fn()
+  const mockMkdirSync = vi.fn()
+  const mockReaddirSync = vi.fn()
+  const mockStatSync = vi.fn()
+
+  return {
+    silentLog, mockExecFile, mockExecFileSync, mockExistsSync, mockMkdirSync, mockReaddirSync, mockStatSync,
+    setNextResult: (stdout: string) => { nextStdout = stdout },
+    setNextError: (err: Error) => { nextError = err },
+  }
+})
+
 vi.mock('node:child_process', () => ({
-  execFile: (
-    _cmd: unknown,
-    args: unknown,
-    _opts: unknown,
-    cb: (err: Error | null, stdout: string, stderr: string) => void,
-  ) => {
-    const argv = Array.isArray(args) ? (args as string[]) : []
-    const dispatch = mockStore.dispatch.get(argv[0] ?? '')
-    if (!dispatch) {
-      cb(
-        new Error(`unmocked proton-drive subcommand: ${argv.join(' ')}`),
-        '',
-        '',
-      )
-      return
-    }
-    dispatch(cb, argv)
-  },
-  execFileSync: (_cmd: unknown, args: unknown, _opts: unknown) => {
-    if (Array.isArray(args) && args[0] === '--version') {
-      return 'proton-drive 1.0.0 (mocked)'
-    }
-    throw new Error('unmocked execFileSync')
-  },
+  execFile: hoisted.mockExecFile,
+  execFileSync: hoisted.mockExecFileSync,
+}))
+vi.mock('node:fs', () => ({
+  existsSync: hoisted.mockExistsSync,
+  mkdirSync: hoisted.mockMkdirSync,
+  readdirSync: hoisted.mockReaddirSync,
+  statSync: hoisted.mockStatSync,
 }))
 
-type Dispatch = (
-  cb: (err: Error | null, stdout: string, stderr: string) => void,
-  argv: string[],
-) => void
-const mockStore = {
-  authResult: true as boolean,
-  dispatch: new Map<string, Dispatch>(),
+beforeEach(() => { vi.clearAllMocks() })
+
+function makeClient() {
+  return new DriveClient(
+    { cliBin: '/usr/bin/proton-drive', stagingDir: '/tmp/staging', obsoleteExtensions: ['.doc', '.xls'] },
+    hoisted.silentLog,
+  )
 }
 
-function mockAuthSucceeds() {
-  mockStore.authResult = true
-  mockStore.dispatch.set('auth', (_cb, _argv) => {
-    _cb(null, 'authenticated', '')
-  })
-}
-function mockAuthFails() {
-  mockStore.authResult = false
-  mockStore.dispatch.set('auth', (_cb, _argv) => {
-    _cb(new Error('not authenticated'), '', 'no auth')
-  })
-}
-function mockListSucceeds(json: unknown) {
-  mockStore.dispatch.set('filesystem', (cb, argv) => {
-    if (argv[1] === 'list') {
-      cb(null, JSON.stringify(json), '')
-      return
-    }
-    if (argv[1] === 'download' || argv[1] === 'upload') {
-      cb(null, '', '')
-      return
-    }
-    cb(new Error(`unexpected fs subcommand: ${argv.join(' ')}`), '', '')
-  })
-}
-function mockSharingSucceeds() {
-  mockStore.dispatch.set('sharing', (cb, _argv) => {
-    cb(null, '', '')
-  })
-}
-function mockAllFail(msg: string) {
-  mockStore.dispatch.clear()
-  const fail = (
-    cb: (err: Error | null, stdout: string, stderr: string) => void,
-  ) => {
-    cb(new Error(msg), '', msg)
-  }
-  mockStore.dispatch.set('auth', fail)
-  mockStore.dispatch.set('filesystem', fail)
-  mockStore.dispatch.set('sharing', fail)
-}
-
-beforeEach(() => {
-  mockStore.dispatch = new Map<string, Dispatch>()
-})
-afterEach(() => {
-  mockStore.dispatch.clear()
-})
-
-const silentLog = {
-  debug: () => {},
-  info: () => {},
-  error: () => {},
-}
-
-describe('DriveClient — stagingDir', () => {
-  it('resuelve stagingDir absoluto', () => {
-    const dc = new DriveClient(
-      {
-        cliBin: 'proton-drive',
-        stagingDir: '/tmp/test-drive',
-        obsoleteExtensions: [],
-      },
-      silentLog,
-    )
-    expect(dc.stagingDir).toBe('/tmp/test-drive')
+describe('DriveClient', () => {
+  describe('stagingDir', () => {
+    it('expande ~ al HOME', () => {
+      const orig = process.env.HOME
+      process.env.HOME = '/home/user'
+      const c = new DriveClient({ cliBin: 'pd', stagingDir: '~/drive', obsoleteExtensions: [] }, hoisted.silentLog)
+      expect(c.stagingDir).toBe('/home/user/drive')
+      process.env.HOME = orig
+    })
   })
 
-  it('expande ~ en stagingDir', () => {
-    const dc = new DriveClient(
-      {
-        cliBin: 'proton-drive',
-        stagingDir: '~/test-drive',
-        obsoleteExtensions: [],
-      },
-      silentLog,
-    )
-    expect(dc.stagingDir).toBe(`${process.env.HOME}/test-drive`)
-  })
-})
-
-describe('DriveClient — checkDeps', () => {
-  it('reporta OK cuando el binario responde a --version', () => {
-    const dc = new DriveClient(
-      { cliBin: 'proton-drive', stagingDir: '/tmp/d', obsoleteExtensions: [] },
-      silentLog,
-    )
-    const r = dc.checkDeps()
-    expect(r.ok).toBe(true)
-    expect(r.version).toBe('proton-drive 1.0.0 (mocked)')
-  })
-})
-
-describe('DriveClient — listFiles', () => {
-  it('parsea JSON del CLI a DriveListEntry[]', async () => {
-    mockAuthSucceeds()
-    mockListSucceeds([
-      { name: 'doc.md', path: '/my-files/doc.md', size: 1024, type: 'file' },
-      { name: 'images', path: '/my-files/images', type: 'folder' },
-    ])
-    const dc = new DriveClient(
-      { cliBin: 'proton-drive', stagingDir: '/tmp/d', obsoleteExtensions: [] },
-      silentLog,
-    )
-    const r = await dc.listFiles('/my-files')
-    expect(r.ok).toBe(true)
-    expect(r.files).toHaveLength(2)
-    expect(r.files[0]!.name).toBe('doc.md')
-    expect(r.files[1]!.type).toBe('folder')
+  describe('checkDeps', () => {
+    it('devuelve ok=true con version', () => {
+      hoisted.mockExecFileSync.mockReturnValue('proton-drive 1.0.0\n')
+      const r = makeClient().checkDeps()
+      expect(r.ok).toBe(true)
+      expect(r.version).toBe('proton-drive 1.0.0')
+    })
+    it('devuelve ok=false cuando lanza', () => {
+      hoisted.mockExecFileSync.mockImplementation(() => { throw new Error('ENOENT') })
+      const r = makeClient().checkDeps()
+      expect(r.ok).toBe(false)
+      expect(r.error).toContain('proton-drive not found')
+    })
   })
 
-  it('acepta payload envuelto en `files`', async () => {
-    mockAuthSucceeds()
-    mockListSucceeds({ files: [{ name: 'a.txt' }, { name: 'b.txt' }] })
-    const dc = new DriveClient(
-      { cliBin: 'proton-drive', stagingDir: '/tmp/d', obsoleteExtensions: [] },
-      silentLog,
-    )
-    const r = await dc.listFiles('/my-files')
-    expect(r.ok).toBe(true)
-    expect(r.files).toHaveLength(2)
+  describe('execCli', () => {
+    it('resuelve con stdout', async () => {
+      hoisted.setNextResult('1.0.0\n')
+      const r = await makeClient().execCli(['--version'])
+      expect(r.stdout).toBe('1.0.0\n')
+    })
+    it('rechaza con error', async () => {
+      hoisted.setNextError(new Error('EPERM'))
+      await expect(makeClient().execCli(['bad'])).rejects.toThrow('proton-drive error')
+    })
   })
 
-  it('devuelve error si el CLI falla', async () => {
-    mockAllFail('not authenticated')
-    const dc = new DriveClient(
-      { cliBin: 'proton-drive', stagingDir: '/tmp/d', obsoleteExtensions: [] },
-      silentLog,
-    )
-    const r = await dc.listFiles('/my-files')
-    expect(r.ok).toBe(false)
-    expect(r.error).toContain('not authenticated')
-    expect(r.files).toEqual([])
-  })
-})
-
-describe('DriveClient — download / upload / share', () => {
-  it('download devuelve ok cuando el CLI aprueba', async () => {
-    mockAuthSucceeds()
-    mockListSucceeds([])
-    const dc = new DriveClient(
-      { cliBin: 'proton-drive', stagingDir: '/tmp/d', obsoleteExtensions: [] },
-      silentLog,
-    )
-    const r = await dc.download('/my-files')
-    expect(r.ok).toBe(true)
-    expect(r.localPath).toBe('/tmp/d')
-    expect(r.remotePath).toBe('/my-files')
-  })
-
-  it('upload devuelve ok cuando el CLI aprueba', async () => {
-    mockAuthSucceeds()
-    mockListSucceeds([])
-    const dc = new DriveClient(
-      { cliBin: 'proton-drive', stagingDir: '/tmp/d', obsoleteExtensions: [] },
-      silentLog,
-    )
-    const r = await dc.upload()
-    expect(r.ok).toBe(true)
-    expect(r.localPath).toBe('/tmp/d')
-    expect(r.remotePath).toBe('/my-files')
+  describe('listFiles', () => {
+    it('parsea JSON array de stdout', async () => {
+      hoisted.setNextResult(JSON.stringify([{ name: 'a.txt', size: 100 }, { name: 'b.txt' }]))
+      const r = await makeClient().listFiles('/path')
+      expect(r.ok).toBe(true)
+      expect(r.files).toHaveLength(2)
+    })
+    it('parsea objeto con key "files"', async () => {
+      hoisted.setNextResult(JSON.stringify({ files: [{ name: 'x.txt' }] }))
+      const r = await makeClient().listFiles('/path')
+      expect(r.ok).toBe(true)
+      expect(r.files).toHaveLength(1)
+    })
+    it('parsea objeto con key "entries"', async () => {
+      hoisted.setNextResult(JSON.stringify({ entries: [{ name: 'y.txt' }] }))
+      const r = await makeClient().listFiles('/path')
+      expect(r.ok).toBe(true)
+      expect(r.files).toHaveLength(1)
+    })
+    it('devuelve vacío para formato inesperado', async () => {
+      hoisted.setNextResult(JSON.stringify({ unexpected: true }))
+      const r = await makeClient().listFiles('/path')
+      expect(r.ok).toBe(true)
+      expect(r.files).toEqual([])
+    })
+    it('devuelve ok=false cuando execCli lanza', async () => {
+      hoisted.setNextError(new Error('timeout'))
+      const r = await makeClient().listFiles('/bad')
+      expect(r.ok).toBe(false)
+      expect(r.error).toBeTruthy()
+    })
   })
 
-  it('share devuelve ok cuando el CLI aprueba', async () => {
-    mockAuthSucceeds()
-    mockSharingSucceeds()
-    const dc = new DriveClient(
-      { cliBin: 'proton-drive', stagingDir: '/tmp/d', obsoleteExtensions: [] },
-      silentLog,
-    )
-    const r = await dc.share('/my-files/Documents', 'friend@proton.me')
-    expect(r.ok).toBe(true)
-    expect(r.remotePath).toBe('/my-files/Documents')
-    expect(r.userEmail).toBe('friend@proton.me')
+  describe('download', () => {
+    it('descarga a staging por defecto', async () => {
+      hoisted.mockExistsSync.mockReturnValue(true)
+      hoisted.setNextResult('')
+      const r = await makeClient().download('/remote')
+      expect(r.ok).toBe(true)
+      expect(r.localPath).toBe('/tmp/staging')
+    })
+    it('crea staging dir si no existe', async () => {
+      hoisted.mockExistsSync.mockReturnValue(false)
+      hoisted.setNextResult('')
+      const r = await makeClient().download('/remote', '/custom')
+      expect(r.ok).toBe(true)
+      expect(hoisted.mockMkdirSync).toHaveBeenCalledWith('/custom', { recursive: true })
+    })
+    it('devuelve error cuando falla', async () => {
+      hoisted.mockExistsSync.mockReturnValue(true)
+      hoisted.setNextError(new Error('download failed'))
+      const r = await makeClient().download('/bad')
+      expect(r.ok).toBe(false)
+      expect(r.error).toBeTruthy()
+    })
   })
 
-  it('propaga error de la CLI', async () => {
-    mockAllFail('rate limited')
-    const dc = new DriveClient(
-      { cliBin: 'proton-drive', stagingDir: '/tmp/d', obsoleteExtensions: [] },
-      silentLog,
-    )
-    const r = await dc.share('/my-files/x', 'a@b.com')
-    expect(r.ok).toBe(false)
-    expect(r.error).toContain('rate limited')
-  })
-})
-
-describe('DriveClient — status', () => {
-  it('indica autenticado=false cuando auth falla', async () => {
-    mockAuthFails()
-    const dc = new DriveClient(
-      {
-        cliBin: 'proton-drive',
-        stagingDir: '/tmp/none',
-        obsoleteExtensions: [],
-      },
-      silentLog,
-    )
-    const st = await dc.status()
-    expect(st.authenticated).toBe(false)
-    expect(st.configured).toBe(true)
-    expect(st.cliPath).toBe('proton-drive')
+  describe('upload', () => {
+    it('sube a /my-files por defecto', async () => {
+      hoisted.setNextResult('')
+      const r = await makeClient().upload()
+      expect(r.ok).toBe(true)
+      expect(r.remotePath).toBe('/my-files')
+    })
+    it('devuelve error cuando falla', async () => {
+      hoisted.setNextError(new Error('upload failed'))
+      const r = await makeClient().upload()
+      expect(r.ok).toBe(false)
+    })
   })
 
-  it('indica autenticado=true cuando auth responde', async () => {
-    mockAuthSucceeds()
-    const dc = new DriveClient(
-      {
-        cliBin: 'proton-drive',
-        stagingDir: '/tmp/none',
-        obsoleteExtensions: [],
-      },
-      silentLog,
-    )
-    const st = await dc.status()
-    expect(st.authenticated).toBe(true)
-    expect(st.stagingExists).toBe(false)
-    expect(st.stagingFiles).toBeUndefined()
+  describe('share', () => {
+    it('invita usuario y devuelve ok', async () => {
+      hoisted.setNextResult('')
+      const r = await makeClient().share('/path', 'user@test.com')
+      expect(r.ok).toBe(true)
+      expect(r.userEmail).toBe('user@test.com')
+    })
+    it('devuelve error cuando falla', async () => {
+      hoisted.setNextError(new Error('share failed'))
+      const r = await makeClient().share('/path', 'u@t.com')
+      expect(r.ok).toBe(false)
+    })
+  })
+
+  describe('status', () => {
+    it('staging existente con file count y auth ok', async () => {
+      hoisted.mockExistsSync.mockReturnValue(true)
+      hoisted.mockReaddirSync.mockImplementation((dir: string) => {
+        if (dir === '/tmp/staging') return ['f1.txt', 'sub']
+        if (dir === '/tmp/staging/sub') return ['f2.txt']
+        return []
+      })
+      hoisted.mockStatSync.mockImplementation((p: string) => ({
+        isDirectory: () => p.endsWith('/sub'),
+        size: 100,
+      }))
+      hoisted.setNextResult('')
+      const r = await makeClient().status()
+      expect(r.stagingExists).toBe(true)
+      expect(r.stagingFiles).toBe(2)
+      expect(r.authenticated).toBe(true)
+      expect(r.ok).toBe(true)
+    })
+    it('authenticated=false cuando auth falla', async () => {
+      hoisted.mockExistsSync.mockReturnValue(false)
+      hoisted.setNextError(new Error('auth failed'))
+      const r = await makeClient().status()
+      expect(r.authenticated).toBe(false)
+      expect(r.stagingExists).toBe(false)
+    })
+  })
+
+  describe('moveFiles', () => {
+    it('mueve y devuelve ok', async () => {
+      hoisted.setNextResult('')
+      const r = await makeClient().moveFiles('/a', '/b')
+      expect(r.ok).toBe(true)
+    })
+    it('error cuando falla', async () => {
+      hoisted.setNextError(new Error('move failed'))
+      const r = await makeClient().moveFiles('/a', '/b')
+      expect(r.ok).toBe(false)
+    })
+  })
+
+  describe('copyFiles', () => {
+    it('copia y devuelve ok', async () => {
+      hoisted.setNextResult('')
+      expect((await makeClient().copyFiles('/s', '/d')).ok).toBe(true)
+    })
+  })
+
+  describe('mkdir', () => {
+    it('crea directorio y devuelve ok', async () => {
+      hoisted.setNextResult('')
+      expect((await makeClient().mkdir('/new')).ok).toBe(true)
+    })
+  })
+
+  describe('removeFiles', () => {
+    it('elimina y devuelve ok', async () => {
+      hoisted.setNextResult('')
+      expect((await makeClient().removeFiles('/old')).ok).toBe(true)
+    })
   })
 })

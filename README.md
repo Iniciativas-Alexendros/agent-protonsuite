@@ -3,7 +3,7 @@
 [![CI](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/ci.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/ci.yml)
 [![Quality](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/quality.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/quality.yml)
 [![CodeQL](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/codeql.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/codeql.yml)
-[![Coverage](https://img.shields.io/badge/coverage-vitest%20v8-blue)](./vitest.config.ts)
+[![Coverage](https://img.shields.io/badge/coverage-90.67%25-yellowgreen?logo=vitest&logoColor=white)](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/quality.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen.svg)](./package.json)
 
@@ -164,8 +164,8 @@ Ver [`scripts/install.sh`](./scripts/install.sh) para la instalación interactiv
 
 ```bash
 npm run typecheck   # TypeScript strict
-npm test            # 230 tests (Vitest)
-npm run coverage    # Coverage (v8)
+npm test            # 640 tests (Vitest)
+npm run coverage    # Coverage (v8 — 90.67% statements)
 npm run build       # Compilación
 npm run smoke       # Verificación stdio
 npm run knip        # Unused deps/exports
@@ -180,6 +180,16 @@ npm run knip        # Unused deps/exports
 - Dry-run por defecto en el agente.
 
 ---
+
+### Progreso de cobertura
+
+| Fecha | Statements | Tests | Archivos | Hitos |
+|-------|-----------|-------|----------|-------|
+| Jul 2026 (actual) | **90.67%** | **640** | **42** | server/agent 64%→100%, organizer 68%→98%, http 69%→81%, rules 71%→100% |
+| Jun 2026 (previo) | 63.6% | 270 | 23 | +12 tests organizer multi-cat, +16 tests security/diagnostics |
+| Jun 2026 (base) | 61.7% | 258 | 21 | Reporte inicial |
+
+**Próximos módulos objetivo:** server.ts (73.64%), config.ts (79.23%), smtp.ts (79.8% / 40.9% branches), http.ts (81.65%), alerts/index.ts (76%), bridge-client.ts (80%), config/drive.ts (82.14%).
 
 ## Licencia
 

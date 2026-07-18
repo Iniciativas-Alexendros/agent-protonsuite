@@ -11,7 +11,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Refactorización del servidor**: `src/server.ts` monolítico dividido en módulos de dominio (`src/server/mail.ts`, `pass.ts`, `drive.ts`, `calendar.ts`, `ecosystem.ts`, `suite.ts`, `agent.ts`).
+- **Cobertura de tests 90.67%** (+29pp desde 61.7%): 635 tests unitarios cubriendo 39 archivos de test, incluyendo todos los módulos de agente, alerts, ecosystem, server y utilidades.
+- **Tests para agent/organizer.ts** (17 tests): buildOrganizationPlan con mock ImapClient multi-categoría (legal, admin, tech, spam, phishing), applyOrganizationPlan con creación de carpetas, movimiento y copia.
+- **Tests para agent/executor.ts** (6 tests): mockear loadConfig, runSetup, buildOrganizationPlan. Probar cada goal con configs válidas e inválidas.
+- **Tests para agent/setup.ts** (8 tests): mockear execFile, execSync, writeFile. Probar setup con binarios instalados/no instalados, fallos de descarga y permisos.
+- **Tests para server/suite.ts** (14 tests): proton_suite_status con cada combinación de productos enabled/disabled.
+- **Tests para server/mail.ts** (12 tests): mockear ImapClient completo (listEmails, searchEmails, getEmail, setFlags, moveEmail, deleteEmail, getAttachment).
+- **Tests para server/ecosystem.ts** (13 tests): mockear execFile, fs.readdir. Probar discoverBinaries con combinaciones de binarios presentes/ausentes.
+- **Tests para server/agent.ts** (5 tests): tool proton_agent_plan con response_format JSON/Markdown, dryRun, goal=alert.
+- **Tests para server/utils.ts** (2 tests): helpers puros sin I/O.
+- **Tests para server/pass.ts** (15 tests): mockear PassClient, probar proton_pass_list/get/generate/health con éxito y error.
+- **Tests para server/drive.ts** (23 tests): mockear DriveClient, DriveAuditor, node:fs. Probar 12 tools MCP de Drive.
+- **Tests para ecosystem/discovery.ts** (40 tests): mockear execFileSync, whichSync, existsSync. Probar resolveBinPath, checkBinary, checkAllBinaries, discoverSubcommands, parseHelpOutput.
+- **Tests para ecosystem/installer.ts** (18 tests): mockear execFileSync. Probar installOnUbuntu (bridge/pass/drive/gpg), runApt, buildInstallPlan, platformPackage.
+- **Tests para ecosystem/updater.ts** (22 tests): mockear checkBinary, execFileSync. Probar checkUpdateFor (6 estados), fetchLatestVersion (7 ramas), getPackageManager (3 fallbacks).
+- **Tests para ecosystem/binaries.ts** (14 tests): datos puros — REGISTRY shape, getBinaryInfo, installationGuide.
+- **Tests para which.ts** (13 tests): mockear accessSync, execFileSync. Probar whichSync, detectPlatform, detectDebianCodename.
+- **Tests para drive.ts** (24 tests): callback-based mock para execFile. Probar DriveClient.listFiles/download/upload/share/status/move/copy/mkdir/remove.
+- **Tests para pass.ts** (25 tests): event-emission pattern para execFile. Probar PassClient.list/get/insert/generate/delete/edit/health.
+- **Tests para alerts/rules.ts** (20 tests): classifyEmail (5 categorías + uncategorized + HTML strip), detectThreats (phishing 2 patrones, credential, urgent), inferStateLabels (6 estados).
+- **Tests para alerts/ntfy.ts** (7 tests): mockear fetch. Probar NtfyAlertSink.emit con/sin token, con/sin context, HTTP error.
+- **Tests para alerts/webhook.ts** (4 tests): mockear fetch. Probar WebhookAlertSink.emit con éxito y HTTP error.
+- **Tests para http.ts** (+14 tests sobre 8 existentes): CORS preflight (4), session lifecycle (4), auth edge cases (4), error handling (2).
+- **Tests para diagnostics.ts** (2 tests): diagnoseMail mockeando ImapFlow con fallos en cada capa.
+- **Tests para security.ts** (4 tests): validación de contraseñas, timing-safe comparison.
+- **Tests para drive-audit.ts**: auditoría de Drive con mock de fs y DriveClient.
+- **Tests para executor.ts** (6 tests): test unitarios del ejecutor de goals del agente.
+- **Split de src/config.ts** en sub-módulos por servicio: config/imap.ts, config/bridge.ts, config/smtp.ts, config/pass.ts, config/calendar.ts, config/drive.ts con barrel export en config/index.ts.
+- **CLI de agente expandido**: src/agent-cli.ts con --help, subcomandos (setup, organize, pass-audit, drive-audit, suite-status), exit codes.
+- **calendar-types.ts completado**: tipos CalDAV/iCalendar (RFC 5545) — VEvent, VCalendar, VTimezone, Alarm, Attachment, Attendee, Organizer.
+- **REPORTE_SEGURIDAD_FASE1.md movido** a docs/security/ para no exponer en raíz pública.
+- **Documentación de cobertura**: docs/coverage-report.md con reporte detallado de todos los módulos ordenados ascendente.
+- **TASKS.md**: documento integral con estado del proyecto, 6 fases completadas, 8 tareas priorizadas y guía para retomar.
+
+### Changed
+
+- **Migración completa de npm a pnpm**: todos los workflows CI (ci.yml, quality.yml, release.yml, integration.yml) actualizados de `npm ci` a `pnpm install --frozen-lockfile` con `pnpm/action-setup`.
+- **Dockerfile actualizado**: multi-stage build con pnpm en builder stage (`RUN npm install -g pnpm`), COPY ajustados.
+- **pnpm-workspace.yaml**: añadido para estructura de workspace.
+- **package.json**: scripts actualizados para pnpm, añadido `pnpm.onlyBuiltDependencies` (esbuild, unrs-resolver).
+- **.gitignore**: package-lock.json añadido, coverage/ añadido.
+- **README.md**: badge de cobertura actualizado a 90.67%.
+- **server.json**: revisado y mantenido en raíz (template público sin secretos).
+- **Configuración de organizer**: manejo de errores mejorado en buildOrganizationPlan (finally cleanup, error catching por email).
+
+### Removed
+
+- **package.json lockfile npm**: package-lock.json eliminado (548KB). El proyecto usa exclusivamente pnpm-lock.yaml (86KB).
+
+### Fixed
+
+- **Test de phishing_link en rules.test.ts**: regex esperaba `\.proton\.` pero URL de test no tenía subdominio. Corregido `proton.xyz` → `login.proton.xyz`.
+- **Test de organizer**: error propagado por finally block corregido a expect rejection.
+- **Test de drive**: mock isDirectory cambiado de `includes('/sub')` a `endsWith('/sub')` para evitar falsos positivos con archivos dentro del subdirectorio. HOME save/restore con origHome pattern.
 - **Módulo ecosystem** (`src/ecosystem/`): descubrimiento de binarios, instalación y actualización de herramientas del ecosistema Proton.
 - **Cliente Drive real**: migración de rclone a CLI oficial de Proton Drive (`proton-drive`). Tools MCP: `proton_drive_audit`, `proton_drive_status`, `proton_drive_organize`, `proton_drive_format_report`, `proton_drive_sync`.
 - **Bridge MCP tools**: integración con Proton Bridge para diagnóstico y gestión.

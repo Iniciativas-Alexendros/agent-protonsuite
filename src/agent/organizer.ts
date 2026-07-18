@@ -35,21 +35,25 @@ export async function buildOrganizationPlan(
 
     for (const summary of summaries) {
       if (!summary.uid) continue;
-      const full = await imap.getEmail("INBOX", summary.uid);
-      if (!full) continue;
-      const classification = classifyEmail({
-        from: full.from,
-        subject: full.subject,
-        text: full.textBody,
-        html: full.htmlBody,
-      });
-      const threats = detectThreats({
-        from: full.from,
-        subject: full.subject,
-        text: full.textBody,
-        html: full.htmlBody,
-      });
-      classified.push({ uid: summary.uid, summary, full, classification, threats });
+      try {
+        const full = await imap.getEmail("INBOX", summary.uid);
+        if (!full) continue;
+        const classification = classifyEmail({
+          from: full.from,
+          subject: full.subject,
+          text: full.textBody,
+          html: full.htmlBody,
+        });
+        const threats = detectThreats({
+          from: full.from,
+          subject: full.subject,
+          text: full.textBody,
+          html: full.htmlBody,
+        });
+        classified.push({ uid: summary.uid, summary, full, classification, threats });
+      } catch (err) {
+        log.error("Error classifying email", { uid: summary.uid, error: String(err) });
+      }
     }
 
     // Group by category and propose folders.
@@ -76,24 +80,28 @@ export async function buildOrganizationPlan(
       });
 
       for (const e of emails) {
-        const state = inferStateLabels({
-          from: e.full?.from,
-          subject: e.full?.subject,
-          text: e.full?.textBody,
-          html: e.full?.htmlBody,
-          category: e.classification.category,
-        });
-        for (const label of state.labels) {
-          const existing = plan.labelProposals.find((l) => l.name === label);
-          if (existing) {
-            existing.emails.push(e.uid);
-          } else {
-            plan.labelProposals.push({
-              name: label,
-              reason: `Etiqueta de estado inferida: ${state.reason}`,
-              emails: [e.uid],
-            });
+        try {
+          const state = inferStateLabels({
+            from: e.full?.from,
+            subject: e.full?.subject,
+            text: e.full?.textBody,
+            html: e.full?.htmlBody,
+            category: e.classification.category,
+          });
+          for (const label of state.labels) {
+            const existing = plan.labelProposals.find((l) => l.name === label);
+            if (existing) {
+              existing.emails.push(e.uid);
+            } else {
+              plan.labelProposals.push({
+                name: label,
+                reason: `Etiqueta de estado inferida: ${state.reason}`,
+                emails: [e.uid],
+              });
+            }
           }
+        } catch (err) {
+          log.error("Error inferring state labels", { uid: e.uid, error: String(err) });
         }
       }
     }

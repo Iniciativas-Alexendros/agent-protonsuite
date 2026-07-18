@@ -32,8 +32,11 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
-      - run: npm ci --no-audit --no-fund
-      - run: npm run build
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -92,13 +95,16 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
-      # Sin `cache: npm` en el job de pre-publicación: restaurar una cache
+      # Sin pnpm cache a propósito (pre-publish): restaurar una cache
       # comprometida podría envenenar la cadena de suministro previa al push.
-      - run: npm ci --no-audit --no-fund
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm test
+      - run: pnpm run build
 
   publish:
     name: Build & push to GHCR
@@ -215,8 +221,11 @@ jobs:
       # Trusted publishing (OIDC) requiere npm >= 11.5.1; los runners traen 10.x.
       - name: Upgrade npm (OIDC trusted publishing needs >= 11.5.1)
         run: npm install -g npm@latest
-      - run: npm ci --no-audit --no-fund
-      - run: npm run build
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - name: Verify tag matches package.json version
         run: |
           PKG_VERSION="v$(node -p "require('./package.json').version")"

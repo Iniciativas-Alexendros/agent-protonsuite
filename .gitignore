@@ -8,3 +8,7 @@ dist/
 logs/
 .DS_Store
 .commandcode/
+
+# Lockfiles — pnpm-lock.yaml is canonical
+package-lock.json
+coverage/

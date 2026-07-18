@@ -15,7 +15,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 RUN npm install -g pnpm
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts
 COPY --from=builder /app/dist ./dist
 
 # Optional: Proton Drive CLI (descargado de proton.me/support/drive-cli).

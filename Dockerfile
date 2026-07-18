@@ -4,7 +4,7 @@ WORKDIR /app
 # pnpm no viene pre-instalado en node:22-alpine
 RUN npm install -g pnpm
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --no-audit
+RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
 COPY src ./src
 RUN pnpm run build
@@ -15,7 +15,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 RUN npm install -g pnpm
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --prod --frozen-lockfile --no-audit
+RUN pnpm install --prod --frozen-lockfile
 COPY --from=builder /app/dist ./dist
 
 # Optional: Proton Drive CLI (descargado de proton.me/support/drive-cli).

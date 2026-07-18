@@ -123,12 +123,6 @@
     "typescript-eslint": "^8.63.0",
     "vitest": "^3.0.0"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "unrs-resolver"
-    ]
-  },
   "engines": {
     "node": ">=22"
   }

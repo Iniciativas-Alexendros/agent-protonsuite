@@ -3,7 +3,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 # pnpm no viene pre-instalado en node:22-alpine
 RUN npm install -g pnpm
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 ENV HUSKY=0
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
@@ -15,7 +15,7 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 RUN npm install -g pnpm
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 RUN pnpm install --prod --frozen-lockfile --ignore-scripts
 COPY --from=builder /app/dist ./dist
 

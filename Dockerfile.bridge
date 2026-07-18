@@ -8,7 +8,7 @@
 # El tag `:build` se reconstruye con más frecuencia que `:latest` e incluye
 # Bridge binarios más actualizados; preferido sobre `latest`.
 # Digest multi-arquitectura (amd64/arm64/arm/riscv64) actualizado 2025-04-02.
-FROM shenxn/protonmail-bridge:build@sha256:2ab51a06299b9bb638d6cdd056553409d78c20ca8d07b7d35bbccec3ad3a0c62
+FROM shenxn/protonmail-bridge:build@sha256:514d19e289e039fb22e0a8196faaf4e84e4a1805de359ef8fa704785bb5783a1
 
 USER root
 RUN apt-get update \

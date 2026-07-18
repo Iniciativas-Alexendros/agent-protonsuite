@@ -1,5 +1,5 @@
 # ---- Builder ----
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 # pnpm no viene pre-instalado en node:22-alpine
 RUN npm install -g pnpm
@@ -11,7 +11,7 @@ COPY src ./src
 RUN pnpm run build
 
 # ---- Runtime ----
-FROM node:22-alpine AS runtime
+FROM node:26-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 RUN npm install -g pnpm

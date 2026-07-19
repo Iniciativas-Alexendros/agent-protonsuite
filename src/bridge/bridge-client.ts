@@ -73,11 +73,11 @@ export class BridgeClient {
       const imapPort = /IMAP port:\s*(\d+)/.exec(raw)
       const smtpPort = /SMTP port:\s*(\d+)/.exec(raw)
       return {
-        user: user?.[1],
-        version: version?.[1],
-        bridgePassword: password?.[1],
-        imapPort: imapPort ? Number(imapPort[1]) : undefined,
-        smtpPort: smtpPort ? Number(smtpPort[1]) : undefined,
+        ...(user ? { user: user[1] } : {}),
+        ...(version ? { version: version[1] } : {}),
+        ...(password ? { bridgePassword: password[1] } : {}),
+        ...(imapPort ? { imapPort: Number(imapPort[1]) } : {}),
+        ...(smtpPort ? { smtpPort: Number(smtpPort[1]) } : {}),
       }
     } catch (err) {
       this.log.warn('bridge info failed', {

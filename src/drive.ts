@@ -231,8 +231,8 @@ export class DriveClient {
       configured: true,
       authenticated,
       stagingExists,
-      stagingFiles,
-      stagingBytes,
+      ...(stagingFiles !== undefined ? { stagingFiles } : {}),
+      ...(stagingBytes !== undefined ? { stagingBytes } : {}),
       cliPath: this.opts.cliBin,
     }
   }

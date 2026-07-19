@@ -156,9 +156,9 @@ export async function buildReplyOptions(
     to,
     cc,
     subject,
-    text: quoted.text,
-    html: quoted.html,
-    inReplyTo: original.messageId,
+    ...(quoted.text !== undefined ? { text: quoted.text } : {}),
+    ...(quoted.html !== undefined ? { html: quoted.html } : {}),
+    ...(original.messageId !== undefined ? { inReplyTo: original.messageId } : {}),
     references: refs,
   }
 }
@@ -196,11 +196,11 @@ export async function buildForwardOptions(
   return {
     to,
     subject,
-    text: forwarded.text,
-    html: forwarded.html,
-    inReplyTo: original.messageId,
+    ...(forwarded.text !== undefined ? { text: forwarded.text } : {}),
+    ...(forwarded.html !== undefined ? { html: forwarded.html } : {}),
+    ...(original.messageId !== undefined ? { inReplyTo: original.messageId } : {}),
     references: collectReferences(original),
-    attachments: attachments.length > 0 ? attachments : undefined,
+    ...(attachments.length > 0 ? { attachments } : {}),
   }
 }
 
@@ -235,7 +235,7 @@ function isInList(addr: string, list: string[]): boolean {
 function buildQuote(
   original: EmailFull,
   body: { text?: string; html?: string },
-): { text?: string; html?: string } {
+): { text: string | undefined; html: string | undefined } {
   const dateStr = original.date ?? ''
   const from = original.from ?? ''
   const header = `On ${dateStr}, ${from} wrote:`
@@ -260,7 +260,7 @@ function buildQuote(
 function buildForwardBody(
   original: EmailFull,
   body: { text?: string; html?: string },
-): { text?: string; html?: string } {
+): { text: string | undefined; html: string | undefined } {
   const header = [
     '---------- Forwarded message ----------',
     `From: ${original.from ?? ''}`,

@@ -116,7 +116,7 @@ export function buildHttpApp(deps: HttpAppDeps): Express {
           },
         });
         const server = buildServer();
-        await server.connect(transport);
+        await server.connect(transport as never);
         transport.onclose = () => {
           if (transport.sessionId) {
             sessions.delete(transport.sessionId);

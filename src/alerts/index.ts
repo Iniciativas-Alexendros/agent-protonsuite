@@ -49,7 +49,7 @@ export class AlertSystem {
       message,
       timestamp: new Date().toISOString(),
       source,
-      context,
+      ...(context !== undefined ? { context } : {}),
     };
 
     // Always log to stderr if the base logger level permits (info and above).
@@ -91,7 +91,7 @@ export class AlertSystem {
       message: action,
       timestamp: new Date().toISOString(),
       source,
-      context,
+      ...(context !== undefined ? { context } : {}),
     };
     void this.fileSink.emit(event).catch(() => {
       /* audit trail — best effort */

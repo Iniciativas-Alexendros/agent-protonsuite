@@ -66,8 +66,8 @@ export function checkBinary(bin: BinaryInfo): BinaryVersion {
     name: bin.name,
     product: bin.product,
     installed: true,
-    version,
-    authenticated,
+    ...(version !== undefined ? { version } : {}),
+    ...(authenticated !== undefined ? { authenticated } : {}),
     inPath: true,
     path,
   }

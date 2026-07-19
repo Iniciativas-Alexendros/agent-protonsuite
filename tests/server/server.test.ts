@@ -417,6 +417,97 @@ describe("registerBridgeTools — handlers", () => {
     expect(text).toContain("u1@proton.me: connected");
     expect(text).toContain("u2@proton.me: disconnected");
   });
+
+  it("info handler uses null fallbacks when fields are undefined", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.info).mockResolvedValue({
+      user: undefined as unknown as string,
+      version: undefined as unknown as string,
+      imapPort: undefined as unknown as number,
+      smtpPort: undefined as unknown as number,
+    });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_info")!;
+    const result = await tool.handler({});
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("User: (none)");
+    expect(text).toContain("Version: unknown");
+    expect(text).toContain("IMAP port: N/A");
+    expect(text).toContain("SMTP port: N/A");
+    expect((result as any).structuredContent).toBeDefined();
+  });
+
+  it("login handler returns failure without 2FA flag", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.login).mockResolvedValue({
+      ok: false,
+      message: "wrong password",
+      needs2FA: false,
+    });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_login")!;
+    const result = await tool.handler({ user: "u@proton.me", password: "bad" });
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("Login failed");
+    expect(text).not.toContain("2FA");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// register wrapper — error path (handler throws)
+// ---------------------------------------------------------------------------
+
+describe("register wrapper — error handling", () => {
+  it("fires log.debug with timing even when handler throws", async () => {
+    const dbgLog = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
+
+    const McpProto = McpServer as unknown as { prototype: { registerTool: (...args: never[]) => unknown } };
+    const handlers = new Map<string, (...args: never[]) => unknown>();
+    const origRegister = McpProto.prototype.registerTool;
+    const spyRegister = vi
+      .spyOn(McpProto.prototype as any, "registerTool")
+      .mockImplementation(function (
+        this: McpServer,
+        name: string,
+        _config: unknown,
+        handler: (...args: never[]) => unknown,
+      ) {
+        handlers.set(name, handler);
+        return (origRegister as (...a: never[]) => unknown).call(this, name, _config as never, handler);
+      });
+
+    try {
+      buildServer(makeCfg(), dbgLog as never);
+
+      const healthHandler = handlers.get("proton_bridge_health");
+      expect(healthHandler).toBeDefined();
+
+      // Hacer que bridge.health() lance — el wrapper debe capturarlo
+      // y aún así ejecutar el finally block (log.debug con timing)
+      const { BridgeClient } = await import("../../src/bridge/bridge-client.js");
+      const instance = vi.mocked(BridgeClient).mock.results[0]?.value as any;
+      if (instance?.health) {
+        instance.health.mockRejectedValue(new Error("bridge crashed"));
+      }
+
+      // El handler debe propagar el error
+      await expect(healthHandler!({ response_format: "markdown" } as never)).rejects.toThrow("bridge crashed");
+
+      // Even with rejection, the finally block should have fired
+      expect(dbgLog.debug).toHaveBeenCalledWith(
+        "tool",
+        expect.objectContaining({ tool: "proton_bridge_health", ms: expect.any(Number) }),
+      );
+    } finally {
+      spyRegister.mockRestore();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

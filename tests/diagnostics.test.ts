@@ -497,6 +497,25 @@ describe('diagnoseDrive', () => {
     // Should not have auth when cli fails
     expect(result.auth).toBeUndefined()
   })
+
+  it('cli ok + auth ok returns full diagnosis', async () => {
+    // Usamos /bin/echo como binary real: --version devuelve texto, 'auth status' sale con 0
+    const result = await diagnoseDrive('/bin/echo')
+    expect(result.cli.ok).toBe(true)
+    expect(result.cli.version).toBeDefined()
+    expect(result.auth).toBeDefined()
+    expect(result.auth!.ok).toBe(true)
+  })
+
+  it('cli ok + auth fail returns auth error', async () => {
+    // /bin/cat --version funciona, pero 'cat auth status' falla si no existen los archivos
+    const result = await diagnoseDrive('/bin/cat')
+    expect(result.cli.ok).toBe(true)
+    expect(result.cli.version).toBeDefined()
+    expect(result.auth).toBeDefined()
+    expect(result.auth!.ok).toBe(false)
+    expect(result.auth!.error).toBeDefined()
+  })
 })
 
 // ===========================================================================

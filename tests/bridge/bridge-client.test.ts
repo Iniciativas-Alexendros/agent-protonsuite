@@ -401,3 +401,236 @@ describe('isRunning', () => {
     expect(client.isRunning()).toBe(false)
   })
 })
+
+// ===========================================================================
+// Gaps de cobertura — Ronda 4
+// ===========================================================================
+
+describe('R4 — login con bin not found', () => {
+  it('devuelve ok:false message not found', async () => {
+    existsSyncImpl = () => false
+    const client = new BridgeClient('/missing', silentLog)
+    const result = await client.login('u@t.com', 'pwd')
+    expect(result.ok).toBe(false)
+    expect(result.message).toBe('not found')
+  })
+})
+
+describe('R4 — login: catch de CLI error', () => {
+  it('devuelve ok:false con mensaje del error', async () => {
+    execFileImpl = () => {
+      const child = makeDefaultChild()
+      setTimeout(() => child.emit('error', new Error('ENOENT')), 0)
+      return child
+    }
+    const client = new BridgeClient(BIN, silentLog)
+    const result = await client.login('u@t.com', 'pwd')
+    expect(result.ok).toBe(false)
+    expect(result.message).toMatch(/ENOENT/i)
+  })
+})
+
+describe('R4 — info: bin not found', () => {
+  it('devuelve {} cuando bin no existe', async () => {
+    existsSyncImpl = () => false
+    const client = new BridgeClient('/missing', silentLog)
+    const result = await client.info()
+    expect(result).toEqual({})
+  })
+})
+
+describe('R4 — listAccounts: bin not found', () => {
+  it('devuelve [] vacío cuando bin no existe', async () => {
+    existsSyncImpl = () => false
+    const client = new BridgeClient('/missing', silentLog)
+    const accounts = await client.listAccounts()
+    expect(accounts).toEqual([])
+  })
+})
+
+describe('R4 — listAccounts: CLI error catch', () => {
+  it('devuelve [] vacío cuando CLI lanza', async () => {
+    execFileImpl = () => {
+      const child = makeDefaultChild()
+      setTimeout(() => child.emit('close', 1), 0)
+      return child
+    }
+    const client = new BridgeClient(BIN, silentLog)
+    const accounts = await client.listAccounts()
+    expect(accounts).toEqual([])
+  })
+})
+
+describe('R4 — listAccounts: salida vacía / líneas sin formato cuenta', () => {
+  it('ignora líneas que no coinciden con el patrón email+state', async () => {
+    execFileImpl = () => makeChildWithOutput(
+      'Not a valid line\nNo accounts\n',
+    )
+    const client = new BridgeClient(BIN, silentLog)
+    const accounts = await client.listAccounts()
+    expect(accounts).toEqual([])
+  })
+})
+
+describe('R4 — logout: bin not found', () => {
+  it('devuelve ok:false cuando bridge bin no existe', async () => {
+    processKillImpl = () => true
+    execFileImpl = () => makeChildThatStaysOpen()
+    const client = new BridgeClient(BIN, silentLog)
+    await client.spawn()
+
+    existsSyncImpl = () => false
+    const result = await client.logout()
+    expect(result.ok).toBe(false)
+  })
+})
+
+describe('R4 — logout: catch de CLI error', () => {
+  it('devuelve ok:false cuando CLI command lanza', async () => {
+    processKillImpl = () => true
+    execFileImpl = () => makeChildThatStaysOpen()
+    const client = new BridgeClient(BIN, silentLog)
+    await client.spawn()
+
+    execFileImpl = () => {
+      const child = makeDefaultChild()
+      setTimeout(() => child.emit('error', new Error('EPERM')), 0)
+      return child
+    }
+    const result = await client.logout()
+    expect(result.ok).toBe(false)
+  })
+})
+
+describe('R4 — spawn: bin not found', () => {
+  it('lanza error not found cuando bin no existe', async () => {
+    const client = new BridgeClient('/missing', silentLog)
+    await expect(client.spawn()).rejects.toThrow('not found')
+  })
+})
+
+describe('R4 — spawn: ya spawneado (no-op)', () => {
+  it('no lanza si ya está spawneado', async () => {
+    processKillImpl = () => true
+    execFileImpl = () => makeChildThatStaysOpen()
+
+    const client = new BridgeClient(BIN, silentLog)
+    await client.spawn()
+    await client.spawn() // segunda llamada es no-op
+
+    expect(client.isRunning()).toBe(true)
+  })
+})
+
+describe('R4 — spawn: child error', () => {
+  it('rechaza cuando child emite error', async () => {
+    execFileImpl = () => {
+      const child = makeDefaultChild()
+      setTimeout(() => child.emit('error', new Error('EACCES')), 0)
+      return child
+    }
+    const client = new BridgeClient(BIN, silentLog)
+    await expect(client.spawn()).rejects.toThrow('EACCES')
+  })
+})
+
+describe('R4 — spawn: close antes de prompt', () => {
+  it('rechaza con mensaje de código de salida', async () => {
+    execFileImpl = () => {
+      const child = makeDefaultChild()
+      setTimeout(() => child.emit('close', 1), 0)
+      return child
+    }
+    const client = new BridgeClient(BIN, silentLog)
+    await expect(client.spawn()).rejects.toThrow(/bridge exited with 1/)
+  })
+})
+
+describe('R4 — shutdown: sin spawn (no-op)', () => {
+  it('no lanza cuando no hay child', async () => {
+    const client = new BridgeClient(BIN, silentLog)
+    await expect(client.shutdown()).resolves.toBeUndefined()
+  })
+})
+
+describe('R4 — shutdown: SIGTERM fallback cuando close no llega', () => {
+  it('mata con SIGTERM tras timeout de 5s', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+
+    processKillImpl = () => true
+    execFileImpl = () => makeChildThatStaysOpen()
+
+    const client = new BridgeClient(BIN, silentLog)
+    await client.spawn()
+
+    // No hay close event — shutdown debe caer en timeout y matar con SIGTERM
+    const promise = client.shutdown()
+    vi.advanceTimersByTime(6_000)
+    await promise
+
+    vi.useRealTimers()
+  })
+})
+
+describe('R4 — cliCommand: close con código no-cero sin output', () => {
+  it('rechaza cuando close code !=0 y output vacío', async () => {
+    execFileImpl = () => {
+      const child = makeDefaultChild()
+      setTimeout(() => {
+        child.emit('close', 1)
+      }, 0)
+      return child
+    }
+    const client = new BridgeClient(BIN, silentLog)
+    // info capturará el error y devolverá {}
+    const result = await client.info()
+    expect(result).toEqual({})
+  })
+})
+
+describe('R4 — checkProcessRunning con kill error', () => {
+  it('devuelve false cuando process.kill lanza', async () => {
+    processKillImpl = () => { throw new Error('ESRCH') }
+    execFileImpl = () => {
+      const child = makeDefaultChild()
+      setTimeout(() => child.stdout!.emit('data', '>>> '), 0)
+      return child
+    }
+
+    const client = new BridgeClient(BIN, silentLog)
+    await client.spawn()
+    expect(client.isRunning()).toBe(false)
+  })
+})
+
+describe('R4 — checkImapAuth: connect error', () => {
+  it('devuelve false cuando socket falla en connect', async () => {
+    // Sin listener en puerto 1143 = error al conectar
+    portListeners.set(1143, false)
+    portListeners.set(1025, true)
+    processKillImpl = () => true
+    execFileImpl = () => makeChildThatStaysOpen()
+
+    const client = new BridgeClient(BIN, silentLog)
+    await client.spawn()
+    const h = await client.health()
+
+    expect(h.authOk).toBe(false)
+    expect(h.imapListening).toBe(false)
+  })
+})
+
+
+
+describe('R4 — info: regex parcial (solo algunos campos)', () => {
+  it('parsea solo user cuando otros campos faltan', async () => {
+    execFileImpl = () => makeChildWithOutput('User: u@proton.me\n')
+    const client = new BridgeClient(BIN, silentLog)
+    const info = await client.info()
+    expect(info.user).toBe('u@proton.me')
+    expect(info.version).toBeUndefined()
+    expect(info.bridgePassword).toBeUndefined()
+    expect(info.imapPort).toBeUndefined()
+    expect(info.smtpPort).toBeUndefined()
+  })
+})

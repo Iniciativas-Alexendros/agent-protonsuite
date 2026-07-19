@@ -1,9 +1,9 @@
 # Proton Suite Agent
 
-[![CI](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/ci.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/ci.yml)
-[![Quality](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/quality.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/quality.yml)
-[![CodeQL](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/codeql.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/codeql.yml)
-[![Coverage](https://img.shields.io/badge/coverage-90.67%25-yellowgreen?logo=vitest&logoColor=white)](https://github.com/Iniciativas-Alexendros/agent-protonmail/actions/workflows/quality.yml)
+[![CI](https://github.com/Iniciativas-Alexendros/agent-protonsuite/actions/workflows/ci.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/agent-protonsuite/actions/workflows/ci.yml)
+[![Quality](https://github.com/Iniciativas-Alexendros/agent-protonsuite/actions/workflows/quality.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/agent-protonsuite/actions/workflows/quality.yml)
+[![CodeQL](https://github.com/Iniciativas-Alexendros/agent-protonsuite/actions/workflows/codeql.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/agent-protonsuite/actions/workflows/codeql.yml)
+[![Coverage](https://img.shields.io/badge/coverage-93.72%25-brightgreen?logo=vitest[![Coverage](https://img.shields.io/badge/coverage-93.72%25-brightgreen?logo=vitest[![Coverage](https://img.shields.io/badge/coverage-93.72%25-brightgreen?logo=vitest[![Coverage](https://img.shields.io/badge/coverage-93.72%25-brightgreen?logo=vitest&logoColor=white)](https://github.com/Iniciativas-Alexendros/agent-protonsuite/actions/workflows/quality.yml)logoColor=white)](https://github.com/Iniciativas-Alexendros/agent-protonsuite/actions/workflows/quality.yml)logoColor=white)](https://github.com/Iniciativas-Alexendros/agent-protonsuite/actions/workflows/quality.yml)logoColor=white)](https://github.com/Iniciativas-Alexendros/agent-protonsuite/actions/workflows/quality.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen.svg)](./package.json)
 
@@ -164,8 +164,8 @@ Ver [`scripts/install.sh`](./scripts/install.sh) para la instalación interactiv
 
 ```bash
 npm run typecheck   # TypeScript strict
-npm test            # 640 tests (Vitest)
-npm run coverage    # Coverage (v8 — 90.67% statements)
+npm test            # 745 tests (Vitest)
+npm run coverage    # Coverage (v8 — 93.72% statements)
 npm run build       # Compilación
 npm run smoke       # Verificación stdio
 npm run knip        # Unused deps/exports
@@ -181,15 +181,18 @@ npm run knip        # Unused deps/exports
 
 ---
 
+**Próximo módulo objetivo:** bridge-client.ts (80%), config.ts (79.23%), config/drive.ts (82.14%).
+
 ### Progreso de cobertura
 
 | Fecha | Statements | Tests | Archivos | Hitos |
 |-------|-----------|-------|----------|-------|
-| Jul 2026 (actual) | **90.67%** | **640** | **42** | server/agent 64%→100%, organizer 68%→98%, http 69%→81%, rules 71%→100% |
-| Jun 2026 (previo) | 63.6% | 270 | 23 | +12 tests organizer multi-cat, +16 tests security/diagnostics |
+| Jul 2026 (Ronda 3b) | **93.72%** | **745** | **42** | server/drive.ts 89%→99%, http.ts +10 tests CORS/auth |
+| Jul 2026 (Ronda 2) | 92.68% | 692 | 41 | server.ts 73%→96%, smtp.ts 79%→98%, alerts/index.ts 76%→98% |
+| Jul 2026 (post-merge) | 90.65% | 619 | 38 | Repo renombrado, PRs #65 y #66 fusionados |
+| Jul 2026 (previo) | 90.67% | 640 | 42 | server/agent 64%→100%, organizer 68%→98%, http 69%→81%, rules 71%→100% |
 | Jun 2026 (base) | 61.7% | 258 | 21 | Reporte inicial |
 
-**Próximos módulos objetivo:** server.ts (73.64%), config.ts (79.23%), smtp.ts (79.8% / 40.9% branches), http.ts (81.65%), alerts/index.ts (76%), bridge-client.ts (80%), config/drive.ts (82.14%).
 
 ## Licencia
 

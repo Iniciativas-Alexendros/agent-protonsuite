@@ -1,0 +1,419 @@
+/**
+ * Tests for `buildServer` constructor logic and `registerBridgeTools` handlers.
+ *
+ * Covers the conditional branches in `buildServer`:
+ *  - passwordResolver: pass enabled + passPath vs fallback
+ *  - drive client conditional creation
+ *  - bridge tools conditional registration (mail.enabled)
+ *
+ * And the handler branches in `registerBridgeTools`:
+ *  - response_format: markdown vs json for health, status, accounts
+ *  - login: success vs failure, with/without 2FA
+ *  - logout: ok vs fail
+ *  - info handler happy path
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Config } from "../../src/config.js";
+import { buildServer, registerBridgeTools } from "../../src/server.js";
+
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
+
+vi.mock("../../src/bridge/bridge-client.js", () => ({
+  BridgeClient: vi.fn().mockImplementation(() => ({
+    health: vi.fn(),
+    status: vi.fn(),
+    info: vi.fn(),
+    login: vi.fn(),
+    logout: vi.fn(),
+    listAccounts: vi.fn(),
+  })),
+}));
+
+vi.mock("../../src/imap.js", () => ({
+  ImapClient: vi.fn().mockImplementation(() => ({
+    connect: vi.fn(),
+    close: vi.fn(),
+  })),
+}));
+
+vi.mock("../../src/smtp.js", () => ({
+  SmtpClient: vi.fn().mockImplementation(() => ({
+    send: vi.fn(),
+    close: vi.fn(),
+  })),
+}));
+
+const silentLog = {
+  error: vi.fn(),
+  warn: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+};
+
+function makeCfg(overrides?: Partial<Config>): Config {
+  return {
+    products: {
+      mail: {
+        enabled: true,
+        bridge: {
+          user: "me@proton.me",
+          pass: "secret",
+          host: "127.0.0.1",
+          imapPort: 1143,
+          smtpPort: 1025,
+          from: "me@proton.me",
+          tlsInsecure: true,
+          smtpSecurity: "starttls" as const,
+        },
+      },
+      pass: { enabled: false, storeDir: "/tmp" },
+      calendar: { enabled: false },
+      drive: {
+        enabled: false,
+        cliBin: "proton-drive",
+        stagingDir: "/tmp/test-drive",
+        obsoleteExtensions: [],
+      },
+    },
+    transport: { kind: "stdio" as const, httpHost: "127.0.0.1", httpPort: 8787, allowedOrigins: [] },
+    alerts: { enabled: false, logDir: "logs", minSeverity: "warning" },
+    agent: { dryRun: true, maxInspectEmails: 10, minConfidence: 0.6 },
+    logLevel: "error",
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+// ---------------------------------------------------------------------------
+// buildServer
+// ---------------------------------------------------------------------------
+
+describe("buildServer", () => {
+  it("returns server, imap, and smtp", () => {
+    const result = buildServer(makeCfg(), silentLog as never);
+    expect(result.server).toBeDefined();
+    expect(result.imap).toBeDefined();
+    expect(result.smtp).toBeDefined();
+  });
+
+  it("creates DriveClient when drive is enabled", () => {
+    const result = buildServer(
+      makeCfg({
+        products: {
+          ...makeCfg().products,
+          drive: { enabled: true, cliBin: "proton-drive", stagingDir: "/tmp/drive", obsoleteExtensions: [] },
+        },
+      }),
+      silentLog as never,
+    );
+    expect(result.drive).toBeDefined();
+  });
+
+  it("drive is undefined when drive is disabled", () => {
+    const result = buildServer(makeCfg(), silentLog as never);
+    expect(result.drive).toBeUndefined();
+  });
+
+  it("returns server without throwing when mail is disabled", () => {
+    const result = buildServer(
+      makeCfg({
+        products: {
+          ...makeCfg().products,
+          mail: { ...makeCfg().products.mail, enabled: false },
+        },
+      }),
+      silentLog as never,
+    );
+    expect(result.server).toBeDefined();
+  });
+
+  it("registers bridge tools when mail is enabled", () => {
+    const result = buildServer(makeCfg(), silentLog as never);
+    expect(result.server).toBeDefined();
+    expect(result.imap).toBeDefined();
+  });
+
+  it("uses PassClient when pass enabled and passPath set", () => {
+    const cfgWithPass = makeCfg({
+      products: {
+        ...makeCfg().products,
+        pass: { enabled: true, storeDir: "/tmp/pass" },
+      },
+    });
+    cfgWithPass.products.mail.bridge.passPath = "proton/bridge/password";
+    const result = buildServer(cfgWithPass, silentLog as never);
+    expect(result.server).toBeDefined();
+    expect(result.imap).toBeDefined();
+  });
+
+  it("uses fallback passwordResolver when pass is disabled", () => {
+    const result = buildServer(makeCfg(), silentLog as never);
+    expect(result.server).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// registerBridgeTools handlers
+// ---------------------------------------------------------------------------
+
+const capturedTools = new Map<string, { config: unknown; handler: (...args: unknown[]) => unknown }>();
+
+function mockRegister(
+  name: string,
+  config: unknown,
+  handler: (...args: unknown[]) => unknown,
+) {
+  capturedTools.set(name, { config, handler });
+}
+
+import { BridgeClient } from "../../src/bridge/bridge-client.js";
+
+beforeEach(() => {
+  capturedTools.clear();
+});
+
+describe("registerBridgeTools — handlers", () => {
+  it("health handler with json response_format", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.health).mockResolvedValue({
+      ok: true,
+      processRunning: true,
+      imapListening: true,
+      smtpListening: true,
+      authOk: true,
+    });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_health")!;
+    const result = await tool.handler({ response_format: "json" });
+
+    const content = (result as any).content;
+    expect(JSON.parse(content[0].text)).toMatchObject({
+      ok: true,
+      authOk: true,
+    });
+    expect((result as any).structuredContent).toBeDefined();
+  });
+
+  it("health handler with markdown response_format", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.health).mockResolvedValue({
+      ok: true,
+      processRunning: true,
+      imapListening: true,
+      smtpListening: true,
+      authOk: true,
+    });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_health")!;
+    const result = await tool.handler({ response_format: "markdown" });
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("Proton Bridge Health");
+    expect(text).toContain("OK: true");
+    expect(text).toContain("Auth OK: true");
+  });
+
+  it("health handler with error includes error in markdown", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.health).mockResolvedValue({
+      ok: false,
+      processRunning: false,
+      imapListening: false,
+      smtpListening: false,
+      authOk: false,
+      error: "Bridge process not running",
+    });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_health")!;
+    const result = await tool.handler({ response_format: "markdown" });
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("Error: Bridge process not running");
+  });
+
+  it("status handler with json response_format", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.status).mockResolvedValue({
+      user: "u@proton.me",
+      version: "3.15",
+      processRunning: true,
+      imapListening: true,
+      smtpListening: true,
+      authOk: true,
+    });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_status")!;
+    const result = await tool.handler({ response_format: "json" });
+
+    const content = (result as any).content;
+    expect(JSON.parse(content[0].text)).toMatchObject({ user: "u@proton.me" });
+    expect((result as any).structuredContent).toBeDefined();
+  });
+
+  it("status handler with markdown response_format", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.status).mockResolvedValue({
+      user: "u@proton.me",
+      version: "3.15",
+      processRunning: true,
+      imapListening: true,
+      smtpListening: true,
+      authOk: true,
+    });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_status")!;
+    const result = await tool.handler({ response_format: "markdown" });
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("Proton Bridge Status");
+    expect(text).toContain("User: u@proton.me");
+    expect(text).toContain("Version: 3.15");
+  });
+
+  it("info handler returns bridge info", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.info).mockResolvedValue({
+      user: "u@proton.me",
+      version: "3.15",
+      imapPort: 1143,
+      smtpPort: 1025,
+    });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_info")!;
+    const result = await tool.handler({});
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("Proton Bridge Info");
+    expect(text).toContain("User: u@proton.me");
+    expect(text).toContain("IMAP port: 1143");
+    expect((result as any).structuredContent).toBeDefined();
+  });
+
+  it("login handler returns success", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.login).mockResolvedValue({ ok: true, message: "logged in" });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_login")!;
+    const result = await tool.handler({ user: "u@proton.me", password: "pwd" });
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("Login successful");
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(vi.mocked(client.login)).toHaveBeenCalledWith("u@proton.me", "pwd", undefined);
+  });
+
+  it("login handler returns failure with 2FA flag", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.login).mockResolvedValue({
+      ok: false,
+      message: "2FA required",
+      needs2FA: true,
+    });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_login")!;
+    const result = await tool.handler({
+      user: "u@proton.me",
+      password: "pwd",
+      totp: "123456",
+    });
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("Login failed");
+    expect(text).toContain("2FA required");
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(vi.mocked(client.login)).toHaveBeenCalledWith("u@proton.me", "pwd", "123456");
+  });
+
+  it("logout handler returns ok", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.logout).mockResolvedValue({ ok: true });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_logout")!;
+    const result = await tool.handler({});
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("Logged out");
+  });
+
+  it("logout handler returns failure", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.logout).mockResolvedValue({ ok: false });
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_logout")!;
+    const result = await tool.handler({});
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("Logout failed");
+  });
+
+  it("accounts handler with json response", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.listAccounts).mockResolvedValue([
+      { user: "u@proton.me", state: "connected" },
+    ]);
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_accounts")!;
+    const result = await tool.handler({ response_format: "json" });
+
+    const parsed = JSON.parse((result as any).content[0].text);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].user).toBe("u@proton.me");
+  });
+
+  it("accounts handler with markdown returns empty list message", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.listAccounts).mockResolvedValue([]);
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_accounts")!;
+    const result = await tool.handler({ response_format: "markdown" });
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("No accounts configured");
+  });
+
+  it("accounts handler with markdown lists accounts", async () => {
+    const client = new BridgeClient("/bin/fake", silentLog);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    vi.mocked(client.listAccounts).mockResolvedValue([
+      { user: "u1@proton.me", state: "connected" },
+      { user: "u2@proton.me", state: "disconnected" },
+    ]);
+
+    registerBridgeTools(mockRegister, client, silentLog);
+    const tool = capturedTools.get("proton_bridge_accounts")!;
+    const result = await tool.handler({ response_format: "markdown" });
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("u1@proton.me: connected");
+    expect(text).toContain("u2@proton.me: disconnected");
+  });
+});

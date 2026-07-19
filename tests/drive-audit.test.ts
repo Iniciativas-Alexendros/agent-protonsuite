@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { DriveAuditor } from '../src/drive-audit.js'
@@ -58,5 +58,26 @@ describe('DriveAuditor', () => {
   it('should build organize plan', async () => {
     const plan = auditor.buildOrganizePlan(TMP)
     expect(plan.suggestions.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('skips entries when statSync fails in scanInventory (broken symlink)', async () => {
+    try {
+      symlinkSync('/nonexistent', resolve(TMP, 'broken.lnk'))
+    } catch { /* platform may not support symlinks, skip test */
+      return
+    }
+    const inv = auditor.scanInventory(TMP)
+    // broken symlink is skipped, still counts normal files
+    expect(inv.totalFiles).toBe(6)
+  })
+
+  it('skips entries when statSync fails in findDuplicates (broken symlink)', async () => {
+    try {
+      symlinkSync('/nonexistent', resolve(TMP, 'broken2.lnk'))
+    } catch { /* platform may not support symlinks, skip test */
+      return
+    }
+    const dups = auditor.findDuplicates(TMP)
+    expect(Array.isArray(dups)).toBe(true)
   })
 })

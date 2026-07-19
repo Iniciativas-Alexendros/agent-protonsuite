@@ -25,11 +25,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Iniciativas-Alexendros/agent-protonmail.git"
+    "url": "git+https://github.com/Iniciativas-Alexendros/agent-protonsuite.git"
   },
-  "homepage": "https://github.com/Iniciativas-Alexendros/agent-protonmail#readme",
+  "homepage": "https://github.com/Iniciativas-Alexendros/agent-protonsuite#readme",
   "bugs": {
-    "url": "https://github.com/Iniciativas-Alexendros/agent-protonmail/issues"
+    "url": "https://github.com/Iniciativas-Alexendros/agent-protonsuite/issues"
   },
   "keywords": [
     "mcp",

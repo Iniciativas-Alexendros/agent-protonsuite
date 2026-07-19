@@ -67,7 +67,7 @@ describe("metadata coherence · repository", () => {
     const normalize = (url: string) =>
       url.replace(/^git\+/, "").replace(/\.git$/, "");
     expect(normalize(pkgRepo)).toBe(normalize(serverRepo));
-    expect(pkgRepo).toMatch(/agent-protonmail/);
+    expect(pkgRepo).toMatch(/agent-protonsuite/);
   });
 });
 

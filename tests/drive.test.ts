@@ -68,6 +68,13 @@ describe('DriveClient', () => {
       expect(c.stagingDir).toBe('/home/user/drive')
       process.env.HOME = orig
     })
+    it('fallback a vacío cuando HOME no está definido', () => {
+      const orig = process.env.HOME
+      delete process.env.HOME
+      const c = new DriveClient({ cliBin: 'pd', stagingDir: '~/drive', obsoleteExtensions: [] }, hoisted.silentLog)
+      expect(c.stagingDir).not.toContain('~')
+      process.env.HOME = orig
+    })
   })
 
   describe('checkDeps', () => {
@@ -201,6 +208,16 @@ describe('DriveClient', () => {
       expect(r.authenticated).toBe(true)
       expect(r.ok).toBe(true)
     })
+    it('salta archivos con statSync fallido (catch vacío)', async () => {
+      hoisted.mockExistsSync.mockReturnValue(true)
+      hoisted.mockReaddirSync.mockReturnValue(['bad.txt'])
+      hoisted.mockStatSync.mockImplementation(() => { throw new Error('EACCES') })
+      hoisted.setNextResult('')
+      const r = await makeClient().status()
+      expect(r.stagingExists).toBe(true)
+      expect(r.stagingFiles).toBe(0)
+      expect(r.authenticated).toBe(true)
+    })
     it('authenticated=false cuando auth falla', async () => {
       hoisted.mockExistsSync.mockReturnValue(false)
       hoisted.setNextError(new Error('auth failed'))
@@ -228,6 +245,12 @@ describe('DriveClient', () => {
       hoisted.setNextResult('')
       expect((await makeClient().copyFiles('/s', '/d')).ok).toBe(true)
     })
+    it('error cuando falla', async () => {
+      hoisted.setNextError(new Error('copy failed'))
+      const r = await makeClient().copyFiles('/s', '/d')
+      expect(r.ok).toBe(false)
+      expect(r.error).toContain('copy failed')
+    })
   })
 
   describe('mkdir', () => {
@@ -235,12 +258,24 @@ describe('DriveClient', () => {
       hoisted.setNextResult('')
       expect((await makeClient().mkdir('/new')).ok).toBe(true)
     })
+    it('error cuando falla', async () => {
+      hoisted.setNextError(new Error('mkdir failed'))
+      const r = await makeClient().mkdir('/new')
+      expect(r.ok).toBe(false)
+      expect(r.error).toContain('mkdir failed')
+    })
   })
 
   describe('removeFiles', () => {
     it('elimina y devuelve ok', async () => {
       hoisted.setNextResult('')
       expect((await makeClient().removeFiles('/old')).ok).toBe(true)
+    })
+    it('error cuando falla', async () => {
+      hoisted.setNextError(new Error('rm failed'))
+      const r = await makeClient().removeFiles('/old')
+      expect(r.ok).toBe(false)
+      expect(r.error).toContain('rm failed')
     })
   })
 })

@@ -18,8 +18,8 @@ importers:
         specifier: ^8.4.1
         version: 8.5.2(express@5.2.1)
       imapflow:
-        specifier: ^1.4.3
-        version: 1.4.6
+        specifier: ^1.4.7
+        version: 1.4.7
       mailparser:
         specifier: ^3.9.12
         version: 3.9.14
@@ -2214,8 +2214,8 @@ packages:
     resolution: {integrity: sha512-BAg6QkE8W+TuQLrrw0Ugr7HegXduRuuj8/ti2kSOc+jz1dmx8/WNcjr6XGnq5YpDWxFwwaavqD0+jIUOKelTsw==}
     engines: {node: '>= 4'}
 
-  imapflow@1.4.6:
-    resolution: {integrity: sha512-rStOxV2g1WKKSkctKluUHSJB99mRT2l8Dr0W67owCHsCjqYSMY+AnvzXbaG3NGSpRziu6PWNik1/nVwL0Zlycg==}
+  imapflow@1.4.7:
+    resolution: {integrity: sha512-nK03WfN16inwm0//0Q70T21G0g4H9ArMVyzKDRjAshOVV8iw71PP9HTpAXNmWB9giZWfPiS+ltHByi37cqwSgg==}
 
   import-fresh@3.3.1:
     resolution: {integrity: sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==}
@@ -6086,7 +6086,7 @@ snapshots:
 
   ignore@7.0.6: {}
 
-  imapflow@1.4.6:
+  imapflow@1.4.7:
     dependencies:
       '@zone-eu/mailsplit': 5.4.14
       encoding-japanese: 2.2.0

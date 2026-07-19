@@ -47,7 +47,7 @@ export default tseslint.config(
       "@typescript-eslint/no-base-to-string": "warn",
       "@typescript-eslint/prefer-nullish-coalescing": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unnecessary-condition": "warn",
       "@typescript-eslint/no-non-null-assertion": "warn",
       "@typescript-eslint/require-await": "warn",

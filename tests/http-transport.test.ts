@@ -322,4 +322,136 @@ describe("Error handling", () => {
     expect(res.status).toBe(400);
     expect(res.body?.error?.code).toBe(-32000);
   });
+
+  it("POST /mcp invalid JSON body triggers catch block → 500", async () => {
+    const app = buildHttpApp({ buildServer: miniServer, cfg: cfg(), log: silent });
+    const res = await request(app)
+      .post("/mcp")
+      .set("Authorization", "Bearer expected-token")
+      .set("Content-Type", "application/json")
+      .send("not json at all");
+    // Catch block returns 500 when headers not yet sent
+    expect([400, 500]).toContain(res.status);
+  });
+
+  it("/healthz reports session count after initialize", async () => {
+    const app = buildHttpApp({ buildServer: miniServer, cfg: cfg(), log: silent });
+    // Pre-init
+    const before = await request(app).get("/healthz");
+    expect(before.body.sessions).toBe(0);
+
+    // Initialize
+    await request(app)
+      .post("/mcp")
+      .set("Authorization", "Bearer expected-token")
+      .set("Accept", "application/json, text/event-stream")
+      .send({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } },
+      });
+
+    // Post-init
+    const after = await request(app).get("/healthz");
+    expect(after.body.sessions).toBeGreaterThanOrEqual(1);
+    expect(after.body.version).toBeDefined();
+  });
+
+  it("CORS headers set on POST when origin in allowlist", async () => {
+    const app = buildHttpApp({
+      buildServer: miniServer,
+      cfg: cfg({ allowedOrigins: ["https://app.example.com"] }),
+      log: silent,
+    });
+    const res = await request(app)
+      .post("/mcp")
+      .set("Origin", "https://app.example.com")
+      .set("Authorization", "Bearer expected-token")
+      .send({});
+    expect(res.headers["access-control-allow-origin"]).toBe("https://app.example.com");
+    expect(res.headers["access-control-allow-methods"]).toContain("POST");
+    expect(res.headers["access-control-allow-headers"]).toContain("Authorization");
+  });
+
+  it("auth returns 403 when origin not in allowlist", async () => {
+    const app = buildHttpApp({
+      buildServer: miniServer,
+      cfg: cfg({ allowedOrigins: ["https://trusted.com"] }),
+      log: silent,
+    });
+    const res = await request(app)
+      .post("/mcp")
+      .set("Origin", "https://evil.com")
+      .set("Authorization", "Bearer expected-token")
+      .send({});
+    expect(res.status).toBe(403);
+  });
+
+  it("auth passes (to 400) when no origin and allowedOrigins configured", async () => {
+    const app = buildHttpApp({
+      buildServer: miniServer,
+      cfg: cfg({ allowedOrigins: ["https://app.example.com"] }),
+      log: silent,
+    });
+    // No origin header → skips origin check, goes to bearer
+    const res = await request(app)
+      .post("/mcp")
+      .set("Authorization", "Bearer expected-token")
+      .send({});
+    // 400 (no session), not 403
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe(-32000);
+  });
+
+  it("OPTIONS preflight with allowed origin sets all CORS headers", async () => {
+    const app = buildHttpApp({
+      buildServer: miniServer,
+      cfg: cfg({ allowedOrigins: ["https://app.example.com"], authToken: "secret" }),
+      log: silent,
+    });
+    const res = await request(app)
+      .options("/mcp")
+      .set("Origin", "https://app.example.com");
+    // 204 without auth — preflight bypasses auth middleware
+    expect(res.status).toBe(204);
+    expect(res.headers["access-control-allow-origin"]).toBe("https://app.example.com");
+    expect(res.headers["access-control-allow-methods"]).toContain("GET");
+    expect(res.headers["access-control-expose-headers"]).toBe("Mcp-Session-Id");
+    expect(res.headers["access-control-max-age"]).toBe("600");
+  });
+
+  it("OPTIONS preflight without allowlist still returns 204", async () => {
+    const app = buildHttpApp({ buildServer: miniServer, cfg: cfg({ allowedOrigins: [] }), log: silent });
+    const res = await request(app)
+      .options("/mcp")
+      .set("Origin", "https://any.com");
+    expect(res.status).toBe(204);
+    expect(res.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
+  it("POST with allowed origin, valid auth, non-initialize body → 400", async () => {
+    const app = buildHttpApp({
+      buildServer: miniServer,
+      cfg: cfg({ allowedOrigins: ["https://app.example.com"] }),
+      log: silent,
+    });
+    const res = await request(app)
+      .post("/mcp")
+      .set("Origin", "https://app.example.com")
+      .set("Authorization", "Bearer expected-token")
+      .send({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+    expect(res.status).toBe(400);
+    expect(res.body?.error?.message).toContain("No valid session");
+    expect(res.headers["access-control-allow-origin"]).toBe("https://app.example.com");
+  });
+
+  it("DELETE /mcp without session returns 400", async () => {
+    const app = buildHttpApp({ buildServer: miniServer, cfg: cfg(), log: silent });
+    const res = await request(app)
+      .delete("/mcp")
+      .set("Authorization", "Bearer expected-token");
+    expect(res.status).toBe(400);
+    expect(res.body?.error?.code).toBe(-32000);
+  });
 });

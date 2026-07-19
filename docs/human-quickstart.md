@@ -1,4 +1,4 @@
-# Quickstart para humanos — Proton Mail Agent
+# Quickstart para humanos — Proton Suite Agent
 
 Este documento te lleva de cero a "leer el inbox con un agente IA" y, opcionalmente, organizar el buzón de forma autónoma.
 
@@ -35,16 +35,16 @@ ss -ltn | grep -E '127.0.0.1:1143'
 Opción A: usar el paquete npm (recomendado):
 
 ```bash
-npx -y @alexendros/protonmail-agent setup
+npx -y @alexendros/protonsuite-agent setup
 ```
 
 Opción B: clonar y construir:
 
 ```bash
-git clone https://github.com/Iniciativas-Alexendros/agent-protonmail.git
-cd agent-protonmail
-npm install
-npm run build
+git clone https://github.com/Iniciativas-Alexendros/agent-protonsuite.git
+cd agent-protonsuite
+pnpm install
+pnpm run build
 ```
 
 ## 3. Verificar conexión
@@ -53,7 +53,7 @@ npm run build
 export PROTON_BRIDGE_USER=you@proton.me
 export PROTON_BRIDGE_PASS=your-bridge-password
 export PROTON_MAIL_FROM=you@proton.me
-npx -y @alexendros/protonmail-agent setup
+npx -y @alexendros/protonsuite-agent setup
 ```
 
 Si todo va bien, verás las carpetas detectadas y una recomendación para ejecutar `organize`.
@@ -65,9 +65,9 @@ Añade esto a la configuración MCP de tu agente (formato genérico):
 ```jsonc
 {
   "mcpServers": {
-    "protonmail": {
+    "protonsuite": {
       "command": "npx",
-      "args": ["-y", "@alexendros/protonmail-agent", "protonmail-mcp"],
+      "args": ["-y", "@alexendros/protonsuite-agent", "protonsuite-mcp"],
       "env": {
         "MCP_TRANSPORT": "stdio",
         "PROTON_BRIDGE_USER": "you@proton.me",
@@ -88,7 +88,7 @@ Copia [`connectors/stdio-wrapper.sh.example`](../connectors/stdio-wrapper.sh.exa
 ## 6. Organizar el buzón (modo dry-run)
 
 ```bash
-npx -y @alexendros/protonmail-agent organize
+npx -y @alexendros/protonsuite-agent organize
 ```
 
 Por defecto, `AGENT_DRY_RUN=true`, así que el agente solo presenta un plan de:

@@ -1,4 +1,4 @@
-# Quickstart para agentes IA — Proton Mail Agent
+# Quickstart para agentes IA — Proton Suite Agent
 
 Este documento es para cualquier agente MCP (agentes de código con soporte MCP, IDEs con extensión MCP, backends propios) que consuma este servidor.
 
@@ -17,9 +17,9 @@ Configuración típica para cualquier cliente MCP:
 ```jsonc
 {
   "mcpServers": {
-    "protonmail": {
+    "protonsuite": {
       "command": "npx",
-      "args": ["-y", "@alexendros/protonmail-agent", "protonmail-mcp"],
+      "args": ["-y", "@alexendros/protonsuite-agent", "protonsuite-mcp"],
       "env": {
         "MCP_TRANSPORT": "stdio",
         "PROTON_BRIDGE_USER": "you@proton.me",
@@ -142,4 +142,4 @@ Después del `initialize`, guarda el header `Mcp-Session-Id` y envíalo en cada 
 - `origin_not_allowed`: en HTTP, el `Origin` no está en `MCP_ALLOWED_ORIGINS`.
 - `rate_limit_exceeded`: rebajas la frecuencia de llamadas; límite 120/min/token.
 
-Para diagnosticar conexión IMAP sin enviar email, ejecuta `bash scripts/diagnose-bridge.sh` tras `npm run build`, o `npx -y @alexendros/protonmail-agent check-imap` con `LOG_LEVEL=debug`.
+Para diagnosticar conexión IMAP sin enviar email, ejecuta `bash scripts/diagnose-bridge.sh` tras `pnpm run build`, o `npx -y @alexendros/protonsuite-agent check-imap` con `LOG_LEVEL=debug`.

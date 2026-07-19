@@ -30,7 +30,7 @@ describe('Bridge — IMAP smoke', () => {
     await client.connect()
     const list = await client.list()
     const inbox = list.find(
-      (m) => m.path === 'INBOX' || m.flags?.has('\\Inbox'),
+      (m) => m.path === 'INBOX' || m.flags.has('\\Inbox'),
     )
     expect(inbox).toBeDefined()
     await client.logout()

@@ -575,7 +575,7 @@ describe('Types are properly exported', () => {
 })
 
 describe('measureTcp type shape', () => {
-  it('returns correct shape on timeout (port not listening)', async () => {
+  it('returns correct shape on timeout (port not listening)', () => {
     // measureTcp is not exported, but we validate the type shape it produces
     // by testing diagnoseMail indirectly through type assertion
     const result: TcpDiagnostics = {

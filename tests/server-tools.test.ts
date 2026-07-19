@@ -47,53 +47,53 @@ const imapState = {
   flagsRemoveResult: true,
 }
 
-const sendMailMock = vi.fn(async () => ({
+const sendMailMock = vi.fn().mockResolvedValue({
   messageId: '<generated@local>',
   accepted: ['bob@example.com'],
   rejected: [],
   response: '250 OK',
-}))
+})
 
 vi.mock('imapflow', () => {
   class ImapFlow {
     usable = true
     on() {}
-    async connect() {}
-    async logout() {}
-    async list() {
+    connect() {}
+    logout() {}
+    list() {
       return imapState.listResult
     }
-    async mailboxCreate() {
+    mailboxCreate() {
       return imapState.mailboxCreateResult
     }
-    async status() {
+    status() {
       return imapState.statusResult
     }
-    async getMailboxLock() {
+    getMailboxLock() {
       return { release() {} }
     }
     async *fetch() {
       for (const m of imapState.fetchResults) yield m
     }
-    async fetchOne() {
+    fetchOne() {
       return imapState.fetchOneResult
     }
-    async search() {
+    search() {
       return imapState.searchResult
     }
-    async messageMove() {
+    messageMove() {
       return imapState.moveResult
     }
-    async messageDelete() {
+    messageDelete() {
       return imapState.deleteResult
     }
-    async messageFlagsAdd() {
+    messageFlagsAdd() {
       return imapState.flagsAddResult
     }
-    async messageFlagsRemove() {
+    messageFlagsRemove() {
       return imapState.flagsRemoveResult
     }
-    async append() {
+    append() {
       return { uid: 1 }
     }
   }
@@ -111,7 +111,7 @@ vi.mock('nodemailer', () => ({
 
 // mailparser stub: source Buffer is irrelevant, we return a fixed parsed mail.
 vi.mock('mailparser', () => ({
-  simpleParser: async () => ({
+  simpleParser: () => ({
     headers: new Map<string, string>([['references', '']]),
     cc: undefined,
     bcc: undefined,

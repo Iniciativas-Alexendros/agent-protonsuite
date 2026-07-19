@@ -53,26 +53,26 @@ vi.mock('imapflow', () => {
   class ImapFlow {
     get usable() { return imapState.usable }
     on() {}
-    async connect() {
+    connect() {
       imapState.connectAttempts += 1
       if (imapState.connectAttempts <= imapState.connectFailUntil) {
         throw new Error(imapState.connectErrorMessage)
       }
     }
-    async logout() {}
-    async list() {
+    logout() {}
+    list() {
       if (imapState.listShouldThrow)
         throw new Error('LIST failed: connection dropped')
       return imapState.listResult
     }
-    async mailboxCreate() {
+    mailboxCreate() {
       return imapState.mailboxCreateResult
     }
-    async status() {
+    status() {
       if (imapState.statusShouldThrow) throw new Error('Mailbox does not exist')
       return imapState.statusResult
     }
-    async getMailboxLock() {
+    getMailboxLock() {
       return {
         release() {
           imapState.lockReleases += 1
@@ -82,30 +82,30 @@ vi.mock('imapflow', () => {
     async *fetch() {
       for (const m of imapState.fetchResults) yield m
     }
-    async fetchOne() {
+    fetchOne() {
       if (imapState.fetchOneShouldThrow) throw new Error('fetchOne failed')
       return imapState.fetchOneResult
     }
-    async search() {
+    search() {
       if (imapState.searchShouldThrow) throw new Error('SEARCH failed')
       return imapState.searchResult
     }
-    async messageMove() {
+    messageMove() {
       return imapState.moveResult
     }
-    async messageCopy() {
+    messageCopy() {
       return imapState.copyResult
     }
-    async messageDelete() {
+    messageDelete() {
       return imapState.deleteResult
     }
-    async messageFlagsAdd() {
+    messageFlagsAdd() {
       return imapState.flagsAddResult
     }
-    async messageFlagsRemove() {
+    messageFlagsRemove() {
       return imapState.flagsRemoveResult
     }
-    async append() {
+    append() {
       return imapState.appendResult
     }
   }
@@ -113,7 +113,7 @@ vi.mock('imapflow', () => {
 })
 
 vi.mock('mailparser', () => ({
-  simpleParser: async () => {
+  simpleParser: () => {
     if (parseError.value) throw parseError.value
     return parsedMailResult
   },

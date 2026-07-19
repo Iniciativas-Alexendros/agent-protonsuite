@@ -112,7 +112,7 @@ describe("E2E · ciclo completo contra GreenMail", () => {
     const before = await imap.mailboxStatus(folder).catch(() => ({ messages: 0 }));
     expect(await imap.moveEmail("INBOX", uid, folder)).toBe(true);
     const after = await imap.mailboxStatus(folder);
-    expect(after.messages).toBe((before.messages ?? 0) + 1);
+    expect(after.messages).toBe(before.messages + 1);
   });
 
   it("borra a Trash (fallback de resolveTrashPath) y luego permanente", async () => {

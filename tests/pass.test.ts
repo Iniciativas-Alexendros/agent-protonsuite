@@ -197,7 +197,7 @@ describe('PassClient', () => {
       expect(result.path).toBe('old/entry')
     })
 
-    it('llama execFile con rm -f', async () => {
+    it('llama execFile con rm -f', () => {
       makeClient().remove('old/entry').catch(() => {})
       expect(hoisted.mockExecFile).toHaveBeenCalledWith('pass', ['rm', '-f', 'old/entry'], expect.any(Object))
     })
@@ -214,7 +214,7 @@ describe('PassClient', () => {
       expect(result.to).toBe('new/path')
     })
 
-    it('llama execFile con mv', async () => {
+    it('llama execFile con mv', () => {
       makeClient().move('a', 'b').catch(() => {})
       expect(hoisted.mockExecFile).toHaveBeenCalledWith('pass', ['mv', 'a', 'b'], expect.any(Object))
     })
@@ -231,7 +231,7 @@ describe('PassClient', () => {
       expect(result.dst).toBe('dst/entry')
     })
 
-    it('llama execFile con cp', async () => {
+    it('llama execFile con cp', () => {
       makeClient().copy('s', 'd').catch(() => {})
       expect(hoisted.mockExecFile).toHaveBeenCalledWith('pass', ['cp', 's', 'd'], expect.any(Object))
     })

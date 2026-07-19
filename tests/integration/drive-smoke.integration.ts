@@ -3,7 +3,7 @@ import { describe, expect } from 'vitest'
 import { integrationTest } from './helpers'
 
 describe('Drive — smoke', () => {
-  integrationTest('proton-drive --version succeeds', async () => {
+  integrationTest('proton-drive --version succeeds',    () => {
     const output = execFileSync('proton-drive', ['--version'], {
       encoding: 'utf-8',
       timeout: 5_000,
@@ -11,7 +11,7 @@ describe('Drive — smoke', () => {
     expect(output.trim()).toBeTruthy()
   })
 
-  integrationTest('proton-drive auth status runs', async () => {
+  integrationTest('proton-drive auth status runs',    () => {
     const output = execFileSync('proton-drive', ['auth', 'status'], {
       encoding: 'utf-8',
       timeout: 15_000,

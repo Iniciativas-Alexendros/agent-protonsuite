@@ -316,7 +316,7 @@ describe('discoverSubcommands', () => {
     expect(result.rawHelp).toBe('')
   })
 
-  it('parsea subcommands desde output de --help con sección "Commands:"', async () => {
+  it('parsea subcommands desde output de --help con sección "Commands:"', () => {
     hoisted.mockWhichSync.mockReturnValue('/usr/bin/pass')
     hoisted.mockExecFileSync
       .mockReturnValueOnce('pass 1.7.4\n') // versionCmd (desde checkBinary)

@@ -5,7 +5,7 @@ import { integrationTest } from './helpers'
 describe('Suite — health', () => {
   integrationTest(
     'checkAllBinaries returns results for all products',
-    async () => {
+    () => {
       const results = checkAllBinaries()
       expect(results).toBeInstanceOf(Array)
       expect(results.length).toBeGreaterThan(0)

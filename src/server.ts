@@ -119,7 +119,12 @@ export function buildServer(
     registerBridgeTools(register, bridgeClient, log)
   }
 
-  return { server, imap, smtp, drive: driveClient }
+  return {
+    server,
+    imap,
+    smtp,
+    ...(driveClient !== undefined ? { drive: driveClient } : {}),
+  }
 
   // ---------------------------------------------------------------------------
   // Drive stubs

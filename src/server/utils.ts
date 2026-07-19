@@ -19,9 +19,9 @@ function truncate(s: string, n: number): string {
 export function renderEmailList(
   items: {
     uid: number
-    from?: string
-    subject?: string
-    date?: string
+    from: string | undefined
+    subject: string | undefined
+    date: string | undefined
     flags: string[]
   }[],
   mailbox: string,
@@ -42,15 +42,15 @@ export function renderEmailList(
 
 export function renderFullEmail(m: {
   uid: number
-  from?: string
+  from: string | undefined
   to: string[]
   cc: string[]
-  subject?: string
-  date?: string
+  subject: string | undefined
+  date: string | undefined
   flags: string[]
-  textBody?: string
-  htmlBody?: string
-  attachments: { filename?: string; contentType: string; size: number }[]
+  textBody: string | undefined
+  htmlBody: string | undefined
+  attachments: { filename: string | undefined; contentType: string; size: number }[]
 }): string {
   const lines = [
     `**Subject:** ${m.subject ?? '(no subject)'}`,
@@ -83,13 +83,13 @@ export function renderFullEmail(m: {
 }
 
 export function buildSearchCriteria(args: {
-  query?: string
+  query: string | undefined
   fields: ('text' | 'subject' | 'from' | 'to' | 'body')[]
-  since?: string
-  before?: string
+  since: string | undefined
+  before: string | undefined
   unseen_only: boolean
-  from_address?: string
-  to_address?: string
+  from_address: string | undefined
+  to_address: string | undefined
 }): SearchObject {
   const criteria: SearchObject = {}
   if (args.unseen_only) criteria.seen = false

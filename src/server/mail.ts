@@ -268,13 +268,13 @@ async function handleSearchEmails(
   deps: MailDeps,
   args: {
     mailbox: string
-    query?: string
+    query: string | undefined
     fields: ('text' | 'subject' | 'from' | 'to' | 'body')[]
-    since?: string
-    before?: string
+    since: string | undefined
+    before: string | undefined
     unseen_only: boolean
-    from_address?: string
-    to_address?: string
+    from_address: string | undefined
+    to_address: string | undefined
     limit: number
     response_format: 'markdown' | 'json'
   },
@@ -485,17 +485,21 @@ function registerSendTools(server: McpServer, deps: MailDeps) {
       }
       const res = await smtp.send({
         to: args.to,
-        cc: args.cc,
-        bcc: args.bcc,
+        ...(args.cc !== undefined ? { cc: args.cc } : {}),
+        ...(args.bcc !== undefined ? { bcc: args.bcc } : {}),
         subject: args.subject,
-        text: args.text,
-        html: args.html,
-        replyTo: args.reply_to,
-        attachments: args.attachments?.map((a) => ({
-          filename: a.filename,
-          contentBase64: a.content_base64,
-          contentType: a.content_type,
-        })),
+        ...(args.text !== undefined ? { text: args.text } : {}),
+        ...(args.html !== undefined ? { html: args.html } : {}),
+        ...(args.reply_to !== undefined ? { replyTo: args.reply_to } : {}),
+        ...(args.attachments !== undefined
+          ? {
+              attachments: args.attachments.map((a) => ({
+                filename: a.filename,
+                contentBase64: a.content_base64,
+                ...(a.content_type !== undefined ? { contentType: a.content_type } : {}),
+              })),
+            }
+          : {}),
       })
       return {
         content: [
@@ -545,7 +549,10 @@ function registerSendTools(server: McpServer, deps: MailDeps) {
         imap,
         args.mailbox,
         args.uid,
-        { text: args.text, html: args.html },
+        {
+          ...(args.text !== undefined ? { text: args.text } : {}),
+          ...(args.html !== undefined ? { html: args.html } : {}),
+        },
         args.include_quote,
         args.reply_all,
         cfg.products.mail.bridge.from,
@@ -603,7 +610,10 @@ function registerSendTools(server: McpServer, deps: MailDeps) {
         args.mailbox,
         args.uid,
         args.to,
-        { text: args.text, html: args.html },
+        {
+          ...(args.text !== undefined ? { text: args.text } : {}),
+          ...(args.html !== undefined ? { html: args.html } : {}),
+        },
         args.include_attachments,
       )
       if (!opts)

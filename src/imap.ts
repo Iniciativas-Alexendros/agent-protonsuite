@@ -292,9 +292,10 @@ export class ImapClient {
       messages: s.messages ?? 0,
       unseen: s.unseen ?? 0,
       recent: s.recent ?? 0,
-      uidNext: s.uidNext,
-      uidValidity:
-        s.uidValidity === undefined ? undefined : Number(s.uidValidity),
+      ...(s.uidNext !== undefined ? { uidNext: s.uidNext } : {}),
+      ...(s.uidValidity !== undefined
+        ? { uidValidity: Number(s.uidValidity) }
+        : {}),
     }
   }
 

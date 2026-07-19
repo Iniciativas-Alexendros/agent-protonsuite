@@ -39,16 +39,16 @@ export async function buildOrganizationPlan(
         const full = await imap.getEmail("INBOX", summary.uid);
         if (!full) continue;
         const classification = classifyEmail({
-          from: full.from,
-          subject: full.subject,
-          text: full.textBody,
-          html: full.htmlBody,
+          ...(full.from !== undefined ? { from: full.from } : {}),
+          ...(full.subject !== undefined ? { subject: full.subject } : {}),
+          ...(full.textBody !== undefined ? { text: full.textBody } : {}),
+          ...(full.htmlBody !== undefined ? { html: full.htmlBody } : {}),
         });
         const threats = detectThreats({
-          from: full.from,
-          subject: full.subject,
-          text: full.textBody,
-          html: full.htmlBody,
+          ...(full.from !== undefined ? { from: full.from } : {}),
+          ...(full.subject !== undefined ? { subject: full.subject } : {}),
+          ...(full.textBody !== undefined ? { text: full.textBody } : {}),
+          ...(full.htmlBody !== undefined ? { html: full.htmlBody } : {}),
         });
         classified.push({ uid: summary.uid, summary, full, classification, threats });
       } catch (err) {
@@ -84,10 +84,10 @@ export async function buildOrganizationPlan(
       for (const e of emails) {
         try {
           const state = inferStateLabels({
-            from: e.full?.from,
-            subject: e.full?.subject,
-            text: e.full?.textBody,
-            html: e.full?.htmlBody,
+            ...(e.full?.from !== undefined ? { from: e.full.from } : {}),
+            ...(e.full?.subject !== undefined ? { subject: e.full.subject } : {}),
+            ...(e.full?.textBody !== undefined ? { text: e.full.textBody } : {}),
+            ...(e.full?.htmlBody !== undefined ? { html: e.full.htmlBody } : {}),
             category: e.classification.category,
           });
           for (const label of state.labels) {

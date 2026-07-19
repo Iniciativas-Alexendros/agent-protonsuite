@@ -16,7 +16,7 @@ export function checkUpdateFor(bin: BinaryInfo): UpdateCheckResult {
   if (!local.installed || !local.version) {
     return {
       product: bin.product,
-      currentVersion: local.version,
+      ...(local.version !== undefined ? { currentVersion: local.version } : {}),
       updatable: false,
       error: local.error ?? 'not installed',
     }
@@ -27,7 +27,7 @@ export function checkUpdateFor(bin: BinaryInfo): UpdateCheckResult {
   return {
     product: bin.product,
     currentVersion: local.version,
-    latestVersion: latest,
+    ...(latest !== undefined ? { latestVersion: latest } : {}),
     updatable: latest !== undefined && local.version !== latest,
   }
 }

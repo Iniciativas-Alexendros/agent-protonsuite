@@ -124,7 +124,7 @@
     "knip": "^5.88.1",
     "license-checker": "^25.0.1",
     "lint-staged": "^15.5.2",
-    "semantic-release": "^24.2.9",
+    "semantic-release": "^25.0.6",
     "supertest": "^7.2.2",
     "tsdav": "^2.3.0",
     "typescript": "^5.8.0",

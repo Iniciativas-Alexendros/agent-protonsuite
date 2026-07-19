@@ -168,6 +168,25 @@ describe("SmtpClient", () => {
     }));
   });
 
+  it("send() handles undefined accepted/rejected with ?? fallback", async () => {
+    sendMailMock.mockResolvedValueOnce({
+      messageId: "<undef@local>",
+      accepted: undefined,
+      rejected: undefined,
+      response: "250 OK",
+    });
+
+    const smtp = new SmtpClient(makeCfg(), silentLog);
+    const result = await smtp.send({
+      to: ["bob@example.com"],
+      subject: "Undefined arrays",
+      text: "Body",
+    });
+
+    expect(result.accepted).toEqual([]);
+    expect(result.rejected).toEqual([]);
+  });
+
   it("close() resets the transporter after send() readies it", async () => {
     sendMailMock.mockResolvedValueOnce({
       messageId: "<close-test@local>",
@@ -369,6 +388,24 @@ describe("buildReplyOptions", () => {
     expect(result!.html).toBeUndefined();
   });
 
+  it("buildQuote handles undefined from/date/textBody with ?? fallbacks", async () => {
+    const email: EmailFull = {
+      ...baseEmail,
+      from: undefined,
+      date: undefined,
+      textBody: undefined,
+      htmlBody: undefined,
+    };
+    (mockImap as any).getEmail.mockResolvedValueOnce(email);
+    // includeQuote: true + html body → buildQuote ejecuta ambos ?? de from, date, textBody
+    const result = await buildReplyOptions(
+      mockImap as any, "INBOX", 1, { html: "<b>Reply</b>" }, true, false, "me@proton.me",
+    );
+    expect(result!.text).toContain("On ,  wrote:"); // date??'' + from??'' → ambos vacíos
+    expect(result!.html).toContain("<b>Reply</b>");
+    expect(result!.html).toContain("<blockquote");
+  });
+
   it("handles empty to when no replyTo and no from", async () => {
     const email: EmailFull = {
       ...baseEmail,
@@ -438,6 +475,23 @@ describe("buildForwardOptions", () => {
       mockImap as any, "INBOX", 1, ["bob@example.com"], { text: "No att" }, false,
     );
     expect(result!.attachments).toBeUndefined();
+  });
+
+  it("attachment without filename falls back to attachment-N", async () => {
+    const email: EmailFull = {
+      ...baseEmail,
+      attachments: [{ contentType: "image/png" }], // sin filename
+    };
+    (mockImap as any).getEmail.mockResolvedValueOnce(email);
+    (mockImap as any).getAttachment.mockResolvedValueOnce({
+      base64: Buffer.from("img-data").toString("base64"),
+    });
+
+    const result = await buildForwardOptions(
+      mockImap as any, "INBOX", 1, ["bob@example.com"], { text: "No filename" }, true,
+    );
+    expect(result!.attachments).toHaveLength(1);
+    expect(result!.attachments![0]!.filename).toBe("attachment-0");
   });
 
   it("skips attachment when getAttachment returns null", async () => {

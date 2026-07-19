@@ -118,7 +118,7 @@ export class BridgeClient {
 
     const authOk = imapListening ? await this.checkImapAuth() : false
 
-    const ok = processRunning && imapListening && authOk
+    const ok = imapListening && authOk
     return {
       ok,
       processRunning,
@@ -210,7 +210,7 @@ export class BridgeClient {
       const lines = raw.split('\n')
       for (const line of lines) {
         const match = /(\S+@\S+)\s+(\w+)/.exec(line.trim())
-        if (match?.[1] && match?.[2]) {
+        if (match?.[1] && match[2]) {
           accounts.push({ user: match[1], state: match[2].toLowerCase() as BridgeAccount['state'] })
         }
       }
@@ -237,7 +237,7 @@ export class BridgeClient {
     await new Promise<void>((resolve, reject) => {
       let out = ''
       const timer = setTimeout(() => {
-        child?.kill()
+        child.kill()
         reject(new Error('spawn timeout'))
       }, SPAWN_PROMPT_TIMEOUT)
 
@@ -273,7 +273,7 @@ export class BridgeClient {
 
     await new Promise<void>((resolve) => {
       const timer = setTimeout(() => {
-        child?.kill('SIGTERM')
+        child.kill('SIGTERM')
         resolve()
       }, 5_000)
       child.on('close', () => {

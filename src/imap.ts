@@ -258,13 +258,10 @@ export class ImapClient {
       path: m.path,
       name: m.name,
       delimiter: m.delimiter,
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      flags: Array.from(m.flags ?? []),
+      flags: Array.from(m.flags),
       specialUse: m.specialUse,
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      subscribed: m.subscribed ?? false,
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      listed: m.listed ?? true,
+      subscribed: m.subscribed,
+      listed: m.listed,
     }))
   }
 
@@ -411,7 +408,7 @@ export class ImapClient {
       if (!msg || !msg.source) return null
       const parsed = await simpleParser(msg.source)
       const att = parsed.attachments[index]
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+       
       if (!att) return null
       return {
         filename: att.filename,

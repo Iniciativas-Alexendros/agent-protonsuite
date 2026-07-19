@@ -48,7 +48,7 @@ export default tseslint.config(
       "@typescript-eslint/prefer-nullish-coalescing": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unnecessary-condition": "warn",
+      "@typescript-eslint/no-unnecessary-condition": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
       "@typescript-eslint/require-await": "error",
       "@typescript-eslint/no-unnecessary-type-conversion": "warn",

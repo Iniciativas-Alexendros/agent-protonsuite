@@ -184,9 +184,10 @@ beforeEach(() => {
       path: 'Trash',
       name: 'Trash',
       delimiter: '/',
-      // flags ausente a propósito → cubre el `?? []`.
+      flags: new Set(),
       specialUse: undefined,
-      // subscribed/listed ausentes → cubre los `?? false` / `?? true`.
+      subscribed: false,
+      listed: true,
     },
   ]
   imapState.statusResult = {

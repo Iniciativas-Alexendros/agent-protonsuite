@@ -30,7 +30,7 @@ export class AlertSystem {
     if (cfg.webhookUrl) {
       this.sinks.push(new WebhookAlertSink(cfg.webhookUrl));
     }
-    if (cfg.ntfy?.url && cfg.ntfy?.topic) {
+    if (cfg.ntfy?.url && cfg.ntfy.topic) {
       this.sinks.push(
         new NtfyAlertSink(cfg.ntfy.url, cfg.ntfy.topic, cfg.ntfy.token),
       );

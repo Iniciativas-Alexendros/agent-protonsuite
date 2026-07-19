@@ -12,7 +12,9 @@
  *  - logout: ok vs fail
  *  - info handler happy path
  */
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { BridgeClient } from "../../src/bridge/bridge-client.js";
 import type { Config } from "../../src/config.js";
 import { buildServer, registerBridgeTools } from "../../src/server.js";
 
@@ -171,7 +173,6 @@ function mockRegister(
   capturedTools.set(name, { config, handler });
 }
 
-import { BridgeClient } from "../../src/bridge/bridge-client.js";
 
 beforeEach(() => {
   capturedTools.clear();
@@ -415,5 +416,100 @@ describe("registerBridgeTools — handlers", () => {
     const text = (result as any).content[0].text;
     expect(text).toContain("u1@proton.me: connected");
     expect(text).toContain("u2@proton.me: disconnected");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildServer — additional branches
+// ---------------------------------------------------------------------------
+
+describe("buildServer — calendar and passPath variants", () => {
+  it("works with calendar enabled", () => {
+    const cfg = makeCfg({
+      products: {
+        ...makeCfg().products,
+        calendar: { enabled: true },
+      },
+    });
+    const result = buildServer(cfg, silentLog as never);
+    expect(result.server).toBeDefined();
+  });
+
+  it("uses fallback passwordResolver when pass enabled but no passPath", () => {
+    const cfg = makeCfg({
+      products: {
+        ...makeCfg().products,
+        pass: { enabled: true, storeDir: "/tmp/pass" },
+      },
+    });
+    // pass enabled, but bridge.passPath is not set so it falls back to bridge.pass
+    const result = buildServer(cfg, silentLog as never);
+    expect(result.server).toBeDefined();
+    expect(result.imap).toBeDefined();
+  });
+});
+
+describe("register wrapper — bridge client creation", () => {
+  it("creates BridgeClient when mail enabled", async () => {
+    const dbgLog = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
+
+    const result = buildServer(makeCfg(), dbgLog as never);
+    const { BridgeClient } = await import("../../src/bridge/bridge-client.js");
+     
+    expect(vi.mocked(BridgeClient)).toHaveBeenCalledWith(
+      "protonmail-bridge-core",
+      dbgLog,
+    );
+    expect(result.server).toBeDefined();
+  });
+
+  it("register wrapper fires log.debug on bridge tool invocation", async () => {
+    const dbgLog = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
+
+    // Accedemos a registerTool via any para espiarlo
+    const McpProto = McpServer as unknown as { prototype: { registerTool: (...args: never[]) => unknown } };
+    const handlers = new Map<string, (...args: never[]) => unknown>();
+    const origRegister = McpProto.prototype.registerTool;
+    const spyRegister = vi
+      .spyOn(McpProto.prototype as any, "registerTool")
+      .mockImplementation(function (
+        this: McpServer,
+        name: string,
+        _config: unknown,
+        handler: (...args: never[]) => unknown,
+      ) {
+        handlers.set(name, handler);
+        return (origRegister as (...a: never[]) => unknown).call(this, name, _config as never, handler);
+      });
+
+    try {
+      const result = buildServer(makeCfg(), dbgLog as never);
+      expect(result.server).toBeDefined();
+
+      const healthHandler = handlers.get("proton_bridge_health");
+      expect(healthHandler).toBeDefined();
+
+      // Configurar mock de BridgeClient.health para la instancia creada por buildServer
+      const { BridgeClient } = await import("../../src/bridge/bridge-client.js");
+      const instance = vi.mocked(BridgeClient).mock.results[0]?.value as any;
+      if (instance?.health) {
+        instance.health.mockResolvedValue({
+          ok: true,
+          processRunning: true,
+          imapListening: true,
+          smtpListening: true,
+          authOk: true,
+        });
+      }
+
+      await healthHandler!({ response_format: "markdown" } as never);
+
+      expect(dbgLog.debug).toHaveBeenCalledWith(
+        "tool",
+        expect.objectContaining({ tool: "proton_bridge_health", ms: expect.any(Number) }),
+      );
+    } finally {
+      spyRegister.mockRestore();
+    }
   });
 });

@@ -18,6 +18,6 @@ export type CalendarConfig = z.infer<typeof CalendarConfigSchema>
 /** Parsea Calendar config desde env vars. */
 export function parseCalendarConfig(env: NodeJS.ProcessEnv) {
   return {
-    enabled: (env.PROTON_CALENDAR_ENABLED ?? 'false') === 'true',
+    enabled: (env['PROTON_CALENDAR_ENABLED'] ?? 'false') === 'true',
   }
 }

@@ -22,8 +22,8 @@ export type PassConfig = z.infer<typeof PassConfigSchema>
 /** Parsea Pass config desde env vars. */
 export function parsePassConfig(env: NodeJS.ProcessEnv) {
   return {
-    enabled: (env.PROTON_PASS_ENABLED ?? 'false') === 'true',
-    storeDir: env.PROTON_PASS_STORE_DIR ?? '~/.password-store',
-    bridgePath: env.PROTON_PASS_BRIDGE_PATH || undefined,
+    enabled: (env['PROTON_PASS_ENABLED'] ?? 'false') === 'true',
+    storeDir: env['PROTON_PASS_STORE_DIR'] ?? '~/.password-store',
+    bridgePath: env['PROTON_PASS_BRIDGE_PATH'] || undefined,
   }
 }

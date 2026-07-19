@@ -74,7 +74,7 @@ async function main(): Promise<void> {
   }
 
   if (
-    process.env.NODE_ENV === 'production' &&
+    process.env['NODE_ENV'] === 'production' &&
     cfg.transport.allowedOrigins.length === 0
   ) {
     process.stderr.write(

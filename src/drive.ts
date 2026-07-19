@@ -78,7 +78,7 @@ export class DriveClient {
   ) {}
 
   get stagingDir(): string {
-    return resolve(this.opts.stagingDir.replace(/^~/, process.env.HOME ?? ''))
+    return resolve(this.opts.stagingDir.replace(/^~/, process.env['HOME'] ?? ''))
   }
 
   execCli(args: string[]): Promise<{ stdout: string; stderr: string }> {

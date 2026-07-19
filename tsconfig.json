@@ -14,7 +14,8 @@
     "sourceMap": false,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "exactOptionalPropertyTypes": true
+    "exactOptionalPropertyTypes": true,
+    "noPropertyAccessFromIndexSignature": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

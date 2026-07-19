@@ -31,14 +31,14 @@ export function parseDriveConfig(env: NodeJS.ProcessEnv) {
       : []
 
   const obsoleteExt =
-    readCsv(env.DRIVE_OBSOLETE_EXTENSIONS).length > 0
-      ? readCsv(env.DRIVE_OBSOLETE_EXTENSIONS)
+    readCsv(env['DRIVE_OBSOLETE_EXTENSIONS']).length > 0
+      ? readCsv(env['DRIVE_OBSOLETE_EXTENSIONS'])
       : ['.doc', '.ppt', '.xls', '.bmp']
 
   return {
-    enabled: (env.DRIVE_ENABLED ?? 'true') === 'true',
-    cliBin: env.DRIVE_CLI_BIN ?? 'proton-drive',
-    stagingDir: env.DRIVE_STAGING_DIR ?? '~/.proton-drive/staging',
+    enabled: (env['DRIVE_ENABLED'] ?? 'true') === 'true',
+    cliBin: env['DRIVE_CLI_BIN'] ?? 'proton-drive',
+    stagingDir: env['DRIVE_STAGING_DIR'] ?? '~/.proton-drive/staging',
     obsoleteExtensions: obsoleteExt,
   }
 }

@@ -184,7 +184,7 @@ function readCsv(value: string | undefined): string[] {
 function parseProductsConfig(env: NodeJS.ProcessEnv) {
   return {
     mail: {
-      enabled: readBool(env.PROTON_MAIL_ENABLED, true),
+      enabled: readBool(env['PROTON_MAIL_ENABLED'], true),
       bridge: parseBridgeConfig(env),
     },
     pass: parsePassConfig(env),
@@ -195,33 +195,33 @@ function parseProductsConfig(env: NodeJS.ProcessEnv) {
 
 function parseTransportConfig(env: NodeJS.ProcessEnv) {
   return {
-    kind: (env.MCP_TRANSPORT ?? 'stdio') as 'stdio' | 'http',
-    httpHost: env.MCP_HTTP_HOST ?? '127.0.0.1',
-    httpPort: readInt(env.MCP_HTTP_PORT, 8787),
-    authToken: env.MCP_AUTH_TOKEN || undefined,
-    allowedOrigins: readCsv(env.MCP_ALLOWED_ORIGINS),
+    kind: (env['MCP_TRANSPORT'] ?? 'stdio') as 'stdio' | 'http',
+    httpHost: env['MCP_HTTP_HOST'] ?? '127.0.0.1',
+    httpPort: readInt(env['MCP_HTTP_PORT'], 8787),
+    authToken: env['MCP_AUTH_TOKEN'] || undefined,
+    allowedOrigins: readCsv(env['MCP_ALLOWED_ORIGINS']),
   }
 }
 
 function parseLogLevel(env: NodeJS.ProcessEnv) {
-  return (env.LOG_LEVEL ?? 'info') as 'error' | 'warn' | 'info' | 'debug'
+  return (env['LOG_LEVEL'] ?? 'info') as 'error' | 'warn' | 'info' | 'debug'
 }
 
 function parseAlertConfig(env: NodeJS.ProcessEnv) {
   return {
-    webhookUrl: env.ALERT_WEBHOOK_URL || undefined,
-    minSeverity: (env.ALERT_MIN_SEVERITY ??
+    webhookUrl: env['ALERT_WEBHOOK_URL'] || undefined,
+    minSeverity: (env['ALERT_MIN_SEVERITY'] ??
       'warning') as Config['alerts']['minSeverity'],
-    logDir: env.ALERT_LOG_DIR ?? 'logs',
-    enabled: readBool(env.ALERTS_ENABLED, true),
+    logDir: env['ALERT_LOG_DIR'] ?? 'logs',
+    enabled: readBool(env['ALERTS_ENABLED'], true),
   }
 }
 
 function parseAgentConfig(env: NodeJS.ProcessEnv) {
   return {
-    dryRun: readBool(env.AGENT_DRY_RUN, true),
-    maxInspectEmails: readInt(env.AGENT_MAX_INSPECT_EMAILS, 1000),
-    minConfidence: Number(env.AGENT_MIN_CONFIDENCE ?? '0.6'),
+    dryRun: readBool(env['AGENT_DRY_RUN'], true),
+    maxInspectEmails: readInt(env['AGENT_MAX_INSPECT_EMAILS'], 1000),
+    minConfidence: Number(env['AGENT_MIN_CONFIDENCE'] ?? '0.6'),
   }
 }
 

@@ -40,15 +40,15 @@ export type ResolvedBridgeConfig = BridgeConfig & {
 /** Parsea Bridge config desde env vars. */
 export function parseBridgeConfig(env: NodeJS.ProcessEnv) {
   return {
-    user: (env.PROTON_BRIDGE_USER ?? '').trim(),
-    pass: (env.PROTON_BRIDGE_PASS ?? '').trim(),
-    passPath: env.PROTON_BRIDGE_PASS_PATH || undefined,
-    host: env.PROTON_BRIDGE_HOST ?? '127.0.0.1',
-    imapPort: Number(env.PROTON_BRIDGE_IMAP_PORT ?? 1143),
-    smtpPort: Number(env.PROTON_BRIDGE_SMTP_PORT ?? 1025),
-    from: (env.PROTON_MAIL_FROM ?? env.PROTON_BRIDGE_USER ?? '').trim(),
-    tlsInsecure: (env.PROTON_BRIDGE_TLS_INSECURE ?? 'true') === 'true',
-    smtpSecurity: (env.PROTON_BRIDGE_SMTP_SECURITY ?? 'starttls') as
+    user: (env['PROTON_BRIDGE_USER'] ?? '').trim(),
+    pass: (env['PROTON_BRIDGE_PASS'] ?? '').trim(),
+    passPath: env['PROTON_BRIDGE_PASS_PATH'] || undefined,
+    host: env['PROTON_BRIDGE_HOST'] ?? '127.0.0.1',
+    imapPort: Number(env['PROTON_BRIDGE_IMAP_PORT'] ?? 1143),
+    smtpPort: Number(env['PROTON_BRIDGE_SMTP_PORT'] ?? 1025),
+    from: (env['PROTON_MAIL_FROM'] ?? env['PROTON_BRIDGE_USER'] ?? '').trim(),
+    tlsInsecure: (env['PROTON_BRIDGE_TLS_INSECURE'] ?? 'true') === 'true',
+    smtpSecurity: (env['PROTON_BRIDGE_SMTP_SECURITY'] ?? 'starttls') as
       | 'starttls'
       | 'implicit'
       | 'plain',

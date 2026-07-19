@@ -9,7 +9,7 @@ export class NtfyAlertSink implements AlertSink {
 
   async emit(event: AlertEvent): Promise<void> {
     const headers: Record<string, string> = { "Content-Type": "text/plain" };
-    if (this.token) headers.Authorization = `Bearer ${this.token}`;
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
 
     const body = [
       `[${event.severity.toUpperCase()}] ${event.category}`,

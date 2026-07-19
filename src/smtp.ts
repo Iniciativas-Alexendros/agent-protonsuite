@@ -222,7 +222,7 @@ export function prefixSubject(
  */
 export function collectReferences(original: EmailFull): string[] {
    
-  const refsHeader = original.headers.references ?? ''
+  const refsHeader = original.headers['references'] ?? ''
   const existing: string[] = refsHeader.match(/<[^>]+>/g) ?? []
   if (original.messageId) existing.push(original.messageId)
   return existing

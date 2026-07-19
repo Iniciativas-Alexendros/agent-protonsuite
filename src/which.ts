@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { accessSync } from 'node:fs'
 
 export function whichSync(name: string): string {
-  const pathDirs = (process.env.PATH ?? '').split(':')
+  const pathDirs = (process.env['PATH'] ?? '').split(':')
   for (const dir of pathDirs) {
     const candidate = `${dir}/${name}`
     try {

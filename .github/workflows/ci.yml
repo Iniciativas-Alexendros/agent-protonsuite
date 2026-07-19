@@ -50,6 +50,9 @@ jobs:
       - name: Coverage
         run: pnpm run coverage
 
+      - name: Verify badge matches coverage
+        run: pnpm run coverage:check
+
       - name: Build
         run: pnpm run build
 

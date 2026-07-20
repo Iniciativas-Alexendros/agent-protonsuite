@@ -1025,3 +1025,140 @@ describe('registerMailTools', () => {
     })
   })
 })
+
+// ===========================================================================
+// branch gap coverage — lift branches en src/server/mail.ts líneas 488-493, 553-554, 615, 689-690
+// ===========================================================================
+
+describe('branch gap coverage — spread ternarios y ?? [] fallback', () => {
+  it('proton_send_email con cc/bcc/html/reply_to todos definidos (líneas 488-493 true branches)', async () => {
+    const smtp = makeSmtp()
+    const { server, invoke } = captureHandler()
+    registerMailTools(server, {
+      cfg: { products: { mail: { bridge: { from: 'me@proton.me' } } } } as never,
+      log: silentLog,
+      imap: makeImap(),
+      smtp,
+    })
+
+    // Pasar todos los campos opcionales explícitamente → hits TRUE branch de cada spread ternario
+    await invoke('proton_send_email', {
+      to: ['bob@test.com'],
+      cc: ['carol@test.com'],
+      bcc: ['dan@test.com'],
+      subject: 'Con todo',
+      text: 'Cuerpo texto',
+      html: '<p>Cuerpo HTML</p>',
+      reply_to: 'me@proton.me',
+    })
+
+    // smtp.send recibe los campos extendidos desde las spreads
+    expect(smtp.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cc: ['carol@test.com'],
+        bcc: ['dan@test.com'],
+        text: 'Cuerpo texto',
+        html: '<p>Cuerpo HTML</p>',
+        replyTo: 'me@proton.me',
+      }),
+    )
+  })
+
+  it('proton_flag_email con action=custom y add_flags/remove_flags explícitos (líneas 689-690 true branches)', async () => {
+    const imap = makeImap()
+    const { server, invoke } = captureHandler()
+    registerMailTools(server, {
+      cfg: null as never,
+      log: silentLog,
+      imap,
+      smtp: makeSmtp(),
+    })
+
+    await invoke('proton_flag_email', {
+      mailbox: 'INBOX',
+      uid: 100,
+      action: 'custom',
+      add_flags: ['\\MyTag', '\\Important'],
+      remove_flags: ['\\OldFlag'],
+    })
+
+    // Los ?? [] no deben aplicarse (los arrays llegan definidos) → setFlags recibe los valores exactos
+    expect(imap.setFlags).toHaveBeenCalledWith('INBOX', 100, ['\\MyTag', '\\Important'], ['\\OldFlag'])
+  })
+
+  it('proton_reply_email con html explícito (líneas 553-554 — true html branch)', async () => {
+    hoisted.mockBuildReplyOptions.mockResolvedValue({
+      to: ['alice@example.com'],
+      subject: 'Re: Hola',
+      html: '<p>Reply en HTML</p>',
+      inReplyTo: '<msg-100@proton>',
+      references: ['<msg-100@proton>'],
+    } as SendOptions)
+    const smtp = makeSmtp()
+    const imap = makeImap()
+    const { server, invoke } = captureHandler()
+    registerMailTools(server, {
+      cfg: { products: { mail: { bridge: { from: 'me@proton.me' } } } } as never,
+      log: silentLog,
+      imap,
+      smtp,
+    })
+
+    await invoke('proton_reply_email', {
+      mailbox: 'INBOX',
+      uid: 100,
+      html: '<p>Reply en HTML</p>',
+      reply_all: false,
+      include_quote: true,
+    })
+
+    // buildReplyOptions recibe el html (spread ternario línea 554 true branch)
+    expect(hoisted.mockBuildReplyOptions).toHaveBeenCalledWith(
+      imap,
+      'INBOX',
+      100,
+      { text: undefined, html: '<p>Reply en HTML</p>' }, // text undefined, html defined
+      true,
+      false,
+      'me@proton.me',
+    )
+    expect(smtp.send).toHaveBeenCalled()
+  })
+
+  it('proton_forward_email con html explícito (línea 615 — true html branch)', async () => {
+    hoisted.mockBuildForwardOptions.mockResolvedValue({
+      to: ['external@test.com'],
+      subject: 'Fwd: Hola',
+      html: '<p>Forward HTML</p>',
+      inReplyTo: '<msg-100@proton>',
+      references: ['<msg-100@proton>'],
+    } as SendOptions)
+    const smtp = makeSmtp()
+    const imap = makeImap()
+    const { server, invoke } = captureHandler()
+    registerMailTools(server, {
+      cfg: null as never,
+      log: silentLog,
+      imap,
+      smtp,
+    })
+
+    await invoke('proton_forward_email', {
+      mailbox: 'INBOX',
+      uid: 100,
+      to: ['external@test.com'],
+      html: '<p>Forward HTML</p>',
+      include_attachments: false,
+    })
+
+    expect(hoisted.mockBuildForwardOptions).toHaveBeenCalledWith(
+      imap,
+      'INBOX',
+      100,
+      ['external@test.com'],
+      { text: undefined, html: '<p>Forward HTML</p>' }, // text undefined, html defined
+      false,
+    )
+    expect(smtp.send).toHaveBeenCalled()
+  })
+})

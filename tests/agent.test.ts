@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest'
 import {
   parseGoal,
   describeGoal,
@@ -103,9 +103,8 @@ describe('agent goals', () => {
   })
 })
 
-
 // ===========================================================================
-// executor.ts — drive goals (P0b Branch Hunt)
+// executor.ts — drive goals (Branch Hunt 2)
 // ===========================================================================
 
 describe('executor drive goals', () => {
@@ -128,11 +127,108 @@ describe('executor drive goals', () => {
     }
   })
 
-  it('drive-list goal exits 2 when list fails', async () => {
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
 
+  it('drive-list goal exits 2 when list fails', async () => {
+    mockDriveClient.listFiles.mockResolvedValue({ ok: false, files: [], error: 'not found' })
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
     try {
       await runAgent('drive-list')
+    } catch {
+      // ignored — exit is mocked
+    }
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    exitSpy.mockRestore()
+  })
+
+  it('drive-list goal succeeds when list returns files', async () => {
+    mockDriveClient.listFiles.mockResolvedValue({ ok: true, files: [{ name: 'a.txt', size: 100 }] })
+    await expect(runAgent('drive-list')).resolves.toBeUndefined()
+  })
+
+  it('drive-upload goal exits 2 when upload fails', async () => {
+    mockDriveClient.upload.mockResolvedValue({ ok: false, error: 'quota exceeded' })
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    try {
+      await runAgent('drive-upload')
+    } catch {
+      // ignored — exit is mocked
+    }
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    exitSpy.mockRestore()
+  })
+
+  it('drive-upload goal succeeds when upload completes', async () => {
+    mockDriveClient.upload.mockResolvedValue({ ok: true, localPath: '/tmp/staging', remotePath: '/my-files' })
+    await expect(runAgent('drive-upload')).resolves.toBeUndefined()
+  })
+
+  it('suite-manage goal executes without error', async () => {
+    // This goal discovers binaries — should run without exiting
+    await expect(runAgent('suite-manage')).resolves.toBeUndefined()
+  })
+})
+
+// ===========================================================================
+// executor.ts — setup/discover/pass-audit goals (Branch Hunt 2)
+// ===========================================================================
+
+describe('executor setup goals', () => {
+  const OENV = { ...process.env }
+
+  beforeAll(() => {
+    // Set env vars so loadConfig() produces a valid config
+    process.env.PROTON_BRIDGE_USER = 'test@example.com'
+    process.env.PROTON_BRIDGE_PASS = 'secret'
+    process.env.PROTON_MAIL_FROM = 'test@example.com'
+  })
+
+  afterAll(() => {
+    Object.assign(process.env, OENV)
+    for (const k of Object.keys(OENV)) {
+      if (!(k in OENV)) delete process.env[k]
+    }
+  })
+
+  it('discover goal logs report without exiting', async () => {
+    const mockRunSetup = vi.mocked(runSetup)
+    mockRunSetup.mockResolvedValue({
+      imapOk: true,
+      smtpOk: true,
+      folders: ['INBOX', 'Sent'],
+      recommendations: [],
+    })
+
+    await expect(runAgent('discover')).resolves.toBeUndefined()
+    expect(mockRunSetup).toHaveBeenCalledTimes(1)
+  })
+
+  it('setup goal logs success when imap and smtp ok', async () => {
+    const mockRunSetup = vi.mocked(runSetup)
+    mockRunSetup.mockResolvedValue({
+      imapOk: true,
+      smtpOk: true,
+      folders: ['INBOX', 'Sent'],
+      recommendations: [],
+    })
+
+    await expect(runAgent('setup')).resolves.toBeUndefined()
+  })
+
+  it('setup goal exits 2 when imap fails', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    const mockRunSetup = vi.mocked(runSetup)
+    mockRunSetup.mockResolvedValue({
+      imapOk: false,
+      smtpOk: true,
+      folders: [],
+      recommendations: ['Install Bridge'],
+    })
+
+    try {
+      await runAgent('setup')
     } catch {
       // ignored — exit is mocked
     }
@@ -140,9 +236,36 @@ describe('executor drive goals', () => {
     expect(exitSpy).toHaveBeenCalledWith(2)
     exitSpy.mockRestore()
   })
+})
 
-  it('suite-manage goal executes without error', async () => {
-    // This goal discovers binaries — should run without exiting
-    await expect(runAgent('suite-manage')).resolves.toBeUndefined()
+describe('executor pass-audit goal', () => {
+  const OENV = { ...process.env }
+
+  beforeAll(() => {
+    // Set mail config but DON'T set PROTON_PASS_ENABLED
+    process.env.PROTON_BRIDGE_USER = 'test@example.com'
+    process.env.PROTON_BRIDGE_PASS = 'secret'
+    process.env.PROTON_MAIL_FROM = 'test@example.com'
+    delete process.env.PROTON_PASS_ENABLED
+  })
+
+  afterAll(() => {
+    Object.assign(process.env, OENV)
+    for (const k of Object.keys(OENV)) {
+      if (!(k in OENV)) delete process.env[k]
+    }
+  })
+
+  it('pass-audit goal exits 2 when pass not enabled', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+
+    try {
+      await runAgent('pass-audit')
+    } catch {
+      // ignored — exit is mocked
+    }
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    exitSpy.mockRestore()
   })
 })

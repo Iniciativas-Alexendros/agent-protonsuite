@@ -262,6 +262,25 @@ describe("proton_drive_audit", () => {
     expect((result as any).isError).toBe(true);
     expect((result as any).content[0].text).toContain("permission denied");
   });
+
+  it("omits duplicates and obsolete sections when empty arrays", async () => {
+    mockAuditor.findDuplicates.mockReturnValue([]);
+    mockAuditor.formatReport.mockReturnValue({
+      totalExtensions: 2,
+      extensions: [".md", ".txt"],
+      obsoleteExtensions: [],
+      obsoleteFiles: [],
+      noExtension: 0,
+    });
+
+    const tool = capturedTools.get("proton_drive_audit")!;
+    const result = await (tool.handler as (args: never) => unknown)({} as never);
+
+    const text = (result as any).content[0].text;
+    expect(text).not.toContain("Duplicates");
+    expect(text).not.toContain("Obsolete formats");
+    expect(text).toContain("By extension");
+  });
 });
 
 describe("proton_drive_status", () => {
@@ -355,6 +374,21 @@ describe("proton_drive_organize", () => {
       dry_run: false,
     } as never);
 
+    const text = (result as any).content[0].text;
+    expect(text).toContain("Moved 1 files");
+  });
+
+  it("skips mkdirSync when destination dir already exists", async () => {
+    vi.mocked(existsSync).mockReturnValue(true);
+    vi.mocked(renameSync).mockReturnValue(undefined);
+
+    const tool = capturedTools.get("proton_drive_organize")!;
+    const result = await (tool.handler as (args: never) => unknown)({
+      dry_run: false,
+    } as never);
+
+    expect(mkdirSync).not.toHaveBeenCalled();
+    expect(renameSync).toHaveBeenCalled();
     const text = (result as any).content[0].text;
     expect(text).toContain("Moved 1 files");
   });

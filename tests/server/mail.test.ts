@@ -214,6 +214,29 @@ describe('registerMailTools', () => {
       expect(text).toContain('| `Trash` | Trash | \\Trash | — |')
     })
 
+    it('proton_list_folders: muestra flags cuando la lista no está vacía', async () => {
+      const imap = makeImap({
+        listMailboxes: vi.fn().mockResolvedValue([
+          { path: 'INBOX', name: 'INBOX', delimiter: '/', flags: ['\\Seen'], specialUse: '\\Inbox', subscribed: true, listed: true },
+          { path: 'Flagged', name: 'Flagged', delimiter: '/', flags: ['\\Flagged'], specialUse: undefined, subscribed: true, listed: true },
+        ]),
+      })
+      const { server, invoke } = captureHandler()
+      registerMailTools(server, {
+        cfg: null as never,
+        log: silentLog,
+        imap,
+        smtp: makeSmtp(),
+      })
+
+      const result = await invoke('proton_list_folders', {})
+      const text = result.content[0].text
+      expect(text).toContain('\\Seen')
+      expect(text).toContain('\\Flagged')
+      expect(text).toContain('\\Seen |')
+      expect(text).toContain('\\Flagged |')
+    })
+
     it('proton_list_folders: devuelve JSON con response_format=json', async () => {
       const { server, invoke } = captureHandler()
       registerMailTools(server, {
@@ -639,6 +662,30 @@ describe('registerMailTools', () => {
           ]),
         }),
       )
+    })
+
+    it('proton_send_email: attachment sin content_type omite campo', async () => {
+      const smtp = makeSmtp()
+      const { server, invoke } = captureHandler()
+      registerMailTools(server, {
+        cfg: { products: { mail: { bridge: { from: 'me@proton.me' } } } } as never,
+        log: silentLog,
+        imap: makeImap(),
+        smtp,
+      })
+
+      await invoke('proton_send_email', {
+        to: ['bob@test.com'],
+        subject: 'Sin tipo',
+        text: 'Adjunto sin content_type',
+        attachments: [
+          { filename: 'data.bin', content_base64: Buffer.from('binary').toString('base64') },
+        ],
+      })
+      const callArgs = smtp.send.mock.calls[0][0]
+      const attachment = callArgs.attachments[0]
+      expect(attachment.filename).toBe('data.bin')
+      expect(attachment).not.toHaveProperty('contentType')
     })
 
     it('proton_reply_email: responde con threading', async () => {

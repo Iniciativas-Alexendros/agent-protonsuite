@@ -261,6 +261,26 @@ describe('buildOrganizationPlan', () => {
     expect(hoisted.mockClose).toHaveBeenCalled()
   })
 
+  it('salta emails cuyo getEmail devuelve null', async () => {
+    hoisted.mockListMailboxes.mockResolvedValue([{ path: 'INBOX' }])
+    hoisted.mockListEmails.mockResolvedValue({
+      items: [makeSummary(1), makeSummary(2)],
+      total: 2,
+    })
+    hoisted.mockGetEmail
+      .mockResolvedValueOnce(null)  // getEmail returns null → skip
+      .mockResolvedValueOnce(makeFullEmail(2))
+    hoisted.mockClassifyEmail.mockReturnValue({ category: 'comercial', confidence: 0.8, severity: 'info', reason: 'newsletter', suggestedFolder: 'Archive', suggestedLabels: [] })
+    hoisted.mockDetectThreats.mockReturnValue([])
+    hoisted.mockInferStateLabels.mockReturnValue({ labels: [], reason: 'sin etiqueta' })
+
+    const plan = await buildOrganizationPlan(defaultCfg, defaultCtx, hoisted.silentLog, hoisted.mockAlertSystem)
+
+    // Only uid=2 should be classified (uid=1 was skipped because getEmail returned null)
+    expect(plan.folderProposals).toHaveLength(1)
+    expect(plan.folderProposals[0].emails).toEqual([2])
+  })
+
   it('cierra ImapClient en finally incluso cuando listMailboxes lanza', async () => {
     hoisted.mockListMailboxes.mockRejectedValue(new Error('list failed'))
 
@@ -393,6 +413,25 @@ describe('applyOrganizationPlan', () => {
     hoisted.mockMoveEmail.mockResolvedValueOnce(true).mockResolvedValueOnce(false)
 
     await expect(applyOrganizationPlan(defaultCfg, samplePlan, hoisted.silentLog)).resolves.toBeUndefined()
+  })
+
+  it('aplica suggestedLabels en las carpetas destino', async () => {
+    const plan: OrganizationPlan = {
+      newFolders: [],
+      folderProposals: [
+        { path: 'Folders/Pagos', reason: 'facturas', emails: [1], suggestedLabels: ['Labels/Pendiente'] },
+      ],
+      labelProposals: [],
+      alerts: [],
+    }
+    hoisted.mockCreateMailbox.mockResolvedValue({ path: 'Folders/Pagos', created: false })
+    hoisted.mockListEmails.mockResolvedValue({ items: [makeSummary(1)], total: 1 })
+
+    await applyOrganizationPlan(defaultCfg, plan, hoisted.silentLog)
+
+    // suggestedLabels path: list moved items, then copy to label
+    expect(hoisted.mockListEmails).toHaveBeenCalledWith('Folders/Pagos', 1, 0)
+    expect(hoisted.mockCopyEmail).toHaveBeenCalledWith('Folders/Pagos', 1, 'Labels/Pendiente')
   })
 
   it('cierra ImapClient en finally', async () => {

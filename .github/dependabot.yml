@@ -4,9 +4,17 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      time: "07:00"
+      timezone: Europe/Madrid
     cooldown:
       default-days: 7
     open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "npm"
+    assignees:
+      - "alexendros"
+    versioning-strategy: increase
     groups:
       dev-deps-nonmajor:
         dependency-type: development
@@ -18,24 +26,40 @@ updates:
         update-types:
           - minor
           - patch
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+      time: "07:00"
+      timezone: Europe/Madrid
     cooldown:
       default-days: 7
     open-pull-requests-limit: 1
+    labels:
+      - "dependencies"
+      - "github-actions"
+    assignees:
+      - "alexendros"
     groups:
       all-others:
         patterns:
           - '*'
+
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: monthly
+      time: "07:00"
+      timezone: Europe/Madrid
     cooldown:
       default-days: 7
     open-pull-requests-limit: 1
+    labels:
+      - "dependencies"
+      - "docker"
+    assignees:
+      - "alexendros"
     groups:
       all-others:
         patterns:

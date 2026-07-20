@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Cobertura de tests 90.67%** (+29pp desde 61.7%): 635 tests unitarios cubriendo 39 archivos de test, incluyendo todos los módulos de agente, alerts, ecosystem, server y utilidades.
+- **Cobertura de tests 98.00%** (+36.3pp desde 61.7%): 819 tests en 42 archivos. Rondas 6-8: bridge-client 88%→95%, config.ts 90%→100%, imap.ts 93%→95%, diagnostics 93%→100%, drive-audit 94%→100%, drive 94%→100%, http.ts 100% stmts 97% branches, smtp.ts 100%.
 - **Tests para agent/organizer.ts** (17 tests): buildOrganizationPlan con mock ImapClient multi-categoría (legal, admin, tech, spam, phishing), applyOrganizationPlan con creación de carpetas, movimiento y copia.
 - **Tests para agent/executor.ts** (6 tests): mockear loadConfig, runSetup, buildOrganizationPlan. Probar cada goal con configs válidas e inválidas.
 - **Tests para agent/setup.ts** (8 tests): mockear execFile, execSync, writeFile. Probar setup con binarios instalados/no instalados, fallos de descarga y permisos.
@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tests para security.ts** (4 tests): validación de contraseñas, timing-safe comparison.
 - **Tests para drive-audit.ts**: auditoría de Drive con mock de fs y DriveClient.
 - **Tests para executor.ts** (6 tests): test unitarios del ejecutor de goals del agente.
+- **Branch gaps cerrados** (3 módulos): organizer.ts 72%→74% (getEmail null, suggestedLabels), mail.ts 87%→90% (non-empty flags, attachment sin content_type), drive.ts 85%→88% (dups/obsolete vacíos, existsSync=true).
 - **Split de src/config.ts** en sub-módulos por servicio: config/imap.ts, config/bridge.ts, config/smtp.ts, config/pass.ts, config/calendar.ts, config/drive.ts con barrel export en config/index.ts.
 - **CLI de agente expandido**: src/agent-cli.ts con --help, subcomandos (setup, organize, pass-audit, drive-audit, suite-status), exit codes.
 - **calendar-types.ts completado**: tipos CalDAV/iCalendar (RFC 5545) — VEvent, VCalendar, VTimezone, Alarm, Attachment, Attendee, Organizer.
@@ -46,12 +47,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **ESLint endurecimiento completo en src/** (14 reglas off→error): no-explicit-any, no-unsafe-* (4), no-unsafe-argument, no-non-null-assertion, no-deprecated, no-unnecessary-condition, no-unnecessary-type-conversion, no-unnecessary-type-assertion, no-useless-escape, require-await, no-floating-promises, no-misused-promises, no-base-to-string. 0 violaciones en src/.
+- **ESLint endurecimiento en tests/** (11 reglas off→warn): require-await (error), no-floating-promises, no-misused-promises, no-unnecessary-condition, no-unsafe-* (4), no-unsafe-argument, no-deprecated, restrict-template-expressions, no-non-null-assertion, no-unnecessary-type-assertion, no-useless-escape. 0 violaciones.
+- **ESLint reglas off→warn en src/**: restrict-template-expressions, restrict-plus-operands, prefer-nullish-coalescing. 0 violaciones.
+- **TypeScript strict flags activados**: noPropertyAccessFromIndexSignature, verbatimModuleSyntax, noImplicitOverride, exactOptionalPropertyTypes.
+- **Coverage badge migrado a gh-pages**: endpoint badge dinámico con shields.io, ya no commitea a main.
+- **Dockerfile**: imagen base migrada de node:26-alpine a node:22-alpine LTS.
+- **Dependabot endurecido**: labels por ecosistema (dependencies, npm/github-actions/docker), assignees (alexendros), timezone Europe/Madrid, versioning-strategy increase.
 - **Migración completa de npm a pnpm**: todos los workflows CI (ci.yml, quality.yml, release.yml, integration.yml) actualizados de `npm ci` a `pnpm install --frozen-lockfile` con `pnpm/action-setup`.
 - **Dockerfile actualizado**: multi-stage build con pnpm en builder stage (`RUN npm install -g pnpm`), COPY ajustados.
 - **pnpm-workspace.yaml**: añadido para estructura de workspace.
 - **package.json**: scripts actualizados para pnpm, añadido `pnpm.onlyBuiltDependencies` (esbuild, unrs-resolver).
 - **.gitignore**: package-lock.json añadido, coverage/ añadido.
-- **README.md**: badge de cobertura actualizado a 90.67%.
+- **README.md**: badge de cobertura actualizado a 98.00%.
 - **server.json**: revisado y mantenido en raíz (template público sin secretos).
 - **Configuración de organizer**: manejo de errores mejorado en buildOrganizationPlan (finally cleanup, error catching por email).
 
@@ -98,6 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **E2E Pass**: `scripts/e2e-pass.sh` verifica prerequisitos (GPG, pass).
 - **E2E GreenMail**: `scripts/e2e-greenmail.sh` usa `PATH=/usr/bin:$PATH` para `pass` estándar.
 - **Referencias a plantillas**: actualizadas a `Iniciativas-Alexendros/plantillas`.
+- **zizmor**: peaceiris/actions-gh-pages commit hash actualizado a v4.1.0 para fijar versión.
+- **http.ts**: cerrado último gap de branches (ipKeyGenerator anon fallback) — 100% stmts, 97.22% branches.
 - **Dependabot**: prevención de agrupación de major bumps.
 
 ## [0.7.0] - 2026-07-17

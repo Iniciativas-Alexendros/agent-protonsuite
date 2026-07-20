@@ -114,6 +114,19 @@ export class PassClient {
       const stdout = await this.exec(['show', path], {
         env: { ...process.env, PASSWORD_STORE_DIR: this.storeDir },
       })
+      // SAFETY: el `?? ''` aquí es defensivo contra `noUncheckedIndexedAccess`
+      // ([0] pasa a `string | undefined`). Por ECMAScript spec, `String.prototype.split`
+      // siempre retorna array de longitud ≥ 1 (incluso `''.split('\n') === ['']`), así que
+      // la rama `?? ''` NO se ejecuta nunca en runtime. v8 la marca como uncovered;
+      // la imposibilidad es runtime (ECMAScript), no tooling — no añadir mocks que
+      // falseen coverage; mantener como defensive fall-through.
+      //
+      // NO reemplazar con `!` (bloqueado por `@typescript-eslint/no-non-null-assertion`)
+      // ni con `as string` (bloqueado por `@typescript-eslint/non-nullable-type-assertion-style`).
+      // Si se relaja `no-non-null-assertion`, usar `!`; si se relajan ambas
+      // (`no-non-null-assertion` + `non-nullable-type-assertion-style`),
+      // preferir `as string` (más explícito). Cualquiera elimina el fallback `?? ''`,
+      // con lo que v8 deja de contarlo como rama y `pass.ts` sube a 100% branches.
       return (stdout.trim().split('\n')[0] ?? '')
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)

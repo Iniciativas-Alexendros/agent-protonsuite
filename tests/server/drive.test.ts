@@ -356,7 +356,7 @@ describe("proton_drive_status", () => {
     });
 
     const tool = capturedTools.get("proton_drive_status")!;
-    const result = await (tool.handler)({} as never);
+    const result = await (tool.handler as (args: never) => unknown)({} as never);
 
     const text = (result as any).content[0].text;
     expect(text).toContain("**Authenticated:** no");

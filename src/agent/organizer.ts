@@ -3,7 +3,7 @@ import type { Logger } from "../alerts/index.js";
 import type { Config } from "../config.js";
 import { resolveBridgeConfig } from "../config.js";
 import { ImapClient, type EmailSummary } from "../imap.js";
-import type { OrganizationPlan, GoalContext } from "./types.js";
+import type { OrganizationPlan, GoalContext } from "./goals.js";
 
 interface ClassifiedEmail {
   uid: number;

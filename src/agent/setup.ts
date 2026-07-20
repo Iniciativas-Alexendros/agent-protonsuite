@@ -3,7 +3,7 @@ import type { Config } from '../config.js'
 import { resolveBridgeConfig } from '../config.js'
 import { ImapClient } from '../imap.js'
 import { SmtpClient } from '../smtp.js'
-import type { SetupReport } from './types.js'
+import type { SetupReport } from './goals.js'
 
 export async function runImapCheck(
   cfg: Config,

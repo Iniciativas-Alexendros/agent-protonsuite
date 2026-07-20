@@ -83,11 +83,11 @@ const hoisted = vi.hoisted(() => {
     }
 
     /**
-     * Importante: `setCaps`/`setGreeting` son consumidos por el SIGUIENTE Constructor
+     * Importante: `setCaps` / `setGreeting` son consumidos por el SIGUIENTE Constructor
      * y se restablecen a 'default' inmediatamente después. Si un test crea múltiples
      * instancias de ImapFlow (p.ej. 'todas las capas ok' crea 3), solo la PRIMERA
      * recibe el override — las siguientes vuelven al default porque el reset ocurrió
-     * al consumir. Para persistencia entre instancias, llamar set*/new/ alternadamente.
+     * al consumir. Para persistir overrides entre instancias, llama `setX` antes de cada `new`.
      */
   }
 

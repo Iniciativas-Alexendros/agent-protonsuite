@@ -99,16 +99,20 @@ export function discoverSubcommands(bin: BinaryInfo): DiscoveryResult {
 function parseHelpOutput(help: string, _product: string): Subcommand[] {
   const lines = help.split('\n')
   const subs: Subcommand[] = []
+  const seen = new Set<string>()
 
   for (const line of lines) {
-    const trimmed = line.trim()
-    if (!trimmed.startsWith('  ')) continue
-    const match = /^\s{2}(\S+)\s+(.+)$/.exec(trimmed)
+    if (!line.startsWith('  ')) continue
+    const match = /^\s{2}(\S+)\s+(.+)$/.exec(line)
     if (match) {
-      subs.push({
-        name: match[1] ?? '',
-        description: (match[2] ?? '').trim(),
-      })
+      const name = match[1] ?? ''
+      if (!seen.has(name)) {
+        seen.add(name)
+        subs.push({
+          name,
+          description: (match[2] ?? '').trim(),
+        })
+      }
     }
   }
 
@@ -123,7 +127,11 @@ function parseHelpOutput(help: string, _product: string): Subcommand[] {
       if (inCommands && line.trim()) {
         const m = /^(\S+)\s+(.+)$/.exec(line.trim())
         if (m) {
-          subs.push({ name: m[1] ?? '', description: (m[2] ?? '').trim() })
+          const name = m[1] ?? ''
+          if (!seen.has(name)) {
+            seen.add(name)
+            subs.push({ name, description: (m[2] ?? '').trim() })
+          }
         }
       }
       if (inCommands && !line.trim()) inCommands = false

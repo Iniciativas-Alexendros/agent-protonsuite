@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import {
   parseGoal,
   describeGoal,
@@ -82,5 +82,49 @@ describe('agent goals', () => {
     else process.env.PROTON_BRIDGE_PASS = prevPass
     if (prevFrom === undefined) delete process.env.PROTON_MAIL_FROM
     else process.env.PROTON_MAIL_FROM = prevFrom
+  })
+})
+
+
+// ===========================================================================
+// executor.ts — drive goals (P0b Branch Hunt)
+// ===========================================================================
+
+describe('executor drive goals', () => {
+  const OENV = { ...process.env }
+
+  beforeAll(() => {
+    // Set env vars so loadConfig() produces a valid config with drive enabled
+    process.env.DRIVE_ENABLED = 'true'
+    process.env.DRIVE_CLI_BIN = '/usr/bin/proton-drive'
+    process.env.DRIVE_STAGING_DIR = '/tmp/staging'
+    process.env.PROTON_BRIDGE_USER = 'test@example.com'
+    process.env.PROTON_BRIDGE_PASS = 'secret'
+    process.env.PROTON_MAIL_FROM = 'test@example.com'
+  })
+
+  afterAll(() => {
+    Object.assign(process.env, OENV)
+    for (const k of Object.keys(OENV)) {
+      if (!(k in OENV)) delete process.env[k]
+    }
+  })
+
+  it('drive-list goal exits 2 when list fails', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+
+    try {
+      await runAgent('drive-list')
+    } catch {
+      // ignored — exit is mocked
+    }
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    exitSpy.mockRestore()
+  })
+
+  it('suite-manage goal executes without error', async () => {
+    // This goal discovers binaries — should run without exiting
+    await expect(runAgent('suite-manage')).resolves.toBeUndefined()
   })
 })

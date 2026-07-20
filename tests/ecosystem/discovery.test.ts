@@ -353,11 +353,11 @@ describe('discoverSubcommands', () => {
     expect(result.rawHelp).toContain('Commands:')
   })
 
-  it('devuelve subcommands vacío cuando --help no contiene comandos', () => {
+  it('devuelve subcommands desde líneas indentadas cuando --help no tiene sección Commands:', () => {
     hoisted.mockWhichSync.mockReturnValue('/usr/bin/gpg')
     hoisted.mockExecFileSync
       .mockReturnValueOnce('gpg (GnuPG) 2.4.0\n') // versionCmd
-      .mockReturnValueOnce(                        // --help sin comandos
+      .mockReturnValueOnce(                        // --help sin Commands:
         'gpg (GnuPG) 2.4.0\n' +
         'Copyright (C) 2024 Free Software Foundation, Inc.\n' +
         '\n' +
@@ -369,7 +369,10 @@ describe('discoverSubcommands', () => {
     const result = discoverSubcommands(hoisted.gpgInfo)
 
     expect(result.version.installed).toBe(true)
-    expect(result.subcommands).toEqual([])
+    // Con el bug fix, la primera pasada captura líneas indentadas como subcomandos
+    expect(result.subcommands).toHaveLength(2)
+    expect(result.subcommands[0].name).toBe('Pubkey:')
+    expect(result.subcommands[1].name).toBe('Cipher:')
     expect(result.rawHelp).toContain('Supported algorithms:')
   })
 

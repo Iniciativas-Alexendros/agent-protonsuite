@@ -324,6 +324,24 @@ describe("proton_drive_status", () => {
     expect((result as any).content[0].text).toContain("bridge offline");
   });
 
+  it("handles authenticated=false in markdown output", async () => {
+    mockDriveClient.status.mockResolvedValue({
+      ok: true,
+      configured: true,
+      authenticated: false,
+      stagingExists: true,
+      stagingFiles: 5,
+      cliPath: "/usr/bin/proton-drive",
+    });
+
+    const tool = capturedTools.get("proton_drive_status")!;
+    const result = await (tool.handler as (args: never) => unknown)({} as never);
+
+    const text = (result as any).content[0].text;
+    expect(text).toContain("**Authenticated:** no");
+    expect(text).toContain("**Staging exists:** yes");
+  });
+
   it("handles undefined optional fields in markdown", async () => {
     mockDriveClient.status.mockResolvedValue({
       ok: true,

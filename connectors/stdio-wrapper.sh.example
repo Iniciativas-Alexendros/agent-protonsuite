@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# Proton Mail Agent stdio wrapper (EXAMPLE / TEMPLATE)
+# Proton Suite Agent stdio wrapper (EXAMPLE / TEMPLATE)
 #
-# Lanza el Proton Mail MCP server sobre STDIO con los ajustes de conexión
+# Lanza el Proton Suite MCP server sobre STDIO con los ajustes de conexión
 # a Proton Bridge, resolviendo el Bridge password desde un gestor de secretos
 # en runtime para que nunca aterrice en el repo, en env files versionados ni
 # en el historial del shell.
@@ -49,11 +49,11 @@ export AGENT_DRY_RUN="true"
 # } > "$ENV_FILE"
 
 # --- stdout must stay clean (only JSON-RPC); logs go to stderr --------------
-echo "protonmail-agent wrapper: launching MCP server over stdio..." >&2
+echo "protonsuite-agent wrapper: launching MCP server over stdio..." >&2
 
 # --- Launch the server -------------------------------------------------------
 # `exec` replaces the shell so stdout reaches the MCP client unchanged.
 exec npx -y @alexendros/protonsuite-agent protonsuite-mcp
 
 # Alternative: if you run a local checkout, build first and then:
-# exec node /ruta/absoluta/a/agent-protonmail/dist/index.js
+# exec node /ruta/absoluta/a/agent-protonsuite/dist/index.js

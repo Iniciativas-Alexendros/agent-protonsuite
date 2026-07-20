@@ -1,12 +1,12 @@
 # Avisos legales y atribuciones
 
-## ProtonMail Agent
+## Proton Suite Agent
 
 Copyright (C) 2026 Alejandro Domingo Agustí (Alexendros) <https://alexendros.me>
 
-ProtonMail Agent es software libre: puedes redistribuirlo y/o modificarlo bajo los términos de la **GNU Affero General Public License v3.0 o posterior**, publicada por la Free Software Foundation. Consulta el archivo [`LICENSE`](./LICENSE) para el texto completo.
+Proton Suite Agent es software libre: puedes redistribuirlo y/o modificarlo bajo los términos de la **GNU Affero General Public License v3.0 o posterior**, publicada por la Free Software Foundation. Consulta el archivo [`LICENSE`](./LICENSE) para el texto completo.
 
-> **Nota de licencia:** ProtonMail Agent se distribuye con la esperanza de que sea útil, pero **SIN NINGUNA GARANTÍA**; sin siquiera la garantía implícita de comerciabilidad o idoneidad para un propósito particular. Para más detalles, véase la licencia AGPL-3.0.
+> **Nota de licencia:** Proton Suite Agent se distribuye con la esperanza de que sea útil, pero **SIN NINGUNA GARANTÍA**; sin siquiera la garantía implícita de comerciabilidad o idoneidad para un propósito particular. Para más detalles, véase la licencia AGPL-3.0.
 
 ## Autoría y marca personal
 

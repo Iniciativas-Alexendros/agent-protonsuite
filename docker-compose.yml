@@ -29,7 +29,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.bridge
-    image: protonmail-agent-bridge:latest
+    image: protonsuite-agent-bridge:latest
     restart: unless-stopped
     volumes:
       - bridge-data:/root

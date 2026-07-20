@@ -10,7 +10,7 @@ Plan a alto nivel. No son compromisos firmes; las prioridades pueden cambiar seg
 
 ### v0.6.0 — Rebrand a Proton Suite
 
-- [x] Rebrand completo: `@alexendros/protonsuite-agent`, binarios `protonsuite-*`, repo `agent-protonmail`.
+- [x] Rebrand completo: `@alexendros/protonsuite-agent`, binarios `protonsuite-*`, repo `agent-protonsuite`.
 - [x] Integración Proton Pass: `src/pass.ts`, tools `proton_pass_list/get/generate/health`.
 - [x] Schema de configuración multi-producto en `config.ts`.
 - [x] Inicialización condicional de clientes por producto en `index.ts`.

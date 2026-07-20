@@ -200,7 +200,7 @@ la app está abierta pero no tiene la sesión activa:
    ```bash
    LOG_LEVEL=debug bash scripts/diagnose-bridge.sh
    # o, si ya tienes el binario instalado:
-   LOG_LEVEL=debug npx -y @alexendros/protonmail-agent check-imap
+   LOG_LEVEL=debug npx -y @alexendros/protonsuite-agent check-imap
    ```
 
 Si el diagnóstico responde con las carpetas esperadas (`INBOX`, `Sent`, `Trash`, etc.),

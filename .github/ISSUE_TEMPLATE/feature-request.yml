@@ -1,5 +1,5 @@
 name: 💡 Feature request
-description: Suggest a new tool, agent capability, or transport for `@alexendros/protonmail-agent`.
+description: Suggest a new tool, agent capability, or transport for `@alexendros/protonsuite-agent`.
 title: "[feat] "
 labels: ["enhancement", "triage"]
 body:

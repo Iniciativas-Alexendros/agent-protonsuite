@@ -2,13 +2,13 @@
 
 Gracias por considerar contribuir. Este proyecto es un agente MCP multi-producto para Proton Suite (Mail, Pass, Calendar, Drive) con capa de agente autónomo para organización, alertas y configuración guiada.
 
-> 🔒 **Seguridad:** NO abras una issue o PR pública para vulnerabilidades. Escribe a **security@alexendros.me** o usa [GitHub Security Advisories](https://github.com/Iniciativas-Alexendros/agent-protonmail/security/advisories/new). Ver [SECURITY.md](./SECURITY.md) para el threat model completo.
+> 🔒 **Seguridad:** NO abras una issue o PR pública para vulnerabilidades. Escribe a **security@alexendros.me** o usa [GitHub Security Advisories](https://github.com/Iniciativas-Alexendros/agent-protonsuite/security/advisories/new). Ver [SECURITY.md](./SECURITY.md) para el threat model completo.
 
 ## Formas de contribuir
 
 - **🐛 Reportar un bug** — usa la [plantilla de bug](./.github/ISSUE_TEMPLATE/bug-report.yml). Incluye versión, transporte, Node, SO y pasos de reproducción.
 - **💡 Proponer una feature** — usa la [plantilla de feature](./.github/ISSUE_TEMPLATE/feature-request.yml). Sé concreto: nombre de tool, inputs, outputs, o capacidad de agente.
-- **💬 Preguntar** — usa [Discussions](https://github.com/Iniciativas-Alexendros/agent-protonmail/discussions), no el issue tracker.
+- **💬 Preguntar** — usa [Discussions](https://github.com/Iniciativas-Alexendros/agent-protonsuite/discussions), no el issue tracker.
 - **🧑‍💻 Enviar un patch** — lee el workflow de PR abajo.
 
 ## Workflow de pull request
@@ -26,8 +26,8 @@ Requiere Node ≥ 22. Para Mail, Proton Mail Bridge corriendo en local (o en Doc
 
 ```bash
 # 1. Clone + install
-git clone https://github.com/Iniciativas-Alexendros/agent-protonmail.git
-cd agent-protonmail
+git clone https://github.com/Iniciativas-Alexendros/agent-protonsuite.git
+cd agent-protonsuite
 npm install
 
 # 2. Configura entorno

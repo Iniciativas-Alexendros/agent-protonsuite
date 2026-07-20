@@ -1,5 +1,5 @@
 name: "Bug · informe de error"
-description: "Reporta un fallo reproducible en @alexendros/protonmail-agent"
+description: "Reporta un fallo reproducible en @alexendros/protonsuite-agent"
 title: "bug: "
 labels: ["bug", "triage"]
 assignees: []
@@ -9,7 +9,7 @@ body:
       value: |
         Gracias por reportar. Antes de continuar, comprueba que no exista
         un issue similar en
-        https://github.com/Iniciativas-Alexendros/agent-protonmail/issues.
+        https://github.com/Iniciativas-Alexendros/agent-protonsuite/issues.
         Para vulnerabilidades de seguridad consulta `SECURITY.md` y NO uses
         este formulario.
   - type: input

@@ -12,9 +12,9 @@ La forma ingenua de registrar el MCP es poner las env vars directamente en el `m
 // NO HAGAS ESTO
 {
   "mcpServers": {
-    "protonmail": {
+    "protonsuite": {
       "command": "npx",
-      "args": ["-y", "@alexendros/protonmail-agent"],
+      "args": ["-y", "@alexendros/protonsuite-agent"],
       "env": {
         "PROTON_BRIDGE_USER": "you@proton.me",
         "PROTON_BRIDGE_PASS": "el-bridge-password-en-claro" // ← secreto en disco
@@ -43,8 +43,8 @@ El `mcpServers` del cliente queda sin secretos:
 ```jsonc
 {
   "mcpServers": {
-    "protonmail": {
-      "command": "/ruta/a/protonmail-agent-stdio.sh"
+    "protonsuite": {
+      "command": "/ruta/a/protonsuite-agent-stdio.sh"
     }
   }
 }
@@ -93,9 +93,9 @@ export MCP_TRANSPORT="stdio"
 # o con env-file efímero:
 # ENV_FILE="$(mktemp)"
 # trap 'rm -f "$ENV_FILE"' EXIT
-# tu-secret-manager run --env-file "$ENV_FILE" -- npx -y @alexendros/protonmail-agent protonmail-mcp
+# tu-secret-manager run --env-file "$ENV_FILE" -- npx -y @alexendros/protonsuite-agent protonsuite-mcp
 
-exec npx -y @alexendros/protonmail-agent protonmail-mcp
+exec npx -y @alexendros/protonsuite-agent protonsuite-mcp
 ```
 
 Puntos clave:

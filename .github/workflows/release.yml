@@ -194,7 +194,7 @@ jobs:
   # que npm intercambie el token OIDC de GitHub Actions por credenciales de
   # publicación efímeras. Requiere configurar el trusted publisher en
   # npmjs.com (paquete → Settings → Trusted publisher: repo
-  # Iniciativas-Alexendros/agent-protonmail, workflow release.yml).
+  # Iniciativas-Alexendros/agent-protonsuite, workflow release.yml).
   # La provenance se genera automáticamente.
   # ────────────────────────────────────────────────────────────────────
   publish-npm:

@@ -23,8 +23,8 @@
 ### 1. Instalar y compilar
 
 ```bash
-git clone https://github.com/Iniciativas-Alexendros/agent-protonmail.git
-cd agent-protonmail
+git clone https://github.com/Iniciativas-Alexendros/agent-protonsuite.git
+cd agent-protonsuite
 npm install && npm run build && npm run smoke
 ```
 

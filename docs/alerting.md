@@ -26,7 +26,7 @@ Además, el sistema detecta amenazas específicas:
 ## Configuración
 
 ```bash
-ALERT_WEBHOOK_URL=https://hooks.example.com/protonmail-agent
+ALERT_WEBHOOK_URL=https://hooks.example.com/protonsuite-agent
 ALERT_MIN_SEVERITY=warning   # info | warning | alert | critical
 ALERT_LOG_DIR=logs
 ALERTS_ENABLED=true

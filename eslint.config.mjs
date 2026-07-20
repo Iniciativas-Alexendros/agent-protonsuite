@@ -45,7 +45,7 @@ export default tseslint.config(
       "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/no-deprecated": "error",
       "@typescript-eslint/no-base-to-string": "error",
-      "@typescript-eslint/prefer-nullish-coalescing": "off",
+      "@typescript-eslint/prefer-nullish-coalescing": "warn",
       "@typescript-eslint/no-unsafe-argument": "error",
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unnecessary-condition": "error",

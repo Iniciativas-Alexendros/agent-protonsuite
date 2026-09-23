@@ -9,7 +9,7 @@ Añadir una capa de tests de integración que validen conectividad real contra l
 | ID    | Requisito                              | Criterio de aceptación                                |
 | ----- | -------------------------------------- | ----------------------------------------------------- |
 | IT-01 | Infraestructura separada de unitarios  | `tests/integration/` con vitest.integration.config.ts |
-| IT-02 | Tests saltan graceful sin credenciales | `PROTON_INTEGRATION_TEST=true` como gate              |
+| IT-02 | Tests saltan graceful sin credenciales/binarios | Bridge: `PROTON_INTEGRATION_TEST` + USER/PASS; Pass/Drive: binario en PATH |
 | IT-03 | Smoke test: Bridge IMAP conectividad   | ImapClient.connect() → listMailboxes() → ver INBOX    |
 | IT-04 | Smoke test: Bridge SMTP envío          | SmtpClient.send() a sí mismo → ver en INBOX           |
 | IT-05 | Smoke test: Pass CLI salud             | pass --version → pass ls                              |

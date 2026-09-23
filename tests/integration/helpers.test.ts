@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest'
-import { loadCredentials, hasCredentials } from './helpers'
+import { hasBinary, hasCredentials, hasPassStore, loadCredentials } from './helpers'
 
 describe('integration helpers', () => {
   const envKeys = [
@@ -102,6 +102,22 @@ describe('integration helpers', () => {
       process.env.PROTON_BRIDGE_USER = 'user@proton.me'
       process.env.PROTON_BRIDGE_PASS = 'bridge-pass'
       expect(hasCredentials()).toBe(true)
+    })
+  })
+
+  describe('hasBinary', () => {
+    it('returns true for a binary on PATH (node)', () => {
+      expect(hasBinary('node')).toBe(true)
+    })
+
+    it('returns false for a missing binary', () => {
+      expect(hasBinary('proton-drive-definitely-missing-xyz')).toBe(false)
+    })
+  })
+
+  describe('hasPassStore', () => {
+    it('returns a boolean without throwing', () => {
+      expect(typeof hasPassStore()).toBe('boolean')
     })
   })
 })

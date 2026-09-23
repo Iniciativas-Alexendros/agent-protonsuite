@@ -1,77 +1,89 @@
-# Publicación a npm
+# Publicación a npm y GHCR
 
-Este documento describe cómo publicar el paquete `@alexendros/protonsuite-agent`
-en npm desde GitHub Actions usando **OIDC Trusted Publishing** (sin `NPM_TOKEN`).
+Abrir cuando: Configuras Trusted Publishing, diagnosticas un Release rojo o
+reactivas `npmPublish`.
+Aprobado: 23 de septiembre de 2026
+Autoridad: Operativa
+Estado: Aprobado
+Propósito: Contrato de publicación (GitHub Release + GHCR ahora; npm cuando exista).
+
+Este documento describe cómo se publica `@alexendros/protonsuite-agent`.
+**No se usa `NPM_TOKEN`.** npm queda detrás de OIDC Trusted Publishing, pero el
+paquete **aún no existe** en el registry (OIDC 404 `package not found` el
+2026-09-23). Hasta entonces `npmPublish` es `false` y Release no debe fallar.
 
 ## Cómo funciona
 
 1. Cada push a `main` dispara `release.yml` → `semantic-release` analiza commits.
-2. Si hay un `feat:`, `fix:` o `BREAKING CHANGE:`, se crea una nueva versión.
-3. `semantic-release` actualiza `CHANGELOG.md`, crea un tag y un GitHub Release.
-4. `@semantic-release/npm` publica a npm vía OIDC trusted publishing (mismo job `release`, sin job `publish-npm` separado).
-5. Si hay release nueva, el job `publish-ghcr` construye desde el tag `vX.Y.Z` y publica `:latest`, `:X.Y.Z`, `:X.Y` y `:sha-…`.
+2. Si hay un `feat:`, `fix:` o `BREAKING CHANGE:` desde el último tag, se crea
+   una nueva versión (GitHub Release + tag `vX.Y.Z`).
+3. `semantic-release` actualiza `CHANGELOG.md` en el job; no hace push a `main`
+   (`@semantic-release/git` omitido: rama protegida, GH006).
+4. `@semantic-release/npm` genera el tarball (`tarballDir: dist`) pero
+   **no publica** (`npmPublish: false`).
+5. Si hay release nueva, el job `publish-ghcr` construye desde el tag `vX.Y.Z` y
+   publica `:latest`, `:X.Y.Z`, `:X.Y` y `:sha-…`.
+6. PRs que tocan el workflow corren `semantic-release --dry-run` (sin publicar).
 
-## Configuración requerida (una sola vez)
+## Decisión: no fallar por npm ausente
 
-### 1. npmjs.com — Trusted Publishing
+| Hecho | Consecuencia |
+| --- | --- |
+| `npm view @alexendros/protonsuite-agent` → 404 | No hay paquete ni Trusted Publisher pendiente usable |
+| `@semantic-release/npm` con `npmPublish: true` | `verifyConditions` exige OIDC o `NPM_TOKEN` **aunque no haya bump** |
+| Este repo no inventa `NPM_TOKEN` | El job `release` no debe poner un token a mano |
 
-1. Inicia sesión en [npmjs.com](https://npmjs.com)
-2. Ve al paquete: <https://npmjs.com/package/@alexendros/protonsuite-agent/settings/publish>
-3. Settings → Publishing
-4. Activa **"GitHub OIDC Trusted Publishing"**
-5. Añade un publisher:
+Por eso `.releaserc.json` usa `npmPublish: false`. El workflow emite un
+`::notice::` si el paquete sigue ausente. GitHub Release + GHCR son la
+superficie de release actual.
+
+## Reactivar npm (cuando el paquete exista)
+
+1. En [npmjs.com](https://npmjs.com), crea un **Trusted Publisher pendiente**
+   (o publica a mano la primera versión) para `@alexendros/protonsuite-agent`:
    - **Repository**: `Iniciativas-Alexendros/agent-protonsuite`
    - **Workflow**: `release.yml`
    - **Environment**: (opcional) `npm`
+2. Confirma `npm view @alexendros/protonsuite-agent version`.
+3. Cambia `.releaserc.json` a `"npmPublish": true`.
+4. No añadas `NPM_TOKEN`. El job ya tiene `id-token: write`.
 
-### 2. GitHub repo — Environment (opcional pero recomendado)
-
-1. Settings → Environments → New environment
-2. Nombre: `npm`
-3. Protection rules: añadir reviewers si se desea aprobación manual
-
-## Cómo publicar una nueva versión
+## Cómo publicar una nueva versión (GitHub + GHCR)
 
 ```bash
-# Crea un commit conventional
 git commit -m "feat: nueva funcionalidad"
 # o
 git commit -m "fix: corrección de bug"
-
-# Push a main
 git push origin main
 ```
 
 `release.yml` hará automáticamente:
 
-- Análisis de commits → determina versión (MAJOR/MINOR/PATCH)
-- Actualiza `CHANGELOG.md`
-- Crea tag `vX.Y.Z`
-- Crea GitHub Release con notas
-- Publica a npm con provenance
-- Publica imagen Docker a GHCR
+- Análisis de commits → MAJOR/MINOR/PATCH
+- Tag `vX.Y.Z` + GitHub Release
+- Imagen Docker a GHCR (si hubo versión nueva)
 
 ## Verificar publicación
 
 ```bash
-# Ver última versión en npm
-npm view @alexendros/protonsuite-agent version
+# Tag / GitHub Release (fuente de verdad hoy)
+gh release view --repo Iniciativas-Alexendros/agent-protonsuite
 
-# Ver metadatos del paquete
-npm view @alexendros/protonsuite-agent
+# npm (404 esperado hasta reactivar Trusted Publishing)
+npm view @alexendros/protonsuite-agent version
 ```
 
 ## Troubleshooting
 
 | Problema | Solución |
-|----------|----------|
-| `ENEEDPUBLISH` | El paquete no tiene permisos de publicación. Verificar OIDC config en npmjs.com. |
-| `E403 Forbidden` | El trusted publisher no coincide con repo/workflow. Verificar configuración. |
-| `npm publish` no se ejecuta | Verificar que el commit tenga prefijo `feat:` o `fix:`. |
-| Version no aparece en npm | Verificar que `semantic-release` detectó el commit y creó el release. |
+| --- | --- |
+| `EINVALIDNPMTOKEN` / `401 whoami` | `npmPublish` se reactivó sin paquete/OIDC. Volver a `false` o completar Trusted Publishing. **No** añadir `NPM_TOKEN`. |
+| `404 OIDC token exchange` | El paquete no existe o no hay Trusted Publisher. Ver sección anterior. |
+| `npm publish` no se ejecuta | Esperado mientras `npmPublish: false`. |
+| Commit `chore:`/`docs:` no crea tag | Correcto: no hay bump. El workflow debe quedar verde. |
+| Version en `package.json` desfasada | Esperado sin `@semantic-release/git`. El tag manda. |
 
 ## Seguridad
 
-- **No se usa `NPM_TOKEN`**: La autenticación es vía OIDC (tokens efímeros de GitHub).
-- **Provenance habilitada**: `--provenance` genera attestations de build verificables.
-- **Cache poisoning deshabilitado**: `package-manager-cache: false` previene ataques de supply chain.
+- **No se usa `NPM_TOKEN`**: no hay secreto de npm que rotar ni filtrar.
+- **Cache poisoning deshabilitado**: sin `package-manager-cache` en el path de release.

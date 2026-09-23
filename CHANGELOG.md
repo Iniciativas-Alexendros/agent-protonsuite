@@ -8,6 +8,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) y [Sem
 
 ### Fixed
 
+- **ci:** Release ya no falla en `verifyConditions` de npm (`EINVALIDNPMTOKEN` / OIDC 404). `npmPublish: false` hasta que exista `@alexendros/protonsuite-agent` y Trusted Publishing; no se inventa `NPM_TOKEN`. GitHub Release + GHCR siguen siendo la superficie de publicación.
+- **ci:** Integration schedule/PR en runner hosted salta smokes de Bridge/Pass/Drive si no hay credenciales o binarios (ENOENT / ECONNREFUSED). Bridge real solo con `workflow_dispatch` + `bridge-real=true`.
 - **pipeline:** remove broken reusable workflow references to non-existent plantillas repo
 - **coverage-badge:** remove unsupported `logoColor` property from shields.io endpoint
 - **release:** restore proper semantic-release flow without manual CHANGELOG/tag step

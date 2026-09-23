@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process'
-import { describe, expect } from 'vitest'
-import { integrationTest } from './helpers'
+import { describe, expect, it } from 'vitest'
+import { binarySmokeTest, hasBinary, hasPassStore } from './helpers'
 
 describe('Pass — smoke', () => {
-  integrationTest('pass --version succeeds',    () => {
+  binarySmokeTest('pass --version succeeds', 'pass', () => {
     const output = execFileSync('pass', ['--version'], {
       encoding: 'utf-8',
       timeout: 5_000,
@@ -11,11 +11,16 @@ describe('Pass — smoke', () => {
     expect(output.trim()).toBeTruthy()
   })
 
-  integrationTest('pass ls runs without error',    () => {
-    const output = execFileSync('pass', ['ls'], {
-      encoding: 'utf-8',
-      timeout: 5_000,
+  const listName = 'pass ls runs without error'
+  if (hasBinary('pass') && hasPassStore()) {
+    it(listName, () => {
+      const output = execFileSync('pass', ['ls'], {
+        encoding: 'utf-8',
+        timeout: 5_000,
+      })
+      expect(output).toBeDefined()
     })
-    expect(output).toBeDefined()
-  })
+  } else {
+    it.skip(listName)
+  }
 })

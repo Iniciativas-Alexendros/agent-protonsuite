@@ -16,7 +16,10 @@ export interface IntegrationCredentials {
 
 export function loadCredentials(): IntegrationCredentials | null
 export function hasCredentials(): boolean
-export function integrationTest(name: string, fn: () => Promise<void>): void
+export function hasBinary(name: string): boolean
+export function hasPassStore(): boolean
+export function integrationTest(name: string, fn: () => void | Promise<void>): void
+export function binarySmokeTest(name: string, binary: string, fn: () => void | Promise<void>): void
 ```
 
 ## Estructura de archivos

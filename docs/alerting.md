@@ -74,7 +74,12 @@ gh secret set ALERT_NTFY_TOKEN --org Iniciativas-Alexendros \
 ```
 
 **Compose:** `docker-compose.yml` pasa `ALERT_NTFY_*` al servicio `agent` desde el entorno / `.env` del host.  
-**Actions:** `integration.yml` inyecta los secretos con `ALERTS_ENABLED=false` (sin spam en CI). En un despliegue real, deja `ALERTS_ENABLED=true` y las mismas variables. El agente las lee en `parseAlertConfig` (`src/config.ts`).
+**Actions:** el schedule y los PR de `integration.yml` corren en modo hosted
+(sin inyectar `PROTON_BRIDGE_*`: los smokes de Bridge/Pass/Drive se saltan;
+Suite-health sí). `ALERTS_ENABLED=false`. Solo `workflow_dispatch` +
+`bridge-real=true` (environment `bridge-test`) inyecta Bridge y `ALERT_NTFY_*`.
+En un despliegue real, deja `ALERTS_ENABLED=true`. El agente las lee en
+`parseAlertConfig` (`src/config.ts`).
 
 ## Formato del webhook
 

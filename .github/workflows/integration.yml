@@ -3,6 +3,12 @@ name: Integration Tests
 on:
   schedule:
     - cron: '0 6 * * *'
+  pull_request:
+    paths:
+      - '.github/workflows/integration.yml'
+      - 'tests/integration/**'
+      - 'vitest.integration.config.ts'
+      - 'src/ecosystem/**'
   workflow_dispatch:
     inputs:
       bridge-real:
@@ -15,10 +21,10 @@ permissions:
 
 jobs:
   integration:
-    name: Integration (GreenMail / Bridge)
+    name: Integration (hosted skip-live / Bridge on demand)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    if: github.event_name == 'workflow_dispatch' || github.repository_owner == 'Iniciativas-Alexendros'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' || github.repository_owner == 'Iniciativas-Alexendros'
     environment: ${{ github.event.inputs.bridge-real == 'true' && 'bridge-test' || '' }}
 
     steps:
@@ -29,7 +35,43 @@ jobs:
 
       - run: pnpm run build
 
-      - name: Integration tests
+      - name: Preflight live services
+        id: preflight
+        env:
+          BRIDGE_REAL: ${{ github.event.inputs.bridge-real }}
+          # secrets.* vacío se evalúa como cadena vacía; no inventar credenciales
+          BRIDGE_USER: ${{ secrets.PROTON_BRIDGE_USER }}
+          BRIDGE_PASS: ${{ secrets.PROTON_BRIDGE_PASS }}
+        run: |
+          set -euo pipefail
+          if [ "${BRIDGE_REAL:-}" = "true" ]; then
+            if [ -z "${BRIDGE_USER}" ] || [ -z "${BRIDGE_PASS}" ]; then
+              echo "::error::bridge-real=true requiere PROTON_BRIDGE_USER y PROTON_BRIDGE_PASS en el environment 'bridge-test'."
+              exit 1
+            fi
+            echo "mode=real" >> "$GITHUB_OUTPUT"
+            echo "Modo Bridge real (environment bridge-test)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "mode=hosted" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Integration (hosted)"
+              echo ""
+              echo "Runner GitHub-hosted: no hay Proton Bridge, \`pass\` ni \`proton-drive\`."
+              echo "Los smokes de Bridge/Pass/Drive se saltan. Suite-health sí corre."
+              echo "Para Bridge real: \`workflow_dispatch\` + \`bridge-real=true\` (environment \`bridge-test\`)."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Integration tests (hosted — skip live)
+        if: steps.preflight.outputs.mode == 'hosted'
+        run: pnpm run test:integration
+        env:
+          PROTON_INTEGRATION_TEST: 'true'
+          # Sin credenciales Bridge: integrationTest() hace skip (spec IT-02 / SI05)
+          ALERTS_ENABLED: 'false'
+
+      - name: Integration tests (real Bridge)
+        if: steps.preflight.outputs.mode == 'real'
         run: pnpm run test:integration
         env:
           PROTON_INTEGRATION_TEST: 'true'
@@ -40,7 +82,6 @@ jobs:
           PROTON_BRIDGE_IMAP_PORT: ${{ secrets.PROTON_BRIDGE_IMAP_PORT || '1143' }}
           PROTON_BRIDGE_SMTP_PORT: ${{ secrets.PROTON_BRIDGE_SMTP_PORT || '1025' }}
           PROTON_BRIDGE_TLS_INSECURE: 'true'
-          # Org secrets ALERT_NTFY_* disponibles; desactivados en CI para no spamear ntfy
           ALERTS_ENABLED: 'false'
           ALERT_NTFY_TOPIC: ${{ secrets.ALERT_NTFY_TOPIC }}
           ALERT_NTFY_URL: ${{ secrets.ALERT_NTFY_URL }}

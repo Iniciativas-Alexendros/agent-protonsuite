@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process'
 import { describe, expect } from 'vitest'
-import { integrationTest } from './helpers'
+import { binarySmokeTest } from './helpers'
 
 describe('Drive — smoke', () => {
-  integrationTest('proton-drive --version succeeds',    () => {
+  binarySmokeTest('proton-drive --version succeeds', 'proton-drive', () => {
     const output = execFileSync('proton-drive', ['--version'], {
       encoding: 'utf-8',
       timeout: 5_000,
@@ -11,7 +11,7 @@ describe('Drive — smoke', () => {
     expect(output.trim()).toBeTruthy()
   })
 
-  integrationTest('proton-drive auth status runs',    () => {
+  binarySmokeTest('proton-drive auth status runs', 'proton-drive', () => {
     const output = execFileSync('proton-drive', ['auth', 'status'], {
       encoding: 'utf-8',
       timeout: 15_000,

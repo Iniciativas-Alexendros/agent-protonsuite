@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     branches: [main]
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - '.releaserc.json'
+      - 'docs/publishing.md'
+      - 'RELEASE.md'
   workflow_dispatch:
     inputs:
       dry-run:
@@ -14,8 +20,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: release
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('release-pr-{0}', github.ref) || 'release' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
@@ -62,6 +68,14 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: npm registry status (no NPM_TOKEN)
+        run: |
+          set -euo pipefail
+          if npm view @alexendros/protonsuite-agent version >/dev/null 2>&1; then
+            echo "Paquete presente en npm; npmPublish sigue en false hasta Trusted Publishing (docs/publishing.md)."
+          else
+            echo "::notice title=npm publish omitido::@alexendros/protonsuite-agent no existe en registry.npmjs.org. No hay NPM_TOKEN por diseño. GitHub Release + GHCR sí se publican. Ver docs/publishing.md."
+          fi
       - name: Semantic Release
         id: semrel
         env:
@@ -70,7 +84,13 @@ jobs:
           set -euo pipefail
           BEFORE="$(node -p "require('./package.json').version")"
           echo "before=${BEFORE}" >> "$GITHUB_OUTPUT"
-          npx semantic-release ${{ github.event.inputs.dry-run == 'true' && '--dry-run' || '' }}
+          DRY_RUN="${{ github.event_name == 'pull_request' || github.event.inputs.dry-run == 'true' }}"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "semantic-release --dry-run (PR o workflow_dispatch)"
+            npx semantic-release --dry-run
+          else
+            npx semantic-release
+          fi
           AFTER="$(node -p "require('./package.json').version")"
           echo "after=${AFTER}" >> "$GITHUB_OUTPUT"
       - name: Export release metadata

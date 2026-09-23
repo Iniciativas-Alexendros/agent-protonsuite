@@ -49,7 +49,7 @@ Punto de entrada de lectura. Te dice el pulso, cómo arrancar y qué documento a
 | Pass (`pass` / `gopass`) | Operativo |
 | Drive (`proton-drive` CLI) | Operativo (ADR-006) |
 | Calendar | Stub hasta CalDAV en Bridge (ADR-005) |
-| Documentación canónica | Subfase 0 |
+| Documentación canónica | Subfase 0 completada |
 
 **MCP server** multi-producto para **Proton Suite**: Mail, Pass, Drive y Calendar (stub). Un agente opera el buzón, gestiona contraseñas y sincroniza archivos — local, sin exfiltrar contenido E2E.
 

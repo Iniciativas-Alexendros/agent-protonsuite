@@ -1,5 +1,6 @@
 /**
- * Registro de las 13 MCP tools sobre un `McpServer`.
+ * Registro de las MCP tools sobre un `McpServer` (47 por defecto;
+ * 50 con Calendar experimental — ver `tests/contract/tools-list.test.ts`).
  *
  * Convenciones aplicadas a TODAS las tools:
  *  - **`inputSchema` con Zod**: el SDK convierte el schema Zod a JSON Schema
@@ -97,9 +98,10 @@ export function buildServer(
     )) as typeof server.registerTool
 
   // ---------------------------------------------------------------------------
-  // Registro de las 13 tools agrupado por dominio funcional. Cada helper
-  // encapsula el register de su grupo; los handlers capturan `imap`/`smtp` por
-  // closure, así que el cuerpo de `buildServer` solo orquesta.
+  // Registro de tools (47 por defecto / 50 con Calendar experimental) agrupado
+  // por dominio funcional. Cada helper encapsula el register de su grupo; los
+  // handlers capturan `imap`/`smtp` por closure, así que el cuerpo de
+  // `buildServer` solo orquesta.
   // ---------------------------------------------------------------------------
   const alerts = new AlertSystem(cfg.alerts, log)
 

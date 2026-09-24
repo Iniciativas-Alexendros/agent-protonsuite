@@ -69,7 +69,9 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+          # No registry-url: con Trusted Publishing + semantic-release el .npmrc
+          # de setup-node (_authToken=${NODE_AUTH_TOKEN}) interfiere con OIDC.
+          # Ver https://semantic-release.org/recipes/ci-configurations/github-actions/
       # Trusted Publishing (OIDC) exige npm CLI ≥ 11.5.1; Node 22 LTS trae npm 10.x.
       - name: Ensure npm CLI for OIDC (≥11.5.1)
         run: |

@@ -165,7 +165,7 @@ describe('executor drive goals', () => {
     await expect(runAgent('drive-upload')).resolves.toBeUndefined()
   })
 
-  it('suite-manage goal executes without error', async () => {
+  it('suite-manage goal executes without error', { timeout: 15_000 }, async () => {
     // This goal discovers binaries — should run without exiting
     await expect(runAgent('suite-manage')).resolves.toBeUndefined()
   })

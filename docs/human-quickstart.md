@@ -41,8 +41,8 @@ npx -y @alexendros/protonsuite-agent setup
 Opción B: clonar y construir:
 
 ```bash
-git clone https://github.com/Iniciativas-Alexendros/agent-protonsuite.git
-cd agent-protonsuite
+git clone https://github.com/Iniciativas-Alexendros/protonsuite-tools.git
+cd protonsuite-tools
 pnpm install
 pnpm run build
 ```

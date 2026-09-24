@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Convertir `agent-protonsuite` en un proyecto TypeScript de nivel profesional siguiendo los estándares del ecosistema 2025-2026, sin cambiar la API pública de tools ni la arquitectura de transporte.
+Convertir `protonsuite-tools` en un proyecto TypeScript de nivel profesional siguiendo los estándares del ecosistema 2025-2026, sin cambiar la API pública de tools ni la arquitectura de transporte.
 
 ## Alcance
 

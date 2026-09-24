@@ -10,7 +10,7 @@ Antes de abrir un issue revisa estas vías:
 
 ## 2. Preguntas
 
-Para preguntas y conversaciones de uso abre un [issue de tipo pregunta](https://github.com/Iniciativas-Alexendros/agent-protonsuite/issues/new?template=question.yml).
+Para preguntas y conversaciones de uso abre un [issue de tipo pregunta](https://github.com/Iniciativas-Alexendros/protonsuite-tools/issues/new?template=question.yml).
 
 ## 3. Issues
 

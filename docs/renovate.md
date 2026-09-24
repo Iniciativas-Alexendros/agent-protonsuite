@@ -1,19 +1,23 @@
 # Renovate — matriz de decisiones
 
-Configuración: [`.github/renovate.json5`](../.github/renovate.json5).
+### Propósito de este documento
+- **Objetivos:** Documentar la política de actualizaciones y el automerge condicionado a CI verde.
+- **Estructura:** Archivo canónico → matriz por tipo de dependencia → notas de merge.
+- **Contenido a integrar según contexto:** Europe/Madrid, label `dependencies`, majors sin automerge, excepción MCP SDK.
 
-Reemplaza a Dependabot por completo (update PRs **y** GitHub vulnerability alerts).
-Base: presets org `infraestructura-stack` + overrides explícitos por tipo de dependencia.
+Configuración: [`.github/renovate.json`](../.github/renovate.json).
+
+Reemplaza a Dependabot **version-updates** (las GitHub Dependabot Alerts se conservan).
+Base: presets org `infraestructura-stack` + overrides explícitos.
 
 | Regla | ¿Qué cubre? | update-type | Auto-merge | Label extra | Razonamiento |
 |-------|-------------|-------------|-----------|-------------|--------------|
-| [1] MCP SDK | `@modelcontextprotocol/sdk` | todo | nunca | `mcp` | Núcleo del protocolo; apretado a `server.json`/`mcpName`/transports (ADR-002). Revisión obligatoria. |
-| [2] Prod deps | `dependencies` (npm) | minor/patch | nunca | — | Runtime + supply chain; agrupado para review eficiente. |
-| [3] Dev deps | `devDependencies` (npm) | minor/patch | **sí** (CI verde) | `dev-deps` | Toolchain; bajo riesgo; `automergeType:branch` tras CI verde. |
-| [4] Majors | todo | major | nunca | `breaking-change` | Siempre revisión manual; se abre fuera de schedule. |
-| [5] GitHub Actions | `github-actions` | digest | nunca | — | Supply-chain; SHAs ya pinneados (zizmor). |
-| [6] Docker base | `docker` (node) | digest | nunca | — | Pin a digest para inmutabilidad (SLSA). |
+| [1] npm patch+minor | `dependencies` + `devDependencies` | minor/patch agrupados | **sí** (CI verde) | `dependencies` | Canon P1; `automergeType: pr`. |
+| [2] MCP SDK | `@modelcontextprotocol/sdk` | todo | nunca | `mcp` | Núcleo del protocolo; apretado a `server.json`/`mcpName`/transports (ADR-002). |
+| [3] Majors | todo | major | nunca | `breaking-change` | Siempre revisión manual; se abre fuera de schedule. |
+| [4] GitHub Actions | `github-actions` | digest | nunca | — | Supply-chain; SHAs ya pinneados (zizmor). |
+| [5] Docker base | `docker` (node) | digest | nunca | — | Pin a digest para inmutabilidad (SLSA). |
 | vuln alerts | advisories | fix | nunca | `security` | Inmediato (`before 10am` weekdays), `lowest` fix = cambio mínimo. |
 | lockfile maint | pnpm-lock.yaml | — | nunca | — | Weekly; consolida todos los updates. |
 
-**Nota sobre `automerge` [3]:** funciona si `main` tiene *required status checks* (ci.yml + Quality) y deja a Renovate mergear; si no hay branch protection, Renovate espera a que CI esté verde (comportamiento seguro por defecto). El preset org `:default` ya incluye los defaults recomendados; las reglas arriba son **overrides explícitos** para este repo.
+**Nota sobre `automerge`:** solo con CI verde (`quality`, `test`, `smoke`, `build`). El preset org ya incluye defaults; las reglas arriba son overrides de este repo. No hay Dependabot version-updates.

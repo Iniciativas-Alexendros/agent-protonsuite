@@ -15,14 +15,10 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Verify (Node ${{ matrix.node }})
+  quality:
+    name: quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        node: [22]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -35,18 +31,6 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
-      - name: Test
-        run: pnpm test
-
-      - name: Coverage
-        run: pnpm run coverage
-
-      - name: Verify badge matches coverage
-        run: pnpm run coverage:check
-
-      - name: Build
-        run: pnpm run build
-
       - name: Generate MCP tools reference
         run: pnpm run docs:generate
 
@@ -56,8 +40,71 @@ jobs:
       - name: Contract tests (MCP tool surface — no GreenMail needed)
         run: pnpm run test:contract
 
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-project
+
+      - name: Test
+        run: pnpm test
+
+      - name: Coverage
+        run: pnpm run coverage
+
+      - name: Verify badge matches coverage
+        run: pnpm run coverage:check
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-project
+
+      - name: Build
+        run: pnpm run build
+
+  smoke:
+    name: smoke
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-project
+
+      - name: Build (smoke requires dist/)
+        run: pnpm run build
+
       - name: Smoke test (stdio initialize + tools/list)
         run: pnpm run smoke
+
+  # Alias de compatibilidad: branch protection histórica espera "Verify (Node 22)".
+  # No tocamos org/branch protection; este job agrega quality/test/build/smoke.
+  verify:
+    name: Verify (Node 22)
+    needs: [quality, test, build, smoke]
+    runs-on: ubuntu-latest
+    if: always()
+    timeout-minutes: 5
+    steps:
+      - name: Require canonical jobs
+        run: |
+          set -euo pipefail
+          test "${{ needs.quality.result }}" = success
+          test "${{ needs.test.result }}" = success
+          test "${{ needs.build.result }}" = success
+          test "${{ needs.smoke.result }}" = success
 
   audit:
     name: Dependency audit
@@ -71,6 +118,8 @@ jobs:
       - name: Critical vulnerabilities only
         run: pnpm audit --audit-level=critical
 
+  # E2E preexistente (GreenMail). No se inventa como required nuevo; se conserva
+  # el job vivo. Opt-in de nuevos e2e: no añadir más jobs frágiles a required.
   e2e:
     name: E2E (GreenMail · IMAP/SMTP reales)
     runs-on: ubuntu-latest
@@ -115,9 +164,9 @@ jobs:
         if: always()
         run: |
           if [[ "${{ steps.e2e.outcome }}" == "success" ]]; then
-            echo "✅ E2E GreenMail: all assertions green (required check)." >> "$GITHUB_STEP_SUMMARY"
+            echo "✅ E2E GreenMail: all assertions green." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "❌ E2E GreenMail failed (required check). See logs above." >> "$GITHUB_STEP_SUMMARY"
+            echo "❌ E2E GreenMail failed. See logs above." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   e2e-pass:

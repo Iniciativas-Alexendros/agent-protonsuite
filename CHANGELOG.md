@@ -8,6 +8,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) y [Sem
 
 ### Changed
 
+- **repo-standard:** Alineación P0/P1/P2 (público) al contrato Iniciativas-Alexendros: jobs CI `quality`/`test`/`smoke`/`build`, Makefile fachada, `.github/renovate.json`, meta-sección documental, CODEOWNERS `@Alexendros`.
 - Renombre repo/carpeta `agent-protonsuite` → `protonsuite-tools`. Nombre visible de la org: «Soluciones Alexendros» (login GitHub sigue siendo `Iniciativas-Alexendros` hasta rename de slug con admin:org).
 
 ### Fixed

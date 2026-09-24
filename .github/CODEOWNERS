@@ -1,12 +1,12 @@
-# CODEOWNERS · Proton Mail Agent
+# CODEOWNERS · Proton Suite Agent
 # Documentación: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
-# Propietario por defecto de todo el repositorio
-*                       @alexendros
+# Propietario por defecto de todo el repositorio (canon P0)
+*                       @Alexendros
 
 # Documentos críticos
-/SECURITY.md            @alexendros
-/LICENSE                @alexendros
-/CODE_OF_CONDUCT.md     @alexendros
-/.github/               @alexendros
-/docs/adr/              @alexendros
+/SECURITY.md            @Alexendros
+/LICENSE                @Alexendros
+/CODE_OF_CONDUCT.md     @Alexendros
+/.github/               @Alexendros
+/docs/adr/              @Alexendros

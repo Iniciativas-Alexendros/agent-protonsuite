@@ -1,5 +1,10 @@
 # Soporte para Proton Suite Agent
 
+### Propósito de este documento
+- **Objetivos:** Decir por dónde pedir ayuda y qué plazos esperar, sin SLA comercial.
+- **Estructura:** Documentación → preguntas → issues → vulnerabilidades → contacto.
+- **Contenido a integrar según contexto:** Plantillas de issue, SECURITY.md, canal comercial.
+
 Antes de abrir un issue revisa estas vías:
 
 ## 1. Documentación

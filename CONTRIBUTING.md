@@ -1,5 +1,10 @@
 # Contribuir a `@alexendros/protonsuite-agent`
 
+### Propósito de este documento
+- **Objetivos:** Explicar cómo montar el entorno, abrir issues/PRs y pasar la fachada de calidad.
+- **Estructura:** Canal de seguridad → formas de contribuir → workflow de PR → desarrollo local → convenciones.
+- **Contenido a integrar según contexto:** pnpm, Conventional Commits, `make validate`, dry-run, AGPL-3.0.
+
 Abrir cuando: Quieres abrir un PR o montar el entorno de desarrollo.
 Aprobado: 15 de agosto de 2026
 Audiencia: Contribuidores
@@ -57,6 +62,8 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm run smoke
+# Fachada canónica (equivale a lint + typecheck + test + build + smoke):
+make validate
 
 node dist/agent-cli.js setup
 node dist/agent-cli.js pass-audit

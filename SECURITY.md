@@ -1,5 +1,10 @@
 # Security policy — Proton Suite Agent
 
+### Propósito de este documento
+- **Objetivos:** Definir versiones soportadas, canal de reporte y el threat model del agente.
+- **Estructura:** Versiones → reporte → amenazas por capa → controles presentes.
+- **Contenido a integrar según contexto:** Mail/Pass/Drive/Calendar, transporte MCP, dry-run y secretos.
+
 ## Supported versions
 
 Only the `main` branch and the latest published artifacts receive security fixes:

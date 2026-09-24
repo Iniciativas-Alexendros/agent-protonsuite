@@ -1,5 +1,10 @@
 # Arquitectura de Proton Suite Agent
 
+### Propósito de este documento
+- **Objetivos:** Describir capas, flujos MCP y la frontera criptográfica de Bridge.
+- **Estructura:** Propósito → capas → módulos → flujos → ADRs.
+- **Contenido a integrar según contexto:** stdio/HTTP, puertos/adaptadores, Pass/Drive/Calendar, dry-run.
+
 Abrir cuando: Capas, módulos, flujos MCP o frontera Bridge.
 Aprobado: 15 de agosto de 2026
 Audiencia: Desarrolladores, Agente

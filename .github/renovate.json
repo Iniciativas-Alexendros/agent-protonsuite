@@ -1,0 +1,66 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "local>Iniciativas-Alexendros/infraestructura-stack:renovate-presets/default",
+    "local>Iniciativas-Alexendros/infraestructura-stack:renovate-presets/node"
+  ],
+  "timezone": "Europe/Madrid",
+  "schedule": ["before 5am on Monday"],
+  "dependencyDashboard": true,
+  "labels": ["dependencies"],
+  "assignees": ["Alexendros"],
+  "separateMinorPatch": false,
+  "rebaseWhen": "behind-base-branch",
+  "prHourlyLimit": 2,
+  "semanticCommits": "enabled",
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["before 10am every weekday"],
+    "vulnerabilityFixStrategy": "lowest",
+    "automerge": false,
+    "addLabels": ["security"]
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 3am on Monday"],
+    "automerge": false
+  },
+  "packageRules": [
+    {
+      "description": "Agrupar y automergear patch+minor npm (canon P1). Requiere CI verde.",
+      "matchDatasources": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "npm patch+minor",
+      "automerge": true,
+      "automergeType": "pr",
+      "addLabels": ["dependencies"]
+    },
+    {
+      "description": "MCP SDK: núcleo de protocolo (ADR-002). Nunca automerge.",
+      "matchPackageNames": ["@modelcontextprotocol/sdk"],
+      "groupName": "MCP SDK",
+      "automerge": false,
+      "schedule": ["at any time"],
+      "addLabels": ["mcp", "mcp-sdk", "dependencies"]
+    },
+    {
+      "description": "Majors: siempre revisión manual.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "schedule": ["at any time"],
+      "addLabels": ["breaking-change"]
+    },
+    {
+      "description": "GitHub Actions (SHA pinneados): sin automerge.",
+      "matchDatasources": ["github-actions"],
+      "automerge": false,
+      "addLabels": ["dependencies"]
+    },
+    {
+      "description": "Imágenes Docker: pin a digest, sin automerge.",
+      "matchDatasources": ["docker"],
+      "pinDigests": true,
+      "automerge": false
+    }
+  ]
+}

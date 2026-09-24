@@ -1,5 +1,10 @@
 # AGENTS.md — Proton Suite Agent
 
+### Propósito de este documento
+- **Objetivos:** Contratar al agente de código: ficha, autonomía, DoD y comandos.
+- **Estructura:** TL;DR → ficha → layout → build/test → convenciones y gotchas.
+- **Contenido a integrar según contexto:** Dry-run, secretos, Calendar stub, Makefile fachada (`lint`/`test`/`smoke`/`validate`).
+
 Abrir cuando: Vas a escribir código: ficha, autonomía, DoD y comandos.
 Aprobado: 15 de agosto de 2026
 Audiencia: Agente, Dirección
@@ -83,7 +88,8 @@ src/
   ecosystem/          # Binary discovery / install.
 tests/                # Unit; **/*.integration.ts; **/*.e2e.ts
 docs/                 # ADRs, api/, guías, security/, archive/
-playbooks/            # Workflows humanos + prompts.
+                      # + architecture/, guides/, runbooks/ (fachadas canónicas)
+playbooks/            # Workflows humanos + prompts (runbooks vivos).
 ```
 
 ## How to build, run, test
@@ -98,6 +104,7 @@ pnpm test:integration
 pnpm run test:e2e
 pnpm run smoke
 pnpm docs:check
+make validate           # fachada canónica: lint + typecheck + test + build + smoke
 ```
 
 ## Conventions

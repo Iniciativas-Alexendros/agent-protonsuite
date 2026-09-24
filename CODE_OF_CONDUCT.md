@@ -1,5 +1,10 @@
 # Code of Conduct
 
+### Propósito de este documento
+- **Objetivos:** Fijar el código de conducta de la comunidad y el canal de reporte.
+- **Estructura:** Adopción del Covenant → reporte → alcance.
+- **Contenido a integrar según contexto:** Contributor Covenant 2.1, conduct@alexendros.me, espacios del proyecto.
+
 This project adopts the **Contributor Covenant 2.1**.
 
 The full text is available at: https://www.contributor-covenant.org/version/2/1/code_of_conduct/

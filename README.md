@@ -1,5 +1,10 @@
 # Proton Suite Agent
 
+### Propósito de este documento
+- **Objetivos:** Orientar el pulso del repo, el quickstart y el enrutado a los documentos canónicos.
+- **Estructura:** Ficha → pulso → mapa de lectura → instalación, tools, agente, calidad.
+- **Contenido a integrar según contexto:** Stack TypeScript/MCP, frontera Bridge, dry-run por defecto, Makefile fachada.
+
 Abrir cuando: Orientación, pulso y enrutado.
 Aprobado: 15 de agosto de 2026
 Audiencia: Agente, Dirección, Usuarios
@@ -200,13 +205,19 @@ Ver [`docs/deployment-http-docker.md`](./docs/deployment-http-docker.md). Instal
 | [`ARCHITECTURE.md`](./ARCHITECTURE.md) | Desarrolladores | Capas y flujos |
 | [`SECURITY.md`](./SECURITY.md) | Auditores | Threat model |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribuidores | PRs, pnpm, tests |
+| [`SUPPORT.md`](./SUPPORT.md) | Usuarios | Canales de ayuda |
+| [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) | Comunidad | Conducta |
+| [`docs/`](./docs/README.md) | Todos | architecture / guides / runbooks |
 | [`playbooks/`](./playbooks/) | Operadores | Workflows + prompts |
 
 ---
 
 ## Calidad
 
+Fachada canónica (`Makefile`): `make lint`, `make test`, `make smoke`, `make validate`.
+
 ```bash
+make validate        # lint + typecheck + test + build + smoke
 pnpm run typecheck   # TypeScript strict
 pnpm test            # Vitest (953+)
 pnpm run coverage    # Coverage v8 — gate 95%, objetivo ≥98%

@@ -3,5 +3,5 @@
 npx lint-staged
 pnpm typecheck
 pnpm test
-npx markdownlint-cli2 --config .markdownlint-cli2.jsonc "**/*.md"
+pnpm dlx markdownlint-cli2@0.23.3 --config .markdownlint-cli2.jsonc "**/*.md"
 bash "$(dirname "$0")/../scripts/run-actionlint.sh"

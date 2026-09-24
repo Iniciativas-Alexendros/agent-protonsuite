@@ -18,8 +18,8 @@ mantiene `npmPublish: false` hasta que el Trusted Publisher esté configurado (s
 Si OIDC falla en Release, verifica en npmjs.com → paquete → Settings → Trusted Publisher:
 
 1. **Provider:** GitHub Actions
-2. **Organization or user:** `Iniciativas-Alexendros`
-3. **Repository:** `agent-protonsuite`
+2. **Organization or user:** `Soluciones-Alexendros`
+3. **Repository:** `protonsuite-tools`
 4. **Workflow filename:** `release.yml`
 5. **Environment:** vacío
 6. **Allowed actions:** permitir `npm publish`
@@ -57,12 +57,12 @@ hacerlo en la UI con contraseña (+ OTP si aplica):
 | Node | ≥ 22.14 (GHA `node-version: 22`) |
 | Permiso Actions | `id-token: write` en el job `release` |
 | Runner | GitHub-hosted |
-| `repository.url` | Coincide con `Iniciativas-Alexendros/agent-protonsuite` |
+| `repository.url` | Coincide con `Soluciones-Alexendros/protonsuite-tools` |
 
 ## Verificar publicación
 
 ```bash
-gh release view --repo Iniciativas-Alexendros/agent-protonsuite
+gh release view --repo Soluciones-Alexendros/protonsuite-tools
 npm view @alexendros/protonsuite-agent version
 ```
 

@@ -56,4 +56,4 @@ echo "protonsuite-agent wrapper: launching MCP server over stdio..." >&2
 exec npx -y @alexendros/protonsuite-agent protonsuite-mcp
 
 # Alternative: if you run a local checkout, build first and then:
-# exec node /ruta/absoluta/a/agent-protonsuite/dist/index.js
+# exec node /ruta/absoluta/a/protonsuite-tools/dist/index.js

@@ -59,18 +59,18 @@ Misma política que Mail: valores reales en **Organization secrets** (no en `.en
 | `PROTON_BRIDGE_USER` | sí (Mail) | Ya en org |
 | `PROTON_BRIDGE_PASS` | sí (Mail) | Ya en org |
 | `PROTON_MAIL_FROM` | sí (Mail) | Ya en org |
-| `ALERT_NTFY_TOPIC` | para ntfy | Ya en org (selected → `agent-protonsuite`) |
+| `ALERT_NTFY_TOPIC` | para ntfy | Ya en org (selected → `protonsuite-tools`) |
 | `ALERT_NTFY_URL` | no | Ya en org (`https://ntfy.sh`) |
 | `ALERT_NTFY_TOKEN` | si el topic es privado | Opcional; crear con cuenta ntfy |
 
 Copia local del topic (no commitear): `pass show alerts/ntfy | head -1`.
 
-Rotar o añadir token (visibilidad selected → `agent-protonsuite`):
+Rotar o añadir token (visibilidad selected → `protonsuite-tools`):
 
 ```bash
 # Solo si reservas el topic / usas cuenta ntfy
-gh secret set ALERT_NTFY_TOKEN --org Iniciativas-Alexendros \
-  --visibility selected --repos agent-protonsuite --body 'tk_...'
+gh secret set ALERT_NTFY_TOKEN --org Soluciones-Alexendros \
+  --visibility selected --repos protonsuite-tools --body 'tk_...'
 ```
 
 **Compose:** `docker-compose.yml` pasa `ALERT_NTFY_*` al servicio `agent` desde el entorno / `.env` del host.  

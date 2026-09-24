@@ -2,7 +2,7 @@
 
 # Full quality suite - mirrors CI quality.yml
 echo "🔍 Running markdownlint..."
-npx markdownlint-cli2 --config .markdownlint-cli2.jsonc "**/*.md" || exit 1
+pnpm dlx markdownlint-cli2@0.23.3 --config .markdownlint-cli2.jsonc "**/*.md" || exit 1
 
 echo "🔍 Running actionlint..."
 bash "$(dirname "$0")/../scripts/run-actionlint.sh" || exit 1

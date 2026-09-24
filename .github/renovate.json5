@@ -1,5 +1,5 @@
 // ──────────────────────────────────────────────────────────────────────────────
-// Renovate para agent-protonsuite
+// Renovate para protonsuite-tools
 //
 // Reemplazo TOTAL de Dependabot: gestiona actualizaciones de dependencias,
 // actualización de GitHub Actions y alertas de vulnerabilidad de GitHub.
@@ -12,8 +12,8 @@
 
   // Presets org — defaults compartidos del stack (node, labels base, etc.).
   extends: [
-    "local>Iniciativas-Alexendros/infraestructura-stack:renovate-presets/default",
-    "local>Iniciativas-Alexendros/infraestructura-stack:renovate-presets/node",
+    "local>Soluciones-Alexendros/infraestructura-stack:renovate-presets/default",
+    "local>Soluciones-Alexendros/infraestructura-stack:renovate-presets/node",
   ],
 
   // --- Calendario / zona horaria ---

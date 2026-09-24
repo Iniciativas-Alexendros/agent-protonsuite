@@ -3,7 +3,7 @@
   "name": "io.github.Alexendros/protonsuite-agent",
   "description": "Proton Suite Agent · Mail (Bridge IMAP/SMTP) + Pass (pass-cli) + Calendar + Drive · multi-transport stdio + HTTP · agent setup, organization and alerting.",
   "repository": {
-    "url": "https://github.com/Iniciativas-Alexendros/agent-protonsuite",
+    "url": "https://github.com/Soluciones-Alexendros/protonsuite-tools",
     "source": "github"
   },
   "version": "1.4.0",

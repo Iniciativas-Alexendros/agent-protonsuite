@@ -10,8 +10,7 @@ Propósito: Contrato de publicación (GitHub Release + GHCR + npm OIDC).
 Este documento describe cómo se publica `@alexendros/protonsuite-agent`.
 **No se usa `NPM_TOKEN` en CI.** npm usa [Trusted Publishing](https://docs.npmjs.com/trusted-publishers)
 (OIDC). El paquete **existe** en el registry (`1.4.0`, 2026-09-24). `.releaserc.json`
-mantiene `npmPublish: false` hasta que el Trusted Publisher esté configurado (si no,
-`verifyConditions` rompe Release en cada push). El job `release` ya fuerza npm CLI ≥ 11.5.1.
+tiene `npmPublish: true`. El job `release` fuerza npm CLI ≥ 11.5.1 y publica vía OIDC.
 
 ## Trusted Publisher (checklist operador)
 
@@ -24,9 +23,9 @@ Si OIDC falla en Release, verifica en npmjs.com → paquete → Settings → Tru
 5. **Environment:** vacío
 6. **Allowed actions:** permitir `npm publish`
 
-Primera publicación ya hecha (bootstrap manual a `1.4.0`). Tras configurar Trusted
-Publisher, cambia `.releaserc.json` a `"npmPublish": true` en un PR de una línea.
-Bumps futuros: push a `main` con `feat`/`fix` → semantic-release + OIDC.
+Primera publicación: bootstrap manual a `1.4.0`. Bumps futuros: push a `main` con
+`feat`/`fix` → semantic-release + OIDC. Rescate sin bump de tag:
+`gh workflow run release.yml -f bootstrap-npm=true`.
 
 ## Cambio de email de la cuenta npm
 
@@ -76,10 +75,11 @@ npm view @alexendros/protonsuite-agent version
 | Commit `chore:`/`docs:` no crea tag | Correcto: no hay bump. |
 | Version en `package.json` desfasada | Sin `@semantic-release/git`, sync manual tras bumps; el tag manda. |
 | Token 403 al cambiar email | Esperado: usar UI + 2FA, no el automation token. |
+| Metadatos npm con repo antiguo | Esperado hasta el próximo bump que publique; `repository.url` en tarball se actualiza entonces. |
 
 ## Seguridad
 
 - **No hay `NPM_TOKEN` en GitHub Actions.**
 - **Cache poisoning deshabilitado** en el path de release.
 - **Provenance** automático con Trusted Publishing en repos públicos.
-- Tras usar un token de bootstrap local: **revocarlo** en npmjs (quedó expuesto en sesión de operador).
+- Tras usar un token de bootstrap local: **revocarlo** en npmjs.

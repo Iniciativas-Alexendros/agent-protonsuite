@@ -69,7 +69,7 @@ Rotar o añadir token (visibilidad selected → `protonsuite-tools`):
 
 ```bash
 # Solo si reservas el topic / usas cuenta ntfy
-gh secret set ALERT_NTFY_TOKEN --org Iniciativas-Alexendros \
+gh secret set ALERT_NTFY_TOKEN --org Soluciones-Alexendros \
   --visibility selected --repos protonsuite-tools --body 'tk_...'
 ```
 

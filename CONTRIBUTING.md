@@ -25,7 +25,7 @@ Gracias por considerar contribuir. MCP multi-producto para Proton Suite (Mail,
 Pass, Drive, Calendar stub) con agente autónomo.
 
 > Seguridad: NO abras issue/PR pública para vulnerabilidades. Escribe a
-> **security@alexendros.me** o usa [GitHub Security Advisories](https://github.com/Iniciativas-Alexendros/protonsuite-tools/security/advisories/new).
+> **security@alexendros.me** o usa [GitHub Security Advisories](https://github.com/Soluciones-Alexendros/protonsuite-tools/security/advisories/new).
 > Ver [SECURITY.md](./SECURITY.md) y [CONSTITUTION.md](./CONSTITUTION.md).
 
 ## Formas de contribuir
@@ -48,7 +48,7 @@ Node ≥ 22 y **pnpm**. Mail: Bridge local o Docker. Pass: `pass` o `gopass` +
 `gpg`. Drive: CLI `proton-drive` (no stub). Calendar: stub (ADR-005).
 
 ```bash
-git clone https://github.com/Iniciativas-Alexendros/protonsuite-tools.git
+git clone https://github.com/Soluciones-Alexendros/protonsuite-tools.git
 cd protonsuite-tools
 pnpm install
 

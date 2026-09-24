@@ -21,9 +21,9 @@ Revisión: 29 de agosto de 2026
 Rol: Entrada
 Ruta: ./README.md
 
-[![CI](https://github.com/Iniciativas-Alexendros/protonsuite-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/protonsuite-tools/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/Iniciativas-Alexendros/protonsuite-tools/actions/workflows/codeql.yml/badge.svg)](https://github.com/Iniciativas-Alexendros/protonsuite-tools/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Iniciativas-Alexendros/protonsuite-tools/badge)](https://scorecard.dev/viewer/?uri=github.com/Iniciativas-Alexendros/protonsuite-tools)
+[![CI](https://github.com/Soluciones-Alexendros/protonsuite-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/Soluciones-Alexendros/protonsuite-tools/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Soluciones-Alexendros/protonsuite-tools/actions/workflows/codeql.yml/badge.svg)](https://github.com/Soluciones-Alexendros/protonsuite-tools/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Soluciones-Alexendros/protonsuite-tools/badge)](https://scorecard.dev/viewer/?uri=github.com/Soluciones-Alexendros/protonsuite-tools)
 [![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen)](./docs/coverage-report.md)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen.svg)](./package.json)
@@ -91,7 +91,7 @@ Punto de entrada de lectura. Te dice el pulso, cómo arrancar y qué documento a
 ### 1. Instalar y compilar
 
 ```bash
-git clone https://github.com/Iniciativas-Alexendros/protonsuite-tools.git
+git clone https://github.com/Soluciones-Alexendros/protonsuite-tools.git
 cd protonsuite-tools
 pnpm install && pnpm build && pnpm run smoke
 ```

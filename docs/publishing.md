@@ -10,17 +10,15 @@ Propósito: Contrato de publicación (GitHub Release + GHCR + npm OIDC).
 Este documento describe cómo se publica `@alexendros/protonsuite-agent`.
 **No se usa `NPM_TOKEN` en CI.** npm usa [Trusted Publishing](https://docs.npmjs.com/trusted-publishers)
 (OIDC). El paquete **existe** en el registry (`1.4.0`, 2026-09-24). `.releaserc.json`
-tiene `npmPublish: false` **temporalmente** (2026-09-24): el OIDC exchange en
-`main` devolvió `404 package not found` tras activar Trusted Publishing — hay que
-**recrear** la conexión al repo `protonsuite-tools` (ver troubleshooting) y luego
-volver a `npmPublish: true`. El job `release` fuerza npm CLI ≥ 11.5.1.
+tiene `npmPublish: true`. El job `release` fuerza npm CLI ≥ 11.5.1 y publica vía OIDC.
+Org GitHub: `Soluciones-Alexendros` (login alineado con Trusted Publisher).
 
 ## Trusted Publisher (checklist operador)
 
 Si OIDC falla en Release, verifica en npmjs.com → paquete → Settings → Trusted Publisher:
 
 1. **Provider:** GitHub Actions
-2. **Organization or user:** `Iniciativas-Alexendros`
+2. **Organization or user:** `Soluciones-Alexendros`
 3. **Repository:** `protonsuite-tools`
 4. **Workflow filename:** `release.yml`
 5. **Environment:** vacío
@@ -59,12 +57,12 @@ hacerlo en la UI con contraseña (+ OTP si aplica):
 | Node | ≥ 22.14 (GHA `node-version: 22`) |
 | Permiso Actions | `id-token: write` en el job `release` |
 | Runner | GitHub-hosted |
-| `repository.url` | Coincide con `Iniciativas-Alexendros/protonsuite-tools` |
+| `repository.url` | Coincide con `Soluciones-Alexendros/protonsuite-tools` |
 
 ## Verificar publicación
 
 ```bash
-gh release view --repo Iniciativas-Alexendros/protonsuite-tools
+gh release view --repo Soluciones-Alexendros/protonsuite-tools
 npm view @alexendros/protonsuite-agent version
 ```
 
@@ -73,7 +71,7 @@ npm view @alexendros/protonsuite-agent version
 | Problema | Solución |
 | --- | --- |
 | `EINVALIDNPMTOKEN` / `401 whoami` | Trusted Publisher mal configurado o npm &lt; 11.5.1. **No** añadir `NPM_TOKEN` a CI. Suele ser el fallback tras un OIDC 404. |
-| `404 OIDC token exchange` / `package not found` | Recrear Trusted Publisher (no se edita): org `Iniciativas-Alexendros`, repo **`protonsuite-tools`** (no `agent-protonsuite`), workflow `release.yml`, Environment vacío, **Allowed actions: `npm publish`**. Tras el rename del repo, una conexión antigua deja de coincidir con el claim OIDC. |
+| `404 OIDC token exchange` / `package not found` | Trusted Publisher debe ser org `Soluciones-Alexendros`, repo `protonsuite-tools`, workflow `release.yml`, Environment vacío, allow `npm publish`. Las conexiones TP no se editan: borrar y recrear si el login/repo cambió. |
 | `ENEEDAUTH` en bootstrap | Igual que arriba; o package visibility. |
 | `setup-node` + `registry-url` | No usar `registry-url` en el job `release`: genera `_authToken=${NODE_AUTH_TOKEN}` vacío y pelea con OIDC/semantic-release. |
 | Commit `chore:`/`docs:` no crea tag | Correcto: no hay bump. |

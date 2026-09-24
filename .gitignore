@@ -14,3 +14,5 @@ desktop.db*
 # Lockfiles — pnpm-lock.yaml is canonical
 package-lock.json
 coverage/
+
+.cursor/

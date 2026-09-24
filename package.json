@@ -25,11 +25,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Soluciones-Alexendros/protonsuite-tools.git"
+    "url": "git+https://github.com/Iniciativas-Alexendros/protonsuite-tools.git"
   },
-  "homepage": "https://github.com/Soluciones-Alexendros/protonsuite-tools#readme",
+  "homepage": "https://github.com/Iniciativas-Alexendros/protonsuite-tools#readme",
   "bugs": {
-    "url": "https://github.com/Soluciones-Alexendros/protonsuite-tools/issues"
+    "url": "https://github.com/Iniciativas-Alexendros/protonsuite-tools/issues"
   },
   "keywords": [
     "mcp",

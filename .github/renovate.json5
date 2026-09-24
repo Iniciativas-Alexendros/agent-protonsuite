@@ -12,8 +12,8 @@
 
   // Presets org — defaults compartidos del stack (node, labels base, etc.).
   extends: [
-    "local>Soluciones-Alexendros/infraestructura-stack:renovate-presets/default",
-    "local>Soluciones-Alexendros/infraestructura-stack:renovate-presets/node",
+    "local>Iniciativas-Alexendros/infraestructura-stack:renovate-presets/default",
+    "local>Iniciativas-Alexendros/infraestructura-stack:renovate-presets/node",
   ],
 
   // --- Calendario / zona horaria ---

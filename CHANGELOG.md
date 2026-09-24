@@ -8,53 +8,53 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) y [Sem
 
 ### Changed
 
-- Renombre: org `Iniciativas-Alexendros` → `Soluciones-Alexendros`; repo/carpeta `agent-protonsuite` → `protonsuite-tools` (el paquete npm `@alexendros/protonsuite-agent` no cambia).
+- Renombre repo/carpeta `agent-protonsuite` → `protonsuite-tools`. Nombre visible de la org: «Soluciones Alexendros» (login GitHub sigue siendo `Iniciativas-Alexendros` hasta rename de slug con admin:org).
 
 ### Fixed
 
-- **ci:** E2E GreenMail deja de usar `continue-on-error` y es required check ([#107](https://github.com/Soluciones-Alexendros/protonsuite-tools/pull/107)).
-- **ci:** Pre-commit/husky ejecuta actionlint pinneado vía `scripts/run-actionlint.sh` (sin `docker://…:latest`) ([#107](https://github.com/Soluciones-Alexendros/protonsuite-tools/pull/107)).
+- **ci:** E2E GreenMail deja de usar `continue-on-error` y es required check ([#107](https://github.com/Iniciativas-Alexendros/protonsuite-tools/pull/107)).
+- **ci:** Pre-commit/husky ejecuta actionlint pinneado vía `scripts/run-actionlint.sh` (sin `docker://…:latest`) ([#107](https://github.com/Iniciativas-Alexendros/protonsuite-tools/pull/107)).
 
 ### Changed
 
-- **labels:** Taxonomía `type:` / `area:` / `priority:` / `status:` / `release:`; claves citadas en `.github/labeler.yml` ([#107](https://github.com/Soluciones-Alexendros/protonsuite-tools/pull/107)).
+- **labels:** Taxonomía `type:` / `area:` / `priority:` / `status:` / `release:`; claves citadas en `.github/labeler.yml` ([#107](https://github.com/Iniciativas-Alexendros/protonsuite-tools/pull/107)).
 
 ## [1.4.0] - 2026-09-23
 
 ### Added
 
-- Rate tiers HTTP por clase de tool, caché IMAP con invalidación por fingerprint, mutex de paths Drive y gate de Calendar experimental ([915c596](https://github.com/Soluciones-Alexendros/protonsuite-tools/commit/915c5963c37a09d6098deef036c73ee5fed21f6c)).
-- Robustez HTTP/IMAP/Drive + Subfase 0 docs y Pass `gopass` ([#103](https://github.com/Soluciones-Alexendros/protonsuite-tools/pull/103)).
+- Rate tiers HTTP por clase de tool, caché IMAP con invalidación por fingerprint, mutex de paths Drive y gate de Calendar experimental ([915c596](https://github.com/Iniciativas-Alexendros/protonsuite-tools/commit/915c5963c37a09d6098deef036c73ee5fed21f6c)).
+- Robustez HTTP/IMAP/Drive + Subfase 0 docs y Pass `gopass` ([#103](https://github.com/Iniciativas-Alexendros/protonsuite-tools/pull/103)).
 
 ### Fixed
 
-- **ci:** Release ya no falla en `verifyConditions` de npm (`EINVALIDNPMTOKEN` / OIDC 404). `npmPublish: false` hasta que exista `@alexendros/protonsuite-agent` y Trusted Publishing; no se inventa `NPM_TOKEN`. GitHub Release + GHCR siguen siendo la superficie de publicación ([#106](https://github.com/Soluciones-Alexendros/protonsuite-tools/pull/106)).
-- **ci:** Integration schedule/PR en runner hosted salta smokes de Bridge/Pass/Drive si no hay credenciales o binarios (ENOENT / ECONNREFUSED). Bridge real solo con `workflow_dispatch` + `bridge-real=true` ([#106](https://github.com/Soluciones-Alexendros/protonsuite-tools/pull/106)).
-- **release:** Restaurar pipeline atómico de semantic-release ([ca7ab7d](https://github.com/Soluciones-Alexendros/protonsuite-tools/commit/ca7ab7dc53cd448d892594eb980af469d9285d79)).
+- **ci:** Release ya no falla en `verifyConditions` de npm (`EINVALIDNPMTOKEN` / OIDC 404). `npmPublish: false` hasta que exista `@alexendros/protonsuite-agent` y Trusted Publishing; no se inventa `NPM_TOKEN`. GitHub Release + GHCR siguen siendo la superficie de publicación ([#106](https://github.com/Iniciativas-Alexendros/protonsuite-tools/pull/106)).
+- **ci:** Integration schedule/PR en runner hosted salta smokes de Bridge/Pass/Drive si no hay credenciales o binarios (ENOENT / ECONNREFUSED). Bridge real solo con `workflow_dispatch` + `bridge-real=true` ([#106](https://github.com/Iniciativas-Alexendros/protonsuite-tools/pull/106)).
+- **release:** Restaurar pipeline atómico de semantic-release ([ca7ab7d](https://github.com/Iniciativas-Alexendros/protonsuite-tools/commit/ca7ab7dc53cd448d892594eb980af469d9285d79)).
 
 ## [1.3.2] - 2026-08-07
 
 ### Fixed
 
-- Configure markdownlint and zizmor rules ([e52161e](https://github.com/Soluciones-Alexendros/protonsuite-tools/commit/e52161ef69f4c3d9587525f824c59a2bb7a3d783)).
+- Configure markdownlint and zizmor rules ([e52161e](https://github.com/Iniciativas-Alexendros/protonsuite-tools/commit/e52161ef69f4c3d9587525f824c59a2bb7a3d783)).
 
 ## [1.3.1] - 2026-08-07
 
 ### Fixed
 
-- Enable npm publish via OIDC trusted publishing ([#98](https://github.com/Soluciones-Alexendros/protonsuite-tools/pull/98)).
+- Enable npm publish via OIDC trusted publishing ([#98](https://github.com/Iniciativas-Alexendros/protonsuite-tools/pull/98)).
 
 ## [1.3.0] - 2026-08-07
 
 ### Added
 
-- MCP contract tests, metrics endpoint, and CalDAV interface seam ([#91](https://github.com/Soluciones-Alexendros/protonsuite-tools/pull/91)).
+- MCP contract tests, metrics endpoint, and CalDAV interface seam ([#91](https://github.com/Iniciativas-Alexendros/protonsuite-tools/pull/91)).
 
 ### Fixed
 
 - Align Calendar stub messages with Proton reality (no CalDAV).
 - Harden null checks, remove dead code, extract emailFeatures helper.
-- Repair badges, README, and release workflow ([#93](https://github.com/Soluciones-Alexendros/protonsuite-tools/pull/93)).
+- Repair badges, README, and release workflow ([#93](https://github.com/Iniciativas-Alexendros/protonsuite-tools/pull/93)).
 - Repair release.yml (remove broken manual commit step).
 
 ## [1.2.1] - 2026-07-20

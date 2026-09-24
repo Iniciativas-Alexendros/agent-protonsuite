@@ -5,7 +5,7 @@
 Only the `main` branch and the latest published artifacts receive security fixes:
 
 - npm package: `@alexendros/protonsuite-agent@latest`
-- Docker image: `ghcr.io/soluciones-alexendros/protonsuite-tools:latest`
+- Docker image: `ghcr.io/iniciativas-alexendros/protonsuite-tools:latest`
 
 Older versions published under the legacy names `@alexendros/protonmail-agent` and `@alexendros/protonmail-mcp` are deprecated and no longer supported.
 

@@ -33,7 +33,7 @@ Contrato operativo para agentes (y humanos) que trabajan en este repo. Deriva de
 
 - **Stack:** TypeScript 5.7 strict (`ES2022`/`NodeNext`/`ESM`), Node ≥ 22,
   `@modelcontextprotocol/sdk@^1.29`, `imapflow`, `nodemailer`, `mailparser`,
-  `zod`, `express` + `express-rate-limit`. Vitest (**958** tests, **~98%**
+  `zod`, `express` + `express-rate-limit`. Vitest (**965** tests, **~98%**
   coverage, 95% gate). ESLint flat config (strict).
 - **Build:** `pnpm install && pnpm build` → `dist/`. Source `src/`, tests
   `tests/`, docs `docs/`, playbooks `playbooks/`.
@@ -93,7 +93,7 @@ pnpm install
 pnpm build
 pnpm typecheck
 pnpm lint
-pnpm test               # ~958 tests, gate 95%, keep ≥98%
+pnpm test               # ~965 tests, gate 95%, keep ≥98%
 pnpm test:integration
 pnpm run test:e2e
 pnpm run smoke

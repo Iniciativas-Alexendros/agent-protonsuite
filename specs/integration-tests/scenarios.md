@@ -10,3 +10,4 @@
 | SI08 | Binario ausente — Pass/Drive saltan  | pass / proton-drive no están en PATH   | binarySmokeTest() → it.skip (no ENOENT)                    |
 | SI06 | Credenciales inválidas — error claro | Bridge user/pass incorrectos           | AUTHENTICATIONFAILED, no timeout                           |
 | SI07 | Bridge no corriendo — error claro    | Sin proceso Bridge                     | "Bridge not reachable at 127.0.0.1:1143"                   |
+| SI09 | Schedule hosted — verde sin live     | cron en runner GitHub-hosted           | preflight `mode=hosted`; smokes live en skip; exit 0       |

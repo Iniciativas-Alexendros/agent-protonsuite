@@ -29,6 +29,31 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) y [Sem
 - **E2E drive tests**: `await` missing on async `DriveAuditor` calls in `tests/e2e/drive.e2e.ts`.
 - **`.lintstagedrc.json`**: scope from `*.ts` (included tests) to `src/**/*.ts` (CI-aligned).
 
+## [1.3.2] - 2026-08-07
+
+### Fixed
+
+- Configure markdownlint and zizmor rules ([e52161e](https://github.com/Iniciativas-Alexendros/agent-protonsuite/commit/e52161ef69f4c3d9587525f824c59a2bb7a3d783)).
+
+## [1.3.1] - 2026-08-07
+
+### Fixed
+
+- Enable npm publish via OIDC trusted publishing ([#98](https://github.com/Iniciativas-Alexendros/agent-protonsuite/pull/98)).
+
+## [1.3.0] - 2026-08-07
+
+### Added
+
+- MCP contract tests, metrics endpoint, and CalDAV interface seam ([#91](https://github.com/Iniciativas-Alexendros/agent-protonsuite/pull/91)).
+
+### Fixed
+
+- Align Calendar stub messages with Proton reality (no CalDAV).
+- Harden null checks, remove dead code, extract emailFeatures helper.
+- Repair badges, README, and release workflow ([#93](https://github.com/Iniciativas-Alexendros/agent-protonsuite/pull/93)).
+- Repair release.yml (remove broken manual commit step).
+
 ## [1.2.1] - 2026-07-20
 
 ### Fixed

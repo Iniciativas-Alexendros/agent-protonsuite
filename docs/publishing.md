@@ -12,6 +12,22 @@ Este documento describe cómo se publica `@alexendros/protonsuite-agent`.
 paquete **aún no existe** en el registry (OIDC 404 `package not found` el
 2026-09-23). Hasta entonces `npmPublish` es `false` y Release no debe fallar.
 
+## Reactivar npm (checklist operador)
+
+Hasta completar estos pasos, `npm view @alexendros/protonsuite-agent` devolverá
+404 y `.releaserc.json` debe seguir con `npmPublish: false`.
+
+1. En [npmjs.com](https://npmjs.com), inicia sesión con la cuenta del scope
+   `@alexendros`.
+2. Crea el paquete `@alexendros/protonsuite-agent` (primera publicación manual
+   o **Trusted Publisher pendiente**):
+   - **Repository**: `Iniciativas-Alexendros/agent-protonsuite`
+   - **Workflow**: `release.yml`
+   - **Environment**: (opcional) `npm`
+3. Confirma: `npm view @alexendros/protonsuite-agent version` (deja de ser 404).
+4. Abre un PR de una línea: en `.releaserc.json`, `"npmPublish": true`.
+5. No añadas `NPM_TOKEN`. El job `release` ya tiene `id-token: write`.
+
 ## Cómo funciona
 
 1. Cada push a `main` dispara `release.yml` → `semantic-release` analiza commits.
@@ -39,11 +55,9 @@ superficie de release actual.
 
 ## Reactivar npm (cuando el paquete exista)
 
-1. En [npmjs.com](https://npmjs.com), crea un **Trusted Publisher pendiente**
-   (o publica a mano la primera versión) para `@alexendros/protonsuite-agent`:
-   - **Repository**: `Iniciativas-Alexendros/agent-protonsuite`
-   - **Workflow**: `release.yml`
-   - **Environment**: (opcional) `npm`
+Ver la [checklist operador](#reactivar-npm-checklist-operador) arriba. Resumen:
+
+1. Trusted Publisher pendiente (o primera publicación manual) en npmjs.com.
 2. Confirma `npm view @alexendros/protonsuite-agent version`.
 3. Cambia `.releaserc.json` a `"npmPublish": true`.
 4. No añadas `NPM_TOKEN`. El job ya tiene `id-token: write`.
@@ -81,7 +95,7 @@ npm view @alexendros/protonsuite-agent version
 | `404 OIDC token exchange` | El paquete no existe o no hay Trusted Publisher. Ver sección anterior. |
 | `npm publish` no se ejecuta | Esperado mientras `npmPublish: false`. |
 | Commit `chore:`/`docs:` no crea tag | Correcto: no hay bump. El workflow debe quedar verde. |
-| Version en `package.json` desfasada | Esperado sin `@semantic-release/git`. El tag manda. |
+| Version en `package.json` desfasada | Tras sync a `1.3.2` el manifiesto coincide con el último tag. Sin `@semantic-release/git`, bumps futuros pueden retrasar el manifiesto hasta el siguiente commit de sync; el tag sigue mandando en GitHub Release. |
 
 ## Seguridad
 

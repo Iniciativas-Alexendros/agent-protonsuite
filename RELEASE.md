@@ -19,7 +19,7 @@ Las releases se gestionan automáticamente con [semantic-release](https://github
 ## Publicación
 
 - **npm:** Desactivado (`npmPublish: false`). No se usa `NPM_TOKEN`. Cuando el paquete exista y OIDC Trusted Publishing esté configurado en npmjs.com, se puede volver a `true` (ver [docs/publishing.md](./docs/publishing.md)).
-- **GitHub Release + tag:** Fuente de verdad de la versión. `package.json` puede quedar desfasado (hoy `1.2.1` vs tags `v1.3.x`) porque no se hace push a `main` con `@semantic-release/git` (protegida, GH006).
+- **GitHub Release + tag:** Fuente de verdad de la versión. `package.json` puede quedar desfasado (hoy alineado a `1.4.0` tras sync manual) porque no se hace push a `main` con `@semantic-release/git` (protegida, GH006).
 - **GHCR:** Imagen Docker multi-tag (`:latest`, `:vX.Y.Z`, `:vX.Y`, `:sha-XXXXX`) solo cuando semantic-release publica una versión.
 - **Provenance:** Docker build usa `provenance: true`. npm provenance queda para cuando se reactive Trusted Publishing.
 - **PR metadata:** `release-preview.yml` comenta el bump previsto; `@semantic-release/github` aplica el label `released` a PRs incluidos en la release.

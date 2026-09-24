@@ -95,7 +95,7 @@ npm view @alexendros/protonsuite-agent version
 | `404 OIDC token exchange` | El paquete no existe o no hay Trusted Publisher. Ver sección anterior. |
 | `npm publish` no se ejecuta | Esperado mientras `npmPublish: false`. |
 | Commit `chore:`/`docs:` no crea tag | Correcto: no hay bump. El workflow debe quedar verde. |
-| Version en `package.json` desfasada | Tras sync a `1.3.2` el manifiesto coincide con el último tag. Sin `@semantic-release/git`, bumps futuros pueden retrasar el manifiesto hasta el siguiente commit de sync; el tag sigue mandando en GitHub Release. |
+| Version en `package.json` desfasada | Tras sync a `1.4.0` el manifiesto coincide con el último tag. Sin `@semantic-release/git`, bumps futuros pueden retrasar el manifiesto hasta el siguiente commit de sync; el tag sigue mandando en GitHub Release. |
 
 ## Seguridad
 

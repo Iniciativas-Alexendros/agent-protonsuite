@@ -10,8 +10,8 @@ Propósito: Contrato de publicación (GitHub Release + GHCR + npm OIDC).
 Este documento describe cómo se publica `@alexendros/protonsuite-agent`.
 **No se usa `NPM_TOKEN` en CI.** npm usa [Trusted Publishing](https://docs.npmjs.com/trusted-publishers)
 (OIDC). El paquete **existe** en el registry (`1.4.0`, 2026-09-24). `.releaserc.json`
-tiene `npmPublish: true`. El job `release` fuerza npm CLI ≥ 11.5.1 y publica vía OIDC.
-Org GitHub: `Soluciones-Alexendros` (login alineado con Trusted Publisher).
+tiene `npmPublish: false` **temporal** (Trusted Publisher borrado el 2026-09-24). Recrear TP y volver a `true`.
+Org GitHub: `Soluciones-Alexendros`.
 
 ## Trusted Publisher (checklist operador)
 

@@ -1,6 +1,6 @@
 # MCP Tool Contract — Proton Suite Agent
 
-> Auto-generated from the Zod schemas declared in `src/server/*.ts` via `scripts/generate-docs.mjs`. Do not edit by hand — run `pnpm build && pnpm docs:generate`. Version: 1.2.1.
+> Auto-generated from the Zod schemas declared in `src/server/*.ts` via `scripts/generate-docs.mjs`. Do not edit by hand — run `pnpm build && pnpm docs:generate`. Version: 1.3.2.
 
 Total tools: **50**.
 

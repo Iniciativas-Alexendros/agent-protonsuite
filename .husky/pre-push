@@ -6,7 +6,7 @@ echo "🔍 Running markdownlint..."
 npx markdownlint-cli2 --config .markdownlint-cli2.jsonc "**/*.md" || exit 1
 
 echo "🔍 Running actionlint..."
-docker run --rm -v "$(pwd):/github/workspace" -w /github/workspace rhysd/actionlint:latest -color || exit 1
+bash "$(dirname "$0")/../scripts/run-actionlint.sh" || exit 1
 
 echo "🔍 Running license check..."
 pnpm run license-check:prod || exit 1

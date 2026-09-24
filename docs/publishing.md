@@ -10,7 +10,10 @@ Propósito: Contrato de publicación (GitHub Release + GHCR + npm OIDC).
 Este documento describe cómo se publica `@alexendros/protonsuite-agent`.
 **No se usa `NPM_TOKEN` en CI.** npm usa [Trusted Publishing](https://docs.npmjs.com/trusted-publishers)
 (OIDC). El paquete **existe** en el registry (`1.4.0`, 2026-09-24). `.releaserc.json`
-tiene `npmPublish: true`. El job `release` fuerza npm CLI ≥ 11.5.1 y publica vía OIDC.
+tiene `npmPublish: false` **temporalmente** (2026-09-24): el OIDC exchange en
+`main` devolvió `404 package not found` tras activar Trusted Publishing — hay que
+**recrear** la conexión al repo `protonsuite-tools` (ver troubleshooting) y luego
+volver a `npmPublish: true`. El job `release` fuerza npm CLI ≥ 11.5.1.
 
 ## Trusted Publisher (checklist operador)
 
@@ -69,9 +72,10 @@ npm view @alexendros/protonsuite-agent version
 
 | Problema | Solución |
 | --- | --- |
-| `EINVALIDNPMTOKEN` / `401 whoami` | Trusted Publisher mal configurado o npm &lt; 11.5.1. **No** añadir `NPM_TOKEN` a CI. |
-| `404 OIDC token exchange` | Workflow filename / org / repo no coinciden con Trusted Publisher. |
+| `EINVALIDNPMTOKEN` / `401 whoami` | Trusted Publisher mal configurado o npm &lt; 11.5.1. **No** añadir `NPM_TOKEN` a CI. Suele ser el fallback tras un OIDC 404. |
+| `404 OIDC token exchange` / `package not found` | Recrear Trusted Publisher (no se edita): org `Iniciativas-Alexendros`, repo **`protonsuite-tools`** (no `agent-protonsuite`), workflow `release.yml`, Environment vacío, **Allowed actions: `npm publish`**. Tras el rename del repo, una conexión antigua deja de coincidir con el claim OIDC. |
 | `ENEEDAUTH` en bootstrap | Igual que arriba; o package visibility. |
+| `setup-node` + `registry-url` | No usar `registry-url` en el job `release`: genera `_authToken=${NODE_AUTH_TOKEN}` vacío y pelea con OIDC/semantic-release. |
 | Commit `chore:`/`docs:` no crea tag | Correcto: no hay bump. |
 | Version en `package.json` desfasada | Sin `@semantic-release/git`, sync manual tras bumps; el tag manda. |
 | Token 403 al cambiar email | Esperado: usar UI + 2FA, no el automation token. |

@@ -18,7 +18,7 @@ Las releases se gestionan automáticamente con [semantic-release](https://github
 
 ## Publicación
 
-- **npm:** Activo (`npmPublish: true`) con Trusted Publishing OIDC (job con npm ≥ 11.5.1). Bootstrap/rescate: `gh workflow run release.yml -f bootstrap-npm=true`. **No** `NPM_TOKEN` en CI. Ver [docs/publishing.md](./docs/publishing.md).
+- **npm:** `npmPublish: false` temporal (OIDC `404 package not found` en main tras rename). Recrear Trusted Publisher → `protonsuite-tools` / `release.yml` / allow `npm publish`, luego `npmPublish: true`. Bootstrap: `gh workflow run release.yml -f bootstrap-npm=true`. **No** `NPM_TOKEN`. Ver [docs/publishing.md](./docs/publishing.md).
 - **GitHub Release + tag:** Fuente de verdad de la versión en git. `package.json` puede quedar desfasado tras un bump (hoy alineado a `1.4.0`) porque no se hace push a `main` con `@semantic-release/git` (protegida, GH006).
 - **GHCR:** Imagen Docker multi-tag (`:latest`, `:vX.Y.Z`, `:vX.Y`, `:sha-XXXXX`) solo cuando semantic-release publica una versión.
 - **Provenance:** Docker build usa `provenance: true`. npm provenance cuando Trusted Publishing esté activo.

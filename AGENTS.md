@@ -151,6 +151,6 @@ ADRs in [`docs/adr/`](./docs/adr/). Related: [ARCHITECTURE.md](./ARCHITECTURE.md
 - Calendar MCP queda detrás de `PROTON_CALENDAR_EXPERIMENTAL` (stub hasta Bridge CalDAV / ADR-005).
 - Pass soporta backend `pass` o `gopass` vía config (`PASS_BACKEND`).
 - En main: rate tiers HTTP por clase de tool, caché IMAP con invalidación por fingerprint, mutex de paths Drive, Bridge fail-closed ante prompts desconocidos.
-- Publicación npm: paquete `@alexendros/protonsuite-agent@1.4.0` en registry; `npmPublish: true` (OIDC Trusted Publishing); checklist en `docs/publishing.md`.
+- Publicación npm: paquete `@alexendros/protonsuite-agent@1.4.0` en registry; `npmPublish: false` temporal (OIDC 404 tras rename → recrear Trusted Publisher a `protonsuite-tools`); checklist en `docs/publishing.md`.
 - Labels GitHub: taxonomía `type:` / `area:` / `priority:` / `status:` / `release:`; en `.github/labeler.yml` las claves van entre comillas.
 - Pre-commit/husky: actionlint pinneado vía `scripts/run-actionlint.sh` (no `docker://…:latest`).

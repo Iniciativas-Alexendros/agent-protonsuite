@@ -89,7 +89,7 @@ jobs:
             echo "Paquete presente en npm ($(npm view @alexendros/protonsuite-agent version))."
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=npm registry::@alexendros/protonsuite-agent no existe aún. GitHub Release + GHCR sí. Primera publicación: Trusted Publisher + bootstrap-npm (docs/publishing.md)."
+            echo "::notice title=npm registry::@alexendros/protonsuite-agent existe en registry; con npmPublish true semantic-release publica vía OIDC. Bootstrap/rescate: bootstrap-npm (docs/publishing.md)."
           fi
       - name: Semantic Release
         id: semrel

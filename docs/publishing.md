@@ -1,89 +1,68 @@
 # Publicación a npm y GHCR
 
 Abrir cuando: Configuras Trusted Publishing, diagnosticas un Release rojo o
-reactivas `npmPublish`.
-Aprobado: 23 de septiembre de 2026
+cambias el email de la cuenta npm.
+Aprobado: 24 de septiembre de 2026
 Autoridad: Operativa
 Estado: Aprobado
-Propósito: Contrato de publicación (GitHub Release + GHCR ahora; npm cuando exista).
+Propósito: Contrato de publicación (GitHub Release + GHCR + npm OIDC).
 
 Este documento describe cómo se publica `@alexendros/protonsuite-agent`.
-**No se usa `NPM_TOKEN`.** npm queda detrás de OIDC Trusted Publishing, pero el
-paquete **aún no existe** en el registry (OIDC 404 `package not found` el
-2026-09-23). Hasta entonces `npmPublish` es `false` y Release no debe fallar.
+**No se usa `NPM_TOKEN` en CI.** npm usa [Trusted Publishing](https://docs.npmjs.com/trusted-publishers)
+(OIDC). El paquete **existe** en el registry (`1.4.0`, 2026-09-24). `.releaserc.json`
+mantiene `npmPublish: false` hasta que el Trusted Publisher esté configurado (si no,
+`verifyConditions` rompe Release en cada push). El job `release` ya fuerza npm CLI ≥ 11.5.1.
 
-## Reactivar npm (checklist operador)
+## Trusted Publisher (checklist operador)
 
-Hasta completar estos pasos, `npm view @alexendros/protonsuite-agent` devolverá
-404 y `.releaserc.json` debe seguir con `npmPublish: false`.
+Si OIDC falla en Release, verifica en npmjs.com → paquete → Settings → Trusted Publisher:
 
-1. En [npmjs.com](https://npmjs.com), inicia sesión con la cuenta del scope
-   `@alexendros`.
-2. Crea el paquete `@alexendros/protonsuite-agent` (primera publicación manual
-   o **Trusted Publisher pendiente**):
-   - **Repository**: `Iniciativas-Alexendros/agent-protonsuite`
-   - **Workflow**: `release.yml`
-   - **Environment**: (opcional) `npm`
-3. Confirma: `npm view @alexendros/protonsuite-agent version` (deja de ser 404).
-4. Abre un PR de una línea: en `.releaserc.json`, `"npmPublish": true`.
-5. No añadas `NPM_TOKEN`. El job `release` ya tiene `id-token: write`.
+1. **Provider:** GitHub Actions
+2. **Organization or user:** `Iniciativas-Alexendros`
+3. **Repository:** `agent-protonsuite`
+4. **Workflow filename:** `release.yml`
+5. **Environment:** vacío
+6. **Allowed actions:** permitir `npm publish`
+
+Primera publicación ya hecha (bootstrap manual a `1.4.0`). Tras configurar Trusted
+Publisher, cambia `.releaserc.json` a `"npmPublish": true` en un PR de una línea.
+Bumps futuros: push a `main` con `feat`/`fix` → semantic-release + OIDC.
+
+## Cambio de email de la cuenta npm
+
+El token de automatización **no** puede cambiar email (403 / política 2FA). Hay que
+hacerlo en la UI con contraseña (+ OTP si aplica):
+
+1. https://www.npmjs.com/settings/~/profile
+2. Email → `operaciones@alexendros.dev`
+3. Confirmar el enlace de verificación en el buzón.
 
 ## Cómo funciona
 
 1. Cada push a `main` dispara `release.yml` → `semantic-release` analiza commits.
 2. Si hay un `feat:`, `fix:` o `BREAKING CHANGE:` desde el último tag, se crea
-   una nueva versión (GitHub Release + tag `vX.Y.Z`).
+   una nueva versión (GitHub Release + tag `vX.Y.Z`) y se publica a npm vía OIDC.
 3. `semantic-release` actualiza `CHANGELOG.md` en el job; no hace push a `main`
    (`@semantic-release/git` omitido: rama protegida, GH006).
-4. `@semantic-release/npm` genera el tarball (`tarballDir: dist`) pero
-   **no publica** (`npmPublish: false`).
-5. Si hay release nueva, el job `publish-ghcr` construye desde el tag `vX.Y.Z` y
-   publica `:latest`, `:X.Y.Z`, `:X.Y` y `:sha-…`.
-6. PRs que tocan el workflow corren `semantic-release --dry-run` (sin publicar).
+4. Si hay release nueva, el job `publish-ghcr` construye desde el tag `vX.Y.Z`.
+5. PRs que tocan el workflow corren `semantic-release --dry-run` (sin publicar).
+6. `workflow_dispatch` con `bootstrap-npm=true` publica la versión actual de
+   `package.json` sin cortar tag (rescate).
 
-## Decisión: no fallar por npm ausente
+## Requisitos duros (OIDC)
 
-| Hecho | Consecuencia |
+| Requisito | Valor en este repo |
 | --- | --- |
-| `npm view @alexendros/protonsuite-agent` → 404 | No hay paquete ni Trusted Publisher pendiente usable |
-| `@semantic-release/npm` con `npmPublish: true` | `verifyConditions` exige OIDC o `NPM_TOKEN` **aunque no haya bump** |
-| Este repo no inventa `NPM_TOKEN` | El job `release` no debe poner un token a mano |
-
-Por eso `.releaserc.json` usa `npmPublish: false`. El workflow emite un
-`::notice::` si el paquete sigue ausente. GitHub Release + GHCR son la
-superficie de release actual.
-
-## Reactivar npm (cuando el paquete exista)
-
-Ver la [checklist operador](#reactivar-npm-checklist-operador) arriba. Resumen:
-
-1. Trusted Publisher pendiente (o primera publicación manual) en npmjs.com.
-2. Confirma `npm view @alexendros/protonsuite-agent version`.
-3. Cambia `.releaserc.json` a `"npmPublish": true`.
-4. No añadas `NPM_TOKEN`. El job ya tiene `id-token: write`.
-
-## Cómo publicar una nueva versión (GitHub + GHCR)
-
-```bash
-git commit -m "feat: nueva funcionalidad"
-# o
-git commit -m "fix: corrección de bug"
-git push origin main
-```
-
-`release.yml` hará automáticamente:
-
-- Análisis de commits → MAJOR/MINOR/PATCH
-- Tag `vX.Y.Z` + GitHub Release
-- Imagen Docker a GHCR (si hubo versión nueva)
+| npm CLI | ≥ **11.5.1** (job `release` instala `npm@^11.5.1`) |
+| Node | ≥ 22.14 (GHA `node-version: 22`) |
+| Permiso Actions | `id-token: write` en el job `release` |
+| Runner | GitHub-hosted |
+| `repository.url` | Coincide con `Iniciativas-Alexendros/agent-protonsuite` |
 
 ## Verificar publicación
 
 ```bash
-# Tag / GitHub Release (fuente de verdad hoy)
 gh release view --repo Iniciativas-Alexendros/agent-protonsuite
-
-# npm (404 esperado hasta reactivar Trusted Publishing)
 npm view @alexendros/protonsuite-agent version
 ```
 
@@ -91,13 +70,16 @@ npm view @alexendros/protonsuite-agent version
 
 | Problema | Solución |
 | --- | --- |
-| `EINVALIDNPMTOKEN` / `401 whoami` | `npmPublish` se reactivó sin paquete/OIDC. Volver a `false` o completar Trusted Publishing. **No** añadir `NPM_TOKEN`. |
-| `404 OIDC token exchange` | El paquete no existe o no hay Trusted Publisher. Ver sección anterior. |
-| `npm publish` no se ejecuta | Esperado mientras `npmPublish: false`. |
-| Commit `chore:`/`docs:` no crea tag | Correcto: no hay bump. El workflow debe quedar verde. |
-| Version en `package.json` desfasada | Tras sync a `1.4.0` el manifiesto coincide con el último tag. Sin `@semantic-release/git`, bumps futuros pueden retrasar el manifiesto hasta el siguiente commit de sync; el tag sigue mandando en GitHub Release. |
+| `EINVALIDNPMTOKEN` / `401 whoami` | Trusted Publisher mal configurado o npm &lt; 11.5.1. **No** añadir `NPM_TOKEN` a CI. |
+| `404 OIDC token exchange` | Workflow filename / org / repo no coinciden con Trusted Publisher. |
+| `ENEEDAUTH` en bootstrap | Igual que arriba; o package visibility. |
+| Commit `chore:`/`docs:` no crea tag | Correcto: no hay bump. |
+| Version en `package.json` desfasada | Sin `@semantic-release/git`, sync manual tras bumps; el tag manda. |
+| Token 403 al cambiar email | Esperado: usar UI + 2FA, no el automation token. |
 
 ## Seguridad
 
-- **No se usa `NPM_TOKEN`**: no hay secreto de npm que rotar ni filtrar.
-- **Cache poisoning deshabilitado**: sin `package-manager-cache` en el path de release.
+- **No hay `NPM_TOKEN` en GitHub Actions.**
+- **Cache poisoning deshabilitado** en el path de release.
+- **Provenance** automático con Trusted Publishing en repos públicos.
+- Tras usar un token de bootstrap local: **revocarlo** en npmjs (quedó expuesto en sesión de operador).

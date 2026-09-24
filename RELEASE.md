@@ -18,10 +18,10 @@ Las releases se gestionan automáticamente con [semantic-release](https://github
 
 ## Publicación
 
-- **npm:** Desactivado (`npmPublish: false`). No se usa `NPM_TOKEN`. Cuando el paquete exista y OIDC Trusted Publishing esté configurado en npmjs.com, se puede volver a `true` (ver [docs/publishing.md](./docs/publishing.md)).
-- **GitHub Release + tag:** Fuente de verdad de la versión. `package.json` puede quedar desfasado (hoy alineado a `1.4.0` tras sync manual) porque no se hace push a `main` con `@semantic-release/git` (protegida, GH006).
+- **npm:** Paquete `@alexendros/protonsuite-agent@1.4.0` ya en registry. `npmPublish` sigue en `false` hasta Trusted Publisher OIDC (job con npm ≥ 11.5.1). Bootstrap: `gh workflow run release.yml -f bootstrap-npm=true`. **No** `NPM_TOKEN` en CI. Ver [docs/publishing.md](./docs/publishing.md).
+- **GitHub Release + tag:** Fuente de verdad de la versión en git. `package.json` puede quedar desfasado tras un bump (hoy alineado a `1.4.0`) porque no se hace push a `main` con `@semantic-release/git` (protegida, GH006).
 - **GHCR:** Imagen Docker multi-tag (`:latest`, `:vX.Y.Z`, `:vX.Y`, `:sha-XXXXX`) solo cuando semantic-release publica una versión.
-- **Provenance:** Docker build usa `provenance: true`. npm provenance queda para cuando se reactive Trusted Publishing.
+- **Provenance:** Docker build usa `provenance: true`. npm provenance cuando Trusted Publishing esté activo.
 - **PR metadata:** `release-preview.yml` comenta el bump previsto; `@semantic-release/github` aplica el label `released` a PRs incluidos en la release.
 
 ## Hotfix

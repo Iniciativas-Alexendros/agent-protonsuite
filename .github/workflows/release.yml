@@ -15,6 +15,10 @@ on:
         description: "Simular release sin publicar nada"
         type: boolean
         default: false
+      bootstrap-npm:
+        description: "Publicar la versión actual de package.json a npm vía OIDC (primera vez / rescate; no crea tag)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -66,18 +70,30 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+      # Trusted Publishing (OIDC) exige npm CLI ≥ 11.5.1; Node 22 LTS trae npm 10.x.
+      - name: Ensure npm CLI for OIDC (≥11.5.1)
+        run: |
+          set -euo pipefail
+          npm install -g 'npm@^11.5.1'
+          VER="$(npm --version)"
+          echo "npm=${VER}"
+          node -e "const [maj,min,pat]='$VER'.split('.').map(Number); if(!(maj>11||(maj===11&&(min>5||(min===5&&pat>=1))))){console.error('need npm>=11.5.1, got', '$VER'); process.exit(1)}"
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: npm registry status (no NPM_TOKEN)
+        id: npmstatus
         run: |
           set -euo pipefail
           if npm view @alexendros/protonsuite-agent version >/dev/null 2>&1; then
-            echo "Paquete presente en npm; npmPublish sigue en false hasta Trusted Publishing (docs/publishing.md)."
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "Paquete presente en npm ($(npm view @alexendros/protonsuite-agent version))."
           else
-            echo "::notice title=npm publish omitido::@alexendros/protonsuite-agent no existe en registry.npmjs.org. No hay NPM_TOKEN por diseño. GitHub Release + GHCR sí se publican. Ver docs/publishing.md."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=npm registry::@alexendros/protonsuite-agent no existe aún. GitHub Release + GHCR sí. Primera publicación: Trusted Publisher + bootstrap-npm (docs/publishing.md)."
           fi
       - name: Semantic Release
         id: semrel
+        if: ${{ github.event.inputs.bootstrap-npm != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -93,13 +109,28 @@ jobs:
           fi
           AFTER="$(node -p "require('./package.json').version")"
           echo "after=${AFTER}" >> "$GITHUB_OUTPUT"
+      - name: Bootstrap npm publish (OIDC, versión actual)
+        id: bootstrap
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.bootstrap-npm == 'true' }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "Publicando @alexendros/protonsuite-agent@${VERSION} con OIDC (sin NPM_TOKEN)…"
+          # semantic-release no republica un tag ya cortado; este camino es solo bootstrap/rescate.
+          npm publish --access public
+          echo "bootstrapped=true" >> "$GITHUB_OUTPUT"
       - name: Export release metadata
         id: meta
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          if [ "${{ steps.semrel.outputs.before }}" != "${{ steps.semrel.outputs.after }}" ]; then
+          BEFORE="${{ steps.semrel.outputs.before }}"
+          AFTER="${{ steps.semrel.outputs.after }}"
+          if [ "${{ steps.bootstrap.outputs.bootstrapped }}" = "true" ]; then
+            # Bootstrap no corta tag nuevo; no dispares GHCR otra vez.
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "${BEFORE}" ] && [ "${BEFORE}" != "${AFTER}" ]; then
             echo "published=true" >> "$GITHUB_OUTPUT"
           else
             echo "published=false" >> "$GITHUB_OUTPUT"

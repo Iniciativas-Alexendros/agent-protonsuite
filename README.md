@@ -37,11 +37,11 @@ Punto de entrada de lectura. Te dice el pulso, cómo arrancar y qué documento a
 
 # Estado en una mirada
 
-**Pulso:** 15 de agosto de 2026 · `v1.2.1`
+**Pulso:** 24 de septiembre de 2026 · `v1.3.2`
 
 **Fase activa:** Fase 1 (Pass / agente / DX) checklist cerrada · siguiente: Fase 2 (Calendar, bloqueada). Ver [ROADMAP.md](./ROADMAP.md).
 
-**Métricas:** 47 tools por defecto (50 con Calendar experimental) · 958 tests · cobertura ~98% (gate 95%).
+**Métricas:** 47 tools por defecto (50 con Calendar experimental) · 965 tests · cobertura ~98% (gate 95%).
 
 | Capa | Estado |
 | --- | --- |

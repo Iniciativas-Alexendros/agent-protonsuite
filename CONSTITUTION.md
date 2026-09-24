@@ -1,5 +1,10 @@
 # CONSTITUTION.md
 
+### Propósito de este documento
+- **Objetivos:** Fijar lo no negociable del Proton Suite Agent y el rango documental.
+- **Estructura:** Rango y reforma → documentos → secretos, transporte, dry-run, productos.
+- **Contenido a integrar según contexto:** Prevalencia sobre README/AGENTS, ADRs, frontera Bridge.
+
 Abrir cuando: Alcance, secretos, transporte, dry-run, Calendar/Drive o conflicto entre documentos.
 Aprobado: 15 de agosto de 2026
 Audiencia: Agente, Dirección, Contribuidores

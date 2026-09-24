@@ -1,5 +1,10 @@
 # ROADMAP.md
 
+### Propósito de este documento
+- **Objetivos:** Ordenar el trabajo en fases verificables con criterio de salida.
+- **Estructura:** Reglas → fases → hitos y dependencias de Bridge/Calendar.
+- **Contenido a integrar según contexto:** Fase activa, ADRs citados, checklist de salida.
+
 Abrir cuando: Fase activa, hitos o criterio de salida.
 Aprobado: 15 de agosto de 2026
 Audiencia: Agente, Dirección

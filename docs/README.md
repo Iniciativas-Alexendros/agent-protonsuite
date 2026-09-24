@@ -1,5 +1,10 @@
 # Documentación — Proton Suite Agent
 
+### Propósito de este documento
+- **Objetivos:** Indexar guías, ADRs y runbooks sin duplicar el canon de raíz.
+- **Estructura:** Árbol canónico (`architecture` / `guides` / `runbooks`) → rutas vivas.
+- **Contenido a integrar según contexto:** ADRs MADR, contrato MCP, playbooks, informes de seguridad.
+
 Abrir cuando: Buscas una guía, ADR o informe sin saber la ruta.
 Índice de `docs/`. Canon de gobernanza en la raíz ([README.md](../README.md),
 [CONSTITUTION.md](../CONSTITUTION.md), [ROADMAP.md](../ROADMAP.md)).
@@ -8,6 +13,9 @@ Abrir cuando: Buscas una guía, ADR o informe sin saber la ruta.
 
 | Ruta | Contenido |
 | --- | --- |
+| [`architecture/`](./architecture/) | Fachada canónica → [`ARCHITECTURE.md`](../ARCHITECTURE.md) + ADRs |
+| [`guides/`](./guides/) | Fachada canónica de guías operativas |
+| [`runbooks/`](./runbooks/) | Fachada canónica → [`playbooks/`](../playbooks/) |
 | [`adr/`](./adr/) | Decisiones MADR (0001–0006) |
 | [`api/mcp-tools.md`](./api/mcp-tools.md) | Contrato MCP generado (`pnpm docs:generate`) |
 | Guías (raíz de `docs/`) | Quickstarts, Bridge, deploy, Drive, alertas, KB |
@@ -30,6 +38,6 @@ Abrir cuando: Buscas una guía, ADR o informe sin saber la ruta.
 | [renovate.md](./renovate.md) | Renovate |
 | [coverage-report.md](./coverage-report.md) | Snapshot histórico de cobertura (CI es la fuente viva) |
 
-## Playbooks
+## Playbooks / runbooks
 
-Workflows operativos: [`../playbooks/README.md`](../playbooks/README.md).
+Fachada canónica: [`runbooks/`](./runbooks/). Workflows vivos: [`../playbooks/README.md`](../playbooks/README.md).

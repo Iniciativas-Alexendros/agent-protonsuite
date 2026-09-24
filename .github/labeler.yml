@@ -1,4 +1,4 @@
-area/mail:
+area: mail:
   - changed-files:
       - any-glob-to-any-file:
           - src/imap.ts
@@ -6,35 +6,35 @@ area/mail:
           - src/server/mail.ts
           - src/addresses.ts
 
-area/drive:
+area: drive:
   - changed-files:
       - any-glob-to-any-file:
           - src/drive*.ts
           - src/server/drive.ts
 
-area/pass:
+area: pass:
   - changed-files:
       - any-glob-to-any-file:
           - src/pass.ts
           - src/server/pass.ts
 
-area/bridge:
+area: bridge:
   - changed-files:
       - any-glob-to-any-file:
           - src/bridge/**
 
-area/agent:
+area: agent:
   - changed-files:
       - any-glob-to-any-file:
           - src/agent/**
 
-ci:
+area: infra:
   - changed-files:
       - any-glob-to-any-file:
           - .github/workflows/**
           - .releaserc.json
 
-docs:
+type: docs:
   - changed-files:
       - any-glob-to-any-file:
           - docs/**

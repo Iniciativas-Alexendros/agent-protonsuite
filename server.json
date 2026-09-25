@@ -6,12 +6,12 @@
     "url": "https://github.com/Soluciones-Alexendros/protonsuite-tools",
     "source": "github"
   },
-  "version": "1.4.0",
+  "version": "1.4.3",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@alexendros/protonsuite-agent",
-      "version": "1.4.0",
+      "version": "1.4.3",
       "transport": {
         "type": "stdio"
       },

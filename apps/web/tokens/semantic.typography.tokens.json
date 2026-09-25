@@ -2,12 +2,12 @@
   "$meta": { "ds": "protonsuite", "tier": "semantic", "version": "1.0" },
   "font": {
     "sans": {
-      "$value": "system-ui, \"Segoe UI\", sans-serif",
+      "$value": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
       "$type": "fontFamily",
-      "$description": "Pila del sistema. Sin webfonts ni red."
+      "$description": "Pila de flota (igual en neubat/webconfig/askartask/zedazo). Sin webfonts."
     },
     "mono": {
-      "$value": "ui-monospace, \"Cascadia Code\", monospace",
+      "$value": "ui-monospace, \"Fira Code\", Consolas, monospace",
       "$type": "fontFamily"
     },
     "weight": {

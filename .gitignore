@@ -16,3 +16,4 @@ package-lock.json
 coverage/
 
 .cursor/
+.npmrc.bootstrap

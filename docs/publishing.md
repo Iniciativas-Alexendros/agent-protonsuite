@@ -8,9 +8,9 @@ Estado: Aprobado
 Propósito: Contrato de publicación (GitHub Release + GHCR + npm OIDC).
 
 Este documento describe cómo se publica `@alexendros/protonsuite-agent`.
-**No se usa `NPM_TOKEN` en CI.** npm usa [Trusted Publishing](https://docs.npmjs.com/trusted-publishers)
-(OIDC). El paquete **existe** en el registry (`1.4.0`, 2026-09-24). `.releaserc.json`
-tiene `npmPublish: false` **temporal** (Trusted Publisher borrado el 2026-09-24). Recrear TP y volver a `true`.
+Auth en CI: secret de **organización** `NPM_TOKEN` (granular/automation). Opcional a medio
+plazo: [Trusted Publishing](https://docs.npmjs.com/trusted-publishers) (OIDC). El paquete
+existe en registry (`1.4.3`). `.releaserc.json` tiene `npmPublish: true`.
 Org GitHub: `Soluciones-Alexendros`.
 
 ## Trusted Publisher (checklist operador)
@@ -24,7 +24,7 @@ Si OIDC falla en Release, verifica en npmjs.com → paquete → Settings → Tru
 5. **Environment:** vacío
 6. **Allowed actions:** permitir `npm publish`
 
-Primera publicación: bootstrap manual a `1.4.0`. Bumps futuros: push a `main` con
+Paquete en registry desde `1.4.3`. Bumps futuros: push a `main` con
 `feat`/`fix` → semantic-release + OIDC. Rescate sin bump de tag:
 `gh workflow run release.yml -f bootstrap-npm=true`.
 
@@ -70,10 +70,10 @@ npm view @alexendros/protonsuite-agent version
 
 | Problema | Solución |
 | --- | --- |
-| `EINVALIDNPMTOKEN` / `401 whoami` | Trusted Publisher mal configurado o npm &lt; 11.5.1. **No** añadir `NPM_TOKEN` a CI. Suele ser el fallback tras un OIDC 404. |
+| `EINVALIDNPMTOKEN` / `401 whoami` | Revisar secret org `NPM_TOKEN` (visibilidad del repo) o Trusted Publisher / npm ≥ 11.5.1. |
 | `404 OIDC token exchange` / `package not found` | Trusted Publisher debe ser org `Soluciones-Alexendros`, repo `protonsuite-tools`, workflow `release.yml`, Environment vacío, allow `npm publish`. Las conexiones TP no se editan: borrar y recrear si el login/repo cambió. |
 | `ENEEDAUTH` en bootstrap | Igual que arriba; o package visibility. |
-| `setup-node` + `registry-url` | No usar `registry-url` en el job `release`: genera `_authToken=${NODE_AUTH_TOKEN}` vacío y pelea con OIDC/semantic-release. |
+| `setup-node` + `registry-url` | Con `NPM_TOKEN`, `registry-url` + `NODE_AUTH_TOKEN` es válido. Sin token (solo OIDC), no uses `registry-url` vacío. |
 | Commit `chore:`/`docs:` no crea tag | Correcto: no hay bump. |
 | Version en `package.json` desfasada | Sin `@semantic-release/git`, sync manual tras bumps; el tag manda. |
 | Token 403 al cambiar email | Esperado: usar UI + 2FA, no el automation token. |
@@ -81,7 +81,7 @@ npm view @alexendros/protonsuite-agent version
 
 ## Seguridad
 
-- **No hay `NPM_TOKEN` en GitHub Actions.**
+- **`NPM_TOKEN`** vive como secret de **organización** (no en el repo ni en chat). Revocar tokens de bootstrap locales.
 - **Cache poisoning deshabilitado** en el path de release.
 - **Provenance** automático con Trusted Publishing en repos públicos.
 - Tras usar un token de bootstrap local: **revocarlo** en npmjs.
